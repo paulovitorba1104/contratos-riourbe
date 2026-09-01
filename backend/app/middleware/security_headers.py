@@ -17,7 +17,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        # 'self' liberado para script/style/img/font/connect: o mesmo serviço
+        # serve a API e o build estático da SPA na mesma origem (seção 2 do
+        # plano) — "default-src 'none'" bloqueava o próprio JS/CSS do
+        # frontend, resultando em tela em branco.
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self'; "
+            "img-src 'self' data:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "frame-ancestors 'none'"
+        )
         response.headers["Cache-Control"] = "no-store"
         if self._settings.is_producao:
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
