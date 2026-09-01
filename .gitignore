@@ -1,3 +1,27 @@
+# Ambiente
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+
 ### AL ###
 #Template for AL projects for Dynamics 365 Business Central
 #launch.json folder
