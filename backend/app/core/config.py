@@ -22,6 +22,13 @@ class Settings(BaseSettings):
         postgresql://, sem o driver. Reescreve para o driver psycopg (v3)
         usado neste projeto, sem exigir que a variável de ambiente seja
         editada manualmente a cada deploy."""
+        if not v.strip():
+            raise ValueError(
+                "DATABASE_URL está vazia. No Railway, confira em Variables se a referência ao "
+                "Postgres está resolvendo (ex.: ${{Postgres.DATABASE_URL}} com o nome exato do "
+                "serviço de banco no projeto) — uma referência quebrada gera uma variável vazia "
+                "em vez de erro visível na hora de criar."
+            )
         if v.startswith("postgres://"):
             v = "postgresql://" + v[len("postgres://") :]
         if v.startswith("postgresql://"):
