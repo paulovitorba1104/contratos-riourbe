@@ -81,6 +81,64 @@ cp .env.example .env
 npm run dev
 ```
 
+## Deploy no Railway
+
+Em produção, um **único serviço** builda o `Dockerfile` da raiz do repositório: ele gera o
+build do frontend e copia para dentro da imagem do backend, que passa a servir a API (`/api/*`,
+`/health`) e a SPA (todo o resto) na mesma origem — evita CORS e problemas de cookie
+cross-origin entre dois serviços separados (seção 2 do plano: "monólito modular — um backend,
+um deploy"). Os `Dockerfile` dentro de `backend/` e `frontend/` continuam existindo só para o
+`docker-compose.yml` de desenvolvimento local (hot reload em processos separados).
+
+Como este repositório precisa da sua conta Railway, os passos abaixo são feitos manualmente no
+painel deles (ou via `railway` CLI, se preferir automatizar depois):
+
+1. **Criar o projeto**: no [Railway](https://railway.com/), "New Project" → "Deploy from GitHub
+   repo" → selecione `paulovitorba1104/contratos-riourbe`. O Railway detecta o `railway.toml` na
+   raiz e builda a partir do `Dockerfile` (também na raiz) automaticamente.
+
+2. **Adicionar o banco**: no mesmo projeto, "New" → "Database" → "PostgreSQL". O Railway cria a
+   variável `DATABASE_URL` nesse serviço de banco automaticamente.
+
+3. **Ligar o banco ao serviço web**: nas variáveis de ambiente do serviço web (o que builda o
+   `Dockerfile`), adicione `DATABASE_URL` referenciando o serviço de banco, algo como
+   `${{Postgres.DATABASE_URL}}` (o Railway sugere essa referência automaticamente ao digitar
+   `DATABASE_URL`). Não precisa editar o esquema da URL — o backend normaliza `postgres://`/
+   `postgresql://` para o driver `psycopg` usado no projeto.
+
+4. **Configurar as demais variáveis de ambiente** no serviço web (ver `backend/.env.example`
+   para a lista completa e a seção 13 do plano para o porquê de cada uma):
+
+   | Variável | Valor em produção |
+   |---|---|
+   | `AMBIENTE` | `production` |
+   | `JWT_SECRET` | gerar com `openssl rand -hex 32` — nunca o valor padrão de dev |
+   | `COOKIE_SECURE` | `true` |
+   | `ADMIN_INICIAL_MATRICULA` | matrícula do primeiro administrador |
+   | `ADMIN_INICIAL_SENHA` | senha forte, diferente do padrão de dev (a guarda de boot recusa subir se for a padrão) |
+   | `CORS_ORIGINS` | opcional — como frontend e backend são a mesma origem em produção, só é necessário se algum outro domínio for consumir a API diretamente |
+
+   A guarda de boot (`app/core/boot_guard.py`) recusa o deploy — o processo falha no boot — se
+   `JWT_SECRET` for fraco/padrão, `ADMIN_INICIAL_SENHA` for a padrão publicada, ou
+   `COOKIE_SECURE` não for `true`. Isso é proposital: é melhor o deploy falhar alto e visível do
+   que subir inseguro.
+
+5. **Deploy**: qualquer push na branch configurada dispara um novo deploy. O `CMD` da imagem
+   roda `alembic upgrade head` e `python -m scripts.seed_admin` antes de subir o `uvicorn`, então
+   migrações e o administrador inicial são aplicados automaticamente a cada deploy (o seed é
+   idempotente — só cria o administrador se a matrícula ainda não existir).
+
+6. **Health check**: o Railway usa `GET /health` (configurado em `railway.toml`) para saber se o
+   deploy está saudável antes de rotear tráfego para ele.
+
+7. **Domínio**: o Railway gera um domínio `*.up.railway.app` automaticamente; um domínio próprio
+   pode ser configurado depois em "Settings → Networking" do serviço.
+
+**Depois do primeiro deploy**, entre com a matrícula/senha do administrador inicial e troque a
+senha o quanto antes — este MVP ainda não tem uma tela de troca de senha própria (fica para
+antes da Fase 1, é um gap real: hoje só é possível recriar o usuário via `PATCH`/endpoints de
+administração).
+
 ## Estrutura do repositório
 
 ```

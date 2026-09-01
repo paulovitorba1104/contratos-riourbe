@@ -17,6 +17,9 @@ dist/
 .vite/
 *.tsbuildinfo
 
+# Build do frontend copiado para dentro do backend na imagem de produção
+backend/app/static/
+
 # Editor / SO
 .vscode/
 .idea/

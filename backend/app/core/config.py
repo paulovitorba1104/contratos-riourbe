@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_DEV_JWT_SECRET = "dev-secret-change-me-dev-secret-change-me"
@@ -13,6 +14,19 @@ class Settings(BaseSettings):
     ambiente: str = "development"  # development | production
 
     database_url: str = "postgresql+psycopg://riourbe:riourbe@127.0.0.1:5432/riourbe"
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalizar_database_url(cls, v: str) -> str:
+        """Railway (e Heroku) injetam DATABASE_URL como postgres:// ou
+        postgresql://, sem o driver. Reescreve para o driver psycopg (v3)
+        usado neste projeto, sem exigir que a variável de ambiente seja
+        editada manualmente a cada deploy."""
+        if v.startswith("postgres://"):
+            v = "postgresql://" + v[len("postgres://") :]
+        if v.startswith("postgresql://"):
+            v = "postgresql+psycopg://" + v[len("postgresql://") :]
+        return v
 
     jwt_secret: str = DEFAULT_DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"

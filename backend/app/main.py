@@ -1,8 +1,10 @@
 import logging
+from pathlib import Path
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
 from app.api.routes import auth, health, usuarios
@@ -42,7 +44,27 @@ app.include_router(health.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(usuarios.router, prefix="/api")
 
+# Em produção (imagem Railway), o build do frontend é copiado para app/static
+# no momento do build da imagem — ver Dockerfile na raiz do repositório. Um
+# único serviço serve API e SPA, evitando CORS/cookies cross-origin entre
+# dois deploys (seção 2 do plano: "monólito modular — um backend, um deploy").
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-@app.get("/")
-def raiz() -> dict:
-    return {"sistema": settings.app_name, "ambiente": settings.ambiente}
+if STATIC_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{caminho_completo:path}", include_in_schema=False)
+    def frontend_spa(caminho_completo: str) -> FileResponse:
+        if caminho_completo.startswith("api/") or caminho_completo == "api":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rota da API não encontrada.")
+
+        candidato = (STATIC_DIR / caminho_completo).resolve()
+        dentro_do_static = candidato.is_relative_to(STATIC_DIR.resolve())
+        if caminho_completo and dentro_do_static and candidato.is_file():
+            return FileResponse(candidato)
+        return FileResponse(STATIC_DIR / "index.html")
+else:
+
+    @app.get("/")
+    def raiz() -> dict:
+        return {"sistema": settings.app_name, "ambiente": settings.ambiente}
