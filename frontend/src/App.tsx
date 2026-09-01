@@ -2,6 +2,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { Rodape } from "./components/Rodape";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
+import { Atas } from "./pages/contratos/Atas";
+import { ContratoDetalhe } from "./pages/contratos/ContratoDetalhe";
+import { ContratosKanban } from "./pages/contratos/ContratosKanban";
+import { NovoContrato } from "./pages/contratos/NovoContrato";
 import { Hub } from "./pages/Hub";
 import { Login } from "./pages/Login";
 
@@ -26,6 +30,38 @@ function Rotas() {
         element={
           <RotaProtegida>
             <Hub />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/contratos"
+        element={
+          <RotaProtegida>
+            <ContratosKanban />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/contratos/novo"
+        element={
+          <RotaProtegida>
+            <NovoContrato />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/contratos/atas"
+        element={
+          <RotaProtegida>
+            <Atas />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/contratos/:id"
+        element={
+          <RotaProtegida>
+            <ContratoDetalhe />
           </RotaProtegida>
         }
       />

@@ -3,11 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import exigir_administrador
+from app.api.deps import exigir_administrador, get_current_user
 from app.core.security import hash_senha
 from app.db.session import get_db
 from app.models.usuario import PapelUsuario, Usuario
-from app.schemas.usuario import UsuarioAtualizarPapel, UsuarioCriar, UsuarioSaida
+from app.schemas.usuario import UsuarioAtualizarPapel, UsuarioBasico, UsuarioCriar, UsuarioSaida
 from app.services.auditoria import registrar_log
 
 router = APIRouter(prefix="/usuarios", tags=["usuários"])
@@ -26,6 +26,16 @@ def listar_usuarios(
     _: Usuario = Depends(exigir_administrador),
 ) -> list[Usuario]:
     return db.query(Usuario).order_by(Usuario.nome).all()
+
+
+@router.get("/basico", response_model=list[UsuarioBasico])
+def listar_usuarios_basico(
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+) -> list[Usuario]:
+    """Para seleção em outros módulos (ex.: fiscais de contrato) — qualquer
+    usuário autenticado, sem exigir papel de administrador."""
+    return db.query(Usuario).filter(Usuario.ativo.is_(True)).order_by(Usuario.nome).all()
 
 
 @router.post("", response_model=UsuarioSaida, status_code=status.HTTP_201_CREATED)

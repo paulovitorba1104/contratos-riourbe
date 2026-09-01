@@ -17,7 +17,7 @@ class ErroApi extends Error {
   }
 }
 
-async function requisicao<T>(caminho: string, init?: RequestInit): Promise<T> {
+export async function requisicao<T>(caminho: string, init?: RequestInit): Promise<T> {
   const resposta = await fetch(`/api${caminho}`, {
     credentials: "include",
     headers: { "Content-Type": "application/json" },
