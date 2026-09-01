@@ -7,9 +7,10 @@ Monólito modular: **um backend (FastAPI), um frontend (React)**, com **schemas 
 PostgreSQL por domínio** (`core`, `contratos`, `faturas`, `licitacao`, `compras`,
 `almoxarifado`, `fiscalizacao`, `tarefas`).
 
-Este repositório está na **Fase 0** do plano de desenvolvimento: infraestrutura base, esqueleto
-da aplicação e a fundação de autenticação/segurança sobre a qual os módulos de negócio (Fase 1
-em diante) serão construídos.
+Este repositório já passou pela **Fase 0** (infraestrutura base, autenticação/segurança) e está
+com o **Módulo Contratos (Fase 1)** em desenvolvimento: entidade Contrato, instrumentos
+processuais (aditivos), os 3 relógios de prazo, painel Kanban, fornecedores, modelos RIPM e
+atas de registro de preço.
 
 ## Stack
 
@@ -187,11 +188,37 @@ Conforme a seção 13 do plano de desenvolvimento:
 - `log_auditoria` (schema `core`) reaproveitável por todos os módulos — quem fez o quê, quando,
   em qual registro.
 
+## Módulo Contratos (Fase 1)
+
+Implementa a seção 4 do plano de desenvolvimento:
+
+- **Contrato**: nasce de 1 forma de contratação (Pregão Eletrônico, Dispensa ou Inexigibilidade);
+  status macro (`vigente` → `suspenso` → `encerrado`) só muda através de um instrumento de
+  suspensão ou rescisão/extinção — nunca editado diretamente.
+- **Instrumentos processuais**: origem + aditivos (prorrogação, acréscimo/supressão de valor,
+  alteração qualitativa, reequilíbrio, apostilamento, suspensão, rescisão/extinção), cada um
+  mapeado a um modelo RIPM e com fundamentação legal estruturada (lei + artigo).
+- **3 relógios de prazo**: vigência atual (derivada do instrumento de origem/prorrogação mais
+  recente), teto rígido de 5 anos desde a assinatura original (bloqueia prorrogação que
+  ultrapasse — `TetoVigenciaExcedido`), e garantia contratual independente. Alertas calculados
+  em 6/3/1 mês (vigência) e 3/1 mês (garantia).
+- **Painel Kanban** por status macro, ficha do contrato com timeline de instrumentos, fiscal(is)
+  obrigatório(s), fornecedores e atas de registro de preço disponíveis para adesão.
+
+A tabela `contratos.modelos_ripm` reaproveita o padrão `modelos_checklist`/`conferencias` do
+sistema de Faturas, mas fica **vazia até a lista oficial dos 32 modelos RIPM da PGM-Rio ser
+fornecida** — é possível cadastrar modelos via `POST /api/modelos-ripm` (restrito a
+administrador) enquanto isso.
+
 ## Pendências (ver seção 16 do plano)
 
 Itens abaixo **não são bloqueio para a Fase 0**, mas precisam de decisão antes das fases que
 dependem deles: e-mail transacional via Brevo (redefinição de senha), provedor de IA, layout
 final do hub com Almoxarifado/Fiscalização, entre outros listados no plano de desenvolvimento.
+
+Específico da Fase 1: a lista oficial dos 32 modelos RIPM da PGM-Rio ainda não foi fornecida —
+o mecanismo de checklist está pronto, só falta o conteúdo. O relatório anual de Contratos
+(estrutura da "planilha de evidências") também está pendente e não foi implementado.
 
 ---
 

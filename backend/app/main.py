@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
-from app.api.routes import auth, health, usuarios
+from app.api.routes import atas_registro_preco, auth, contratos, fornecedores, health, modelos_ripm, usuarios
 from app.core.boot_guard import validar_configuracao_producao
 from app.core.config import get_settings
 from app.middleware.body_size_limit import LimiteTamanhoCorpoMiddleware
@@ -43,6 +43,10 @@ async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSON
 app.include_router(health.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(usuarios.router, prefix="/api")
+app.include_router(fornecedores.router, prefix="/api")
+app.include_router(modelos_ripm.router, prefix="/api")
+app.include_router(atas_registro_preco.router, prefix="/api")
+app.include_router(contratos.router, prefix="/api")
 
 # Em produção (imagem Railway), o build do frontend é copiado para app/static
 # no momento do build da imagem — ver Dockerfile na raiz do repositório. Um
