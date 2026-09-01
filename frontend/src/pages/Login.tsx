@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
+import logoRioUrbe from "../assets/logo-rio-urbe.png";
 import { ErroApi } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
@@ -30,10 +31,7 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center bg-institucional-50">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-institucional-600 text-xl font-bold text-white">
-            RU
-          </div>
-          <h1 className="text-lg font-semibold text-institucional-900">Rio-Urbe</h1>
+          <img src={logoRioUrbe} alt="Prefeitura do Rio — Rio-Urbe" className="mx-auto mb-3 h-auto w-full max-w-[260px]" />
           <p className="text-sm text-institucional-700">Sistema de Gestão de Contratos</p>
         </div>
 
