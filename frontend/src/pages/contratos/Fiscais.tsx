@@ -8,8 +8,7 @@ import { mascararCpf, mascararMatricula } from "../../lib/mascaras";
 import type { Fiscal } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
-const campoClasse =
-  "w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none";
+const campoClasse = "field-input";
 
 function FormularioFiscal({
   inicial,
@@ -40,9 +39,9 @@ function FormularioFiscal({
   }
 
   return (
-    <form onSubmit={aoEnviar} className="mb-6 space-y-3 rounded-lg bg-white p-5 shadow-sm">
+    <form onSubmit={aoEnviar} className="card mb-6 space-y-3 p-5">
       <div>
-        <label className="mb-1 block text-xs text-institucional-700" htmlFor="fiscal_nome">
+        <label className="mb-1 block text-xs text-slate-600" htmlFor="fiscal_nome">
           Nome
         </label>
         <input
@@ -54,7 +53,7 @@ function FormularioFiscal({
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-institucional-700" htmlFor="fiscal_matricula">
+        <label className="mb-1 block text-xs text-slate-600" htmlFor="fiscal_matricula">
           Matrícula (formato 00/000.000-0)
         </label>
         <input
@@ -67,7 +66,7 @@ function FormularioFiscal({
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-institucional-700" htmlFor="fiscal_cpf">
+        <label className="mb-1 block text-xs text-slate-600" htmlFor="fiscal_cpf">
           CPF (opcional, formato 000.000.000-00)
         </label>
         <input
@@ -82,16 +81,14 @@ function FormularioFiscal({
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={enviando}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
-        >
+          disabled={enviando} className="btn-primary">
           {enviando ? "Salvando..." : inicial ? "Salvar alterações" : "Cadastrar"}
         </button>
         {aoCancelar && (
           <button
             type="button"
             onClick={aoCancelar}
-            className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
+            className="btn-secondary"
           >
             Cancelar
           </button>
@@ -156,21 +153,19 @@ export function Fiscais() {
   }
 
   return (
-    <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="flex items-center justify-between border-b border-institucional-100 bg-white px-6 py-4">
+    <div className="page-shell">
+      <header className="page-header">
         <div>
           <Link to="/contratos" className="text-xs text-institucional-600 hover:underline">
             ← Contratos
           </Link>
-          <h1 className="text-lg font-semibold text-institucional-900">Fiscais</h1>
+          <h1 className="page-title">Fiscais</h1>
         </div>
         <button
           onClick={() => {
             setFiscalEmEdicao(null);
             setMostrarForm((v) => !v);
-          }}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700"
-        >
+          }} className="btn-primary">
           {mostrarForm ? "Cancelar" : "+ Novo fiscal"}
         </button>
       </header>
@@ -188,9 +183,9 @@ export function Fiscais() {
           />
         )}
 
-        <div className="overflow-hidden rounded-lg bg-white shadow-sm">
+        <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-institucional-100 text-left text-xs text-institucional-700">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-2">Nome</th>
                 <th className="px-4 py-2">Matrícula</th>
@@ -201,10 +196,10 @@ export function Fiscais() {
             </thead>
             <tbody>
               {fiscais.map((f) => (
-                <tr key={f.id} className="border-t border-institucional-100">
-                  <td className="px-4 py-2 text-institucional-900">{f.nome}</td>
-                  <td className="px-4 py-2 text-institucional-700">{mascararMatricula(f.matricula)}</td>
-                  <td className="px-4 py-2 text-institucional-700">{f.cpf ? mascararCpf(f.cpf) : "—"}</td>
+                <tr key={f.id} className="border-t border-slate-200">
+                  <td className="px-4 py-2 text-slate-900">{f.nome}</td>
+                  <td className="px-4 py-2 text-slate-600">{mascararMatricula(f.matricula)}</td>
+                  <td className="px-4 py-2 text-slate-600">{f.cpf ? mascararCpf(f.cpf) : "—"}</td>
                   <td className="px-4 py-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${f.ativo ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-700"}`}
@@ -218,20 +213,20 @@ export function Fiscais() {
                         setMostrarForm(false);
                         setFiscalEmEdicao(f);
                       }}
-                      className="mr-2 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="btn-secondary btn-sm mr-2"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => alternarAtivo(f)}
-                      className="mr-2 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="btn-secondary btn-sm mr-2"
                     >
                       {f.ativo ? "Inativar" : "Reativar"}
                     </button>
                     {ehAdministrador && (
                       <button
                         onClick={() => excluir(f)}
-                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
                         title="Exclusão definitiva — restrita a administrador"
                       >
                         Excluir
@@ -242,7 +237,7 @@ export function Fiscais() {
               ))}
               {fiscais.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-3 text-center text-institucional-500">
+                  <td colSpan={5} className="px-4 py-3 text-center text-slate-500">
                     Nenhum fiscal cadastrado ainda.
                   </td>
                 </tr>

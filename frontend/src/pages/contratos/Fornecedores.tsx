@@ -8,8 +8,7 @@ import { mascararCnpj } from "../../lib/mascaras";
 import type { Fornecedor } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
-const campoClasse =
-  "w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none";
+const campoClasse = "field-input";
 
 function FormularioFornecedor({
   inicial,
@@ -39,9 +38,9 @@ function FormularioFornecedor({
   }
 
   return (
-    <form onSubmit={aoEnviar} className="mb-6 space-y-3 rounded-lg bg-white p-5 shadow-sm">
+    <form onSubmit={aoEnviar} className="card mb-6 space-y-3 p-5">
       <div>
-        <label className="mb-1 block text-xs text-institucional-700" htmlFor="fornecedor_razao_social">
+        <label className="mb-1 block text-xs text-slate-600" htmlFor="fornecedor_razao_social">
           Razão social
         </label>
         <input
@@ -53,7 +52,7 @@ function FormularioFornecedor({
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-institucional-700" htmlFor="fornecedor_cnpj">
+        <label className="mb-1 block text-xs text-slate-600" htmlFor="fornecedor_cnpj">
           CNPJ (formato 00.000.000/0000-00)
         </label>
         <input
@@ -64,7 +63,7 @@ function FormularioFornecedor({
           placeholder="00.000.000/0000-00"
           required
         />
-        <p className="mt-1 text-xs text-institucional-500">
+        <p className="mt-1 text-xs text-slate-500">
           Ao salvar, o CNPJ é conferido na Receita Federal — só é aceito se estiver com situação ativa.
         </p>
       </div>
@@ -72,16 +71,14 @@ function FormularioFornecedor({
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={enviando}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
-        >
+          disabled={enviando} className="btn-primary">
           {enviando ? "Salvando..." : inicial ? "Salvar alterações" : "Cadastrar"}
         </button>
         {aoCancelar && (
           <button
             type="button"
             onClick={aoCancelar}
-            className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
+            className="btn-secondary"
           >
             Cancelar
           </button>
@@ -145,21 +142,19 @@ export function Fornecedores() {
   }
 
   return (
-    <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="flex items-center justify-between border-b border-institucional-100 bg-white px-6 py-4">
+    <div className="page-shell">
+      <header className="page-header">
         <div>
           <Link to="/contratos" className="text-xs text-institucional-600 hover:underline">
             ← Contratos
           </Link>
-          <h1 className="text-lg font-semibold text-institucional-900">Fornecedores</h1>
+          <h1 className="page-title">Fornecedores</h1>
         </div>
         <button
           onClick={() => {
             setFornecedorEmEdicao(null);
             setMostrarForm((v) => !v);
-          }}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700"
-        >
+          }} className="btn-primary">
           {mostrarForm ? "Cancelar" : "+ Novo fornecedor"}
         </button>
       </header>
@@ -177,9 +172,9 @@ export function Fornecedores() {
           />
         )}
 
-        <div className="overflow-hidden rounded-lg bg-white shadow-sm">
+        <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-institucional-100 text-left text-xs text-institucional-700">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-2">Razão social</th>
                 <th className="px-4 py-2">CNPJ</th>
@@ -189,9 +184,9 @@ export function Fornecedores() {
             </thead>
             <tbody>
               {fornecedores.map((f) => (
-                <tr key={f.id} className="border-t border-institucional-100">
-                  <td className="px-4 py-2 text-institucional-900">{f.razao_social}</td>
-                  <td className="px-4 py-2 text-institucional-700">{mascararCnpj(f.cnpj)}</td>
+                <tr key={f.id} className="border-t border-slate-200">
+                  <td className="px-4 py-2 text-slate-900">{f.razao_social}</td>
+                  <td className="px-4 py-2 text-slate-600">{mascararCnpj(f.cnpj)}</td>
                   <td className="px-4 py-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${f.ativo ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-700"}`}
@@ -205,20 +200,20 @@ export function Fornecedores() {
                         setMostrarForm(false);
                         setFornecedorEmEdicao(f);
                       }}
-                      className="mr-2 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="btn-secondary btn-sm mr-2"
                     >
                       Editar
                     </button>
                     <button
                       onClick={() => alternarAtivo(f)}
-                      className="mr-2 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="btn-secondary btn-sm mr-2"
                     >
                       {f.ativo ? "Inativar" : "Reativar"}
                     </button>
                     {ehAdministrador && (
                       <button
                         onClick={() => excluir(f)}
-                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
                         title="Exclusão definitiva — restrita a administrador"
                       >
                         Excluir
@@ -229,7 +224,7 @@ export function Fornecedores() {
               ))}
               {fornecedores.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-3 text-center text-institucional-500">
+                  <td colSpan={4} className="px-4 py-3 text-center text-slate-500">
                     Nenhum fornecedor cadastrado ainda.
                   </td>
                 </tr>

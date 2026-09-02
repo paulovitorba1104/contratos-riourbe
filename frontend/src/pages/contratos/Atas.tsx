@@ -7,8 +7,7 @@ import { useAuth } from "../../lib/AuthContext";
 import type { AtaRegistroPreco } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
-const campoClasse =
-  "w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none";
+const campoClasse = "field-input";
 
 export function Atas() {
   const [atas, setAtas] = useState<AtaRegistroPreco[]>([]);
@@ -58,18 +57,16 @@ export function Atas() {
   }
 
   return (
-    <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="flex items-center justify-between border-b border-institucional-100 bg-white px-6 py-4">
+    <div className="page-shell">
+      <header className="page-header">
         <div>
           <Link to="/contratos" className="text-xs text-institucional-600 hover:underline">
             ← Contratos
           </Link>
-          <h1 className="text-lg font-semibold text-institucional-900">Atas de registro de preço</h1>
+          <h1 className="page-title">Atas de registro de preço</h1>
         </div>
         <button
-          onClick={() => setMostrarForm((v) => !v)}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700"
-        >
+          onClick={() => setMostrarForm((v) => !v)} className="btn-primary">
           {mostrarForm ? "Cancelar" : "+ Nova ata"}
         </button>
       </header>
@@ -78,7 +75,7 @@ export function Atas() {
         {erro && <p className="mb-4 text-sm text-red-600">{erro}</p>}
 
         {mostrarForm && (
-          <form onSubmit={aoEnviar} className="mb-6 space-y-3 rounded-lg bg-white p-5 shadow-sm">
+          <form onSubmit={aoEnviar} className="card mb-6 space-y-3 p-5">
             <input
               className={campoClasse}
               placeholder="Órgão"
@@ -102,7 +99,7 @@ export function Atas() {
               required
             />
             <div>
-              <label className="mb-1 block text-xs text-institucional-700">Validade</label>
+              <label className="mb-1 block text-xs text-slate-600">Validade</label>
               <input
                 type="date"
                 className={campoClasse}
@@ -112,9 +109,7 @@ export function Atas() {
               />
             </div>
             <button
-              type="submit"
-              className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700"
-            >
+              type="submit" className="btn-primary">
               Cadastrar
             </button>
           </form>
@@ -122,18 +117,18 @@ export function Atas() {
 
         <div className="space-y-2">
           {atas.map((ata) => (
-            <div key={ata.id} className="flex items-start justify-between rounded-lg bg-white p-4 shadow-sm">
+            <div key={ata.id} className="card flex items-start justify-between p-4">
               <div>
-                <p className="font-medium text-institucional-900">
+                <p className="font-medium text-slate-900">
                   {ata.orgao} — {ata.numero_ata}
                 </p>
-                <p className="text-sm text-institucional-700">{ata.objeto}</p>
-                <p className="text-xs text-institucional-500">Válida até {ata.data_validade}</p>
+                <p className="text-sm text-slate-600">{ata.objeto}</p>
+                <p className="text-xs text-slate-500">Válida até {ata.data_validade}</p>
               </div>
               {ehAdministrador && (
                 <button
                   onClick={() => excluir(ata)}
-                  className="whitespace-nowrap rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                  className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
                   title="Exclusão definitiva — restrita a administrador"
                 >
                   Excluir
@@ -141,7 +136,7 @@ export function Atas() {
               )}
             </div>
           ))}
-          {atas.length === 0 && <p className="text-sm text-institucional-500">Nenhuma ata disponível para adesão.</p>}
+          {atas.length === 0 && <p className="text-sm text-slate-500">Nenhuma ata disponível para adesão.</p>}
         </div>
       </main>
     </div>

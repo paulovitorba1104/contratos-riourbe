@@ -29,8 +29,7 @@ import {
 } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
-const campoClasse =
-  "w-full rounded border border-institucional-200 px-2 py-1.5 text-sm focus:border-institucional-500 focus:outline-none";
+const campoClasse = "field-input py-1.5";
 
 function formatarMoeda(valor: string): string {
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -99,10 +98,10 @@ function NovoInstrumentoForm({
   }
 
   return (
-    <div className="space-y-3 rounded border border-institucional-200 bg-institucional-50 p-4">
+    <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4">
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Tipo</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Tipo</label>
           <select className={campoClasse} value={tipo} onChange={(e) => setTipo(e.target.value as TipoInstrumento)}>
             {Object.entries(ROTULOS_TIPO_INSTRUMENTO).map(([valor, rotulo]) => (
               <option key={valor} value={valor}>
@@ -112,7 +111,7 @@ function NovoInstrumentoForm({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Fundamentação (lei)</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Fundamentação (lei)</label>
           <select
             className={campoClasse}
             value={fundamentacaoLei}
@@ -123,7 +122,7 @@ function NovoInstrumentoForm({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Artigo</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Artigo</label>
           <input
             className={campoClasse}
             value={fundamentacaoArtigo}
@@ -134,14 +133,14 @@ function NovoInstrumentoForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-institucional-800">Nº documento SEI (opcional)</label>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Nº documento SEI (opcional)</label>
         <input className={campoClasse} value={numeroDocumentoSei} onChange={(e) => setNumeroDocumentoSei(e.target.value)} />
       </div>
 
       {exigeVigencia && (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-institucional-800" htmlFor="instrumento_data_inicio">
+            <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="instrumento_data_inicio">
               Início da vigência
             </label>
             <input
@@ -153,7 +152,7 @@ function NovoInstrumentoForm({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-institucional-800" htmlFor="instrumento_data_fim">
+            <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="instrumento_data_fim">
               Fim da vigência
             </label>
             <input
@@ -169,7 +168,7 @@ function NovoInstrumentoForm({
 
       {exigeValor && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">
+          <label className="mb-1 block text-xs font-medium text-slate-600">
             {tipo === "acrescimo_valor" ? "Valor do acréscimo" : "Valor da supressão (digite - na frente)"}
           </label>
           <input
@@ -184,7 +183,7 @@ function NovoInstrumentoForm({
       )}
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-institucional-800">Observações</label>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Observações</label>
         <textarea className={campoClasse} rows={2} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
       </div>
 
@@ -194,7 +193,7 @@ function NovoInstrumentoForm({
         type="button"
         onClick={enviar}
         disabled={enviando}
-        className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+        className="btn-primary"
       >
         {enviando ? "Registrando..." : "Registrar instrumento"}
       </button>
@@ -236,7 +235,7 @@ function NovoVinculoFiscalForm({
   }
 
   return (
-    <div className="space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
       <div className="grid grid-cols-2 gap-2">
         <select
           id="novo_vinculo_fiscal_id"
@@ -264,7 +263,7 @@ function NovoVinculoFiscalForm({
         type="button"
         onClick={enviar}
         disabled={enviando}
-        className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+        className="btn-primary btn-sm"
       >
         {enviando ? "Designando..." : "Designar fiscal"}
       </button>
@@ -305,10 +304,10 @@ function RegistrarGarantiaForm({
   }
 
   return (
-    <div className="space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800" htmlFor="garantia_data_inicio">
+          <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="garantia_data_inicio">
             Início da garantia
           </label>
           <input
@@ -320,7 +319,7 @@ function RegistrarGarantiaForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800" htmlFor="garantia_data_fim">
+          <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="garantia_data_fim">
             Fim da garantia
           </label>
           <input
@@ -333,7 +332,7 @@ function RegistrarGarantiaForm({
         </div>
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-institucional-800">Observação (opcional)</label>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Observação (opcional)</label>
         <input
           className={campoClasse}
           value={observacao}
@@ -347,14 +346,14 @@ function RegistrarGarantiaForm({
           type="button"
           onClick={enviar}
           disabled={enviando}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+          className="btn-primary btn-sm"
         >
           {enviando ? "Registrando..." : "Registrar garantia"}
         </button>
         <button
           type="button"
           onClick={aoCancelar}
-          className="rounded border border-institucional-300 px-3 py-1.5 text-xs text-institucional-700 hover:bg-institucional-100"
+          className="btn-secondary btn-sm"
         >
           Cancelar
         </button>
@@ -441,7 +440,7 @@ function NovoProcessoForm({
   }
 
   return (
-    <div className="space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
       <CamposProcesso
         numeroProcesso={numeroProcesso}
         sistemaOrigem={sistemaOrigem}
@@ -456,14 +455,14 @@ function NovoProcessoForm({
           type="button"
           onClick={enviar}
           disabled={enviando}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+          className="btn-primary btn-sm"
         >
           {enviando ? "Adicionando..." : "Adicionar processo"}
         </button>
         <button
           type="button"
           onClick={aoCancelar}
-          className="rounded border border-institucional-300 px-3 py-1.5 text-xs text-institucional-700 hover:bg-institucional-100"
+          className="btn-secondary btn-sm"
         >
           Cancelar
         </button>
@@ -511,7 +510,7 @@ function EditarProcessoForm({
   }
 
   return (
-    <div className="space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
       <CamposProcesso
         numeroProcesso={numeroProcesso}
         sistemaOrigem={sistemaOrigem}
@@ -526,14 +525,14 @@ function EditarProcessoForm({
           type="button"
           onClick={enviar}
           disabled={enviando}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+          className="btn-primary btn-sm"
         >
           {enviando ? "Salvando..." : "Salvar"}
         </button>
         <button
           type="button"
           onClick={aoCancelar}
-          className="rounded border border-institucional-300 px-3 py-1.5 text-xs text-institucional-700 hover:bg-institucional-100"
+          className="btn-secondary btn-sm"
         >
           Cancelar
         </button>
@@ -605,12 +604,12 @@ function EditarContratoForm({
   }
 
   return (
-    <section className="space-y-3 rounded-lg bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-institucional-900">Editar contrato</h2>
+    <section className="card space-y-3 p-5">
+      <h2 className="text-sm font-semibold text-slate-900">Editar contrato</h2>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Número do contrato</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Número do contrato</label>
           <input
             className={campoClasse}
             value={numeroContrato}
@@ -618,22 +617,22 @@ function EditarContratoForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Tipo de serviço</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Tipo de serviço</label>
           <input className={campoClasse} value={tipoServico} onChange={(e) => setTipoServico(e.target.value)} />
         </div>
       </div>
-      <p className="text-xs text-institucional-500">
+      <p className="text-xs text-slate-500">
         Os números de processo são gerenciados na seção "Processos" abaixo.
       </p>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-institucional-800">Objeto</label>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Objeto</label>
         <textarea className={campoClasse} rows={2} value={objeto} onChange={(e) => setObjeto(e.target.value)} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Fornecedor</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Fornecedor</label>
           <select className={campoClasse} value={fornecedorId} onChange={(e) => setFornecedorId(e.target.value)}>
             {fornecedores.map((f) => (
               <option key={f.id} value={f.id}>
@@ -643,7 +642,7 @@ function EditarContratoForm({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Forma de contratação</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Forma de contratação</label>
           <select
             className={campoClasse}
             value={formaContratacao}
@@ -660,7 +659,7 @@ function EditarContratoForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Data de assinatura original</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Data de assinatura original</label>
           <input
             type="date"
             className={campoClasse}
@@ -669,7 +668,7 @@ function EditarContratoForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Valor inicial</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Valor inicial</label>
           <input
             type="text"
             inputMode="numeric"
@@ -680,7 +679,7 @@ function EditarContratoForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Valor pago</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Valor pago</label>
           <input
             type="text"
             inputMode="numeric"
@@ -694,30 +693,30 @@ function EditarContratoForm({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Nota de reserva</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Nota de reserva</label>
           <input className={campoClasse} value={notaReserva} onChange={(e) => setNotaReserva(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Nota de empenho</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Nota de empenho</label>
           <input className={campoClasse} value={notaEmpenho} onChange={(e) => setNotaEmpenho(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">PT</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">PT</label>
           <input className={campoClasse} value={pt} onChange={(e) => setPt(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">ND</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">ND</label>
           <input className={campoClasse} value={nd} onChange={(e) => setNd(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">FR</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">FR</label>
           <input className={campoClasse} value={fr} onChange={(e) => setFr(e.target.value)} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Tipo patrimonial</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Tipo patrimonial</label>
           <input
             className={campoClasse}
             value={tipoPatrimonial}
@@ -725,7 +724,7 @@ function EditarContratoForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Item patrimonial</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Item patrimonial</label>
           <input
             className={campoClasse}
             value={itemPatrimonial}
@@ -733,13 +732,13 @@ function EditarContratoForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Código CCON</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Código CCON</label>
           <input className={campoClasse} value={codigoCcon} onChange={(e) => setCodigoCcon(e.target.value)} />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-institucional-800">Observações</label>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Observações</label>
         <textarea
           className={campoClasse}
           rows={2}
@@ -755,14 +754,14 @@ function EditarContratoForm({
           type="button"
           onClick={enviar}
           disabled={enviando}
-          className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+          className="btn-primary"
         >
           {enviando ? "Salvando..." : "Salvar alterações"}
         </button>
         <button
           type="button"
           onClick={aoCancelar}
-          className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
+          className="btn-secondary btn-sm"
         >
           Cancelar
         </button>
@@ -929,26 +928,26 @@ export function ContratoDetalhe() {
     return <p className="p-6 text-sm text-red-600">{erro}</p>;
   }
   if (!contrato) {
-    return <p className="p-6 text-sm text-institucional-700">Carregando...</p>;
+    return <p className="p-6 text-sm text-slate-600">Carregando...</p>;
   }
 
   return (
-    <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="border-b border-institucional-100 bg-white px-6 py-4">
-        <div className="flex items-start justify-between">
+    <div className="page-shell">
+      <header className="border-b border-slate-200 bg-white px-6 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <Link to="/contratos" className="text-xs text-institucional-600 hover:underline">
               ← Contratos
             </Link>
             <div className="mt-1 flex items-center gap-3">
-              <h1 className="text-lg font-semibold text-institucional-900">
+              <h1 className="text-lg font-semibold text-slate-900">
                 Contrato {contrato.numero_contrato}
               </h1>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CORES_STATUS[contrato.status]}`}>
                 {ROTULOS_STATUS_CONTRATO[contrato.status]}
               </span>
             </div>
-            <p className="text-sm text-institucional-700">
+            <p className="text-sm text-slate-600">
               {contrato.tipo_servico} · {processoResumo(contrato.processos)} ·{" "}
               {fornecedor?.razao_social ?? "..."} · {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
             </p>
@@ -956,14 +955,14 @@ export function ContratoDetalhe() {
           <div className="flex gap-2">
             <button
               onClick={() => setMostrarFormEditarContrato((v) => !v)}
-              className="whitespace-nowrap rounded border border-institucional-300 px-3 py-1.5 text-xs font-medium text-institucional-700 hover:bg-institucional-100"
+              className="btn-secondary btn-sm"
             >
               {mostrarFormEditarContrato ? "Cancelar edição" : "Editar contrato"}
             </button>
             {ehAdministrador && (
               <button
                 onClick={excluirContrato}
-                className="whitespace-nowrap rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
                 title="Exclusão definitiva — restrita a administrador"
               >
                 Excluir contrato
@@ -989,14 +988,14 @@ export function ContratoDetalhe() {
           />
         )}
 
-        <section className="rounded-lg bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-institucional-900">Objeto</h2>
-          <p className="text-sm text-institucional-700">{contrato.objeto}</p>
+        <section className="card p-5">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Objeto</h2>
+          <p className="text-sm text-slate-600">{contrato.objeto}</p>
         </section>
 
-        <section className="rounded-lg bg-white p-5 shadow-sm">
+        <section className="card p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-institucional-900">
+            <h2 className="text-sm font-semibold text-slate-900">
               Processos ({contrato.processos.length})
             </h2>
             <button
@@ -1004,7 +1003,7 @@ export function ContratoDetalhe() {
                 setProcessoEmEdicaoId(null);
                 setMostrarFormNovoProcesso((v) => !v);
               }}
-              className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+              className="btn-secondary btn-sm"
             >
               {mostrarFormNovoProcesso ? "Cancelar" : "+ Adicionar processo"}
             </button>
@@ -1042,8 +1041,8 @@ export function ContratoDetalhe() {
               ) : (
                 <li key={p.id} className="flex items-center justify-between text-sm">
                   <div>
-                    <span className="font-medium text-institucional-900">{p.numero_processo}</span>{" "}
-                    <span className="text-xs text-institucional-500">
+                    <span className="font-medium text-slate-900">{p.numero_processo}</span>{" "}
+                    <span className="text-xs text-slate-500">
                       ({ROTULOS_SISTEMA_PROCESSO[p.sistema_origem]} ·{" "}
                       {ROTULOS_TIPO_PROCESSO[p.tipo]})
                     </span>
@@ -1054,14 +1053,14 @@ export function ContratoDetalhe() {
                         setMostrarFormNovoProcesso(false);
                         setProcessoEmEdicaoId(p.id);
                       }}
-                      className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="btn-secondary btn-sm"
                     >
                       Editar
                     </button>
                     {ehAdministrador && (
                       <button
                         onClick={() => excluirProcesso(p.id, p.numero_processo)}
-                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
                         title="Exclusão definitiva — restrita a administrador"
                       >
                         Excluir
@@ -1075,30 +1074,30 @@ export function ContratoDetalhe() {
         </section>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-lg bg-white p-5 shadow-sm">
-            <h2 className="mb-2 text-sm font-semibold text-institucional-900">Vigência atual</h2>
+          <div className="card p-5">
+            <h2 className="mb-2 text-sm font-semibold text-slate-900">Vigência atual</h2>
             {contrato.vigencia_inicio && contrato.vigencia_fim ? (
-              <p className="text-sm text-institucional-700">
+              <p className="text-sm text-slate-600">
                 {contrato.vigencia_inicio} até {contrato.vigencia_fim}
               </p>
             ) : (
-              <p className="text-sm text-institucional-500">Sem instrumento de origem registrado ainda.</p>
+              <p className="text-sm text-slate-500">Sem instrumento de origem registrado ainda.</p>
             )}
-            <p className="mt-1 text-xs text-institucional-600">Teto (5 anos): {contrato.teto_vigencia}</p>
+            <p className="mt-1 text-xs text-slate-500">Teto (5 anos): {contrato.teto_vigencia}</p>
             <div className="mt-2">
               <BadgeAlerta alerta={contrato.alerta_vigencia} />
             </div>
           </div>
 
-          <div className="rounded-lg bg-white p-5 shadow-sm">
+          <div className="card p-5">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-institucional-900">Garantia contratual</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Garantia contratual</h2>
               <button
                 onClick={() => {
                   setMostrarHistoricoGarantia(false);
                   setMostrarFormGarantia((v) => !v);
                 }}
-                className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                className="btn-secondary btn-sm"
               >
                 {mostrarFormGarantia ? "Cancelar" : "Registrar garantia"}
               </button>
@@ -1117,11 +1116,11 @@ export function ContratoDetalhe() {
             ) : (
               <>
                 {contrato.garantia_inicio && contrato.garantia_fim ? (
-                  <p className="text-sm text-institucional-700">
+                  <p className="text-sm text-slate-600">
                     {contrato.garantia_inicio} até {contrato.garantia_fim}
                   </p>
                 ) : (
-                  <p className="text-sm text-institucional-500">Nenhuma garantia registrada ainda.</p>
+                  <p className="text-sm text-slate-500">Nenhuma garantia registrada ainda.</p>
                 )}
                 <div className="mt-2">
                   <BadgeAlerta alerta={contrato.alerta_garantia} />
@@ -1135,17 +1134,17 @@ export function ContratoDetalhe() {
                   </button>
                 )}
                 {mostrarHistoricoGarantia && (
-                  <ul className="mt-2 space-y-1.5 border-t border-institucional-100 pt-2">
+                  <ul className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
                     {[...contrato.garantias].reverse().map((g) => (
-                      <li key={g.id} className="text-xs text-institucional-600">
-                        <span className="font-medium text-institucional-800">
+                      <li key={g.id} className="text-xs text-slate-500">
+                        <span className="font-medium text-slate-700">
                           {g.data_inicio_garantia && g.data_fim_garantia
                             ? `${g.data_inicio_garantia} até ${g.data_fim_garantia}`
                             : "Sem datas"}
                         </span>{" "}
                         — registrado por {g.registrado_por_nome} em{" "}
                         {new Date(g.registrado_em).toLocaleString("pt-BR")}
-                        {g.observacao && <p className="italic text-institucional-500">{g.observacao}</p>}
+                        {g.observacao && <p className="italic text-slate-500">{g.observacao}</p>}
                       </li>
                     ))}
                   </ul>
@@ -1155,24 +1154,24 @@ export function ContratoDetalhe() {
           </div>
         </section>
 
-        <section className="rounded-lg bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-institucional-900">Financeiro</h2>
+        <section className="card p-5">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Financeiro</h2>
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div>
-              <p className="text-xs text-institucional-500">Valor inicial</p>
-              <p className="font-medium text-institucional-900">{formatarMoeda(contrato.valor_inicial)}</p>
+              <p className="text-xs text-slate-500">Valor inicial</p>
+              <p className="font-medium text-slate-900">{formatarMoeda(contrato.valor_inicial)}</p>
             </div>
             <div>
-              <p className="text-xs text-institucional-500">Valor atualizado</p>
-              <p className="font-medium text-institucional-900">{formatarMoeda(contrato.valor_atualizado)}</p>
+              <p className="text-xs text-slate-500">Valor atualizado</p>
+              <p className="font-medium text-slate-900">{formatarMoeda(contrato.valor_atualizado)}</p>
             </div>
             <div>
-              <p className="text-xs text-institucional-500">Valor pago</p>
-              <p className="font-medium text-institucional-900">{formatarMoeda(contrato.valor_pago)}</p>
+              <p className="text-xs text-slate-500">Valor pago</p>
+              <p className="font-medium text-slate-900">{formatarMoeda(contrato.valor_pago)}</p>
             </div>
             <div>
-              <p className="text-xs text-institucional-500">Saldo a pagar</p>
-              <p className="font-medium text-institucional-900">{formatarMoeda(contrato.saldo_a_pagar)}</p>
+              <p className="text-xs text-slate-500">Saldo a pagar</p>
+              <p className="font-medium text-slate-900">{formatarMoeda(contrato.saldo_a_pagar)}</p>
             </div>
           </div>
           <div className="mt-3 flex gap-2">
@@ -1186,20 +1185,20 @@ export function ContratoDetalhe() {
             />
             <button
               onClick={salvarPagamento}
-              className="whitespace-nowrap rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+              className="btn-secondary btn-sm"
             >
               Atualizar valor pago
             </button>
           </div>
         </section>
 
-        <section className="rounded-lg bg-white p-5 shadow-sm">
+        <section className="card p-5">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-institucional-900">Fiscal(is) do contrato</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Fiscal(is) do contrato</h2>
             {contrato.status !== "encerrado" && (
               <button
                 onClick={() => setMostrarFormFiscal((v) => !v)}
-                className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                className="btn-secondary btn-sm"
               >
                 {mostrarFormFiscal ? "Cancelar" : "+ Designar fiscal"}
               </button>
@@ -1224,9 +1223,9 @@ export function ContratoDetalhe() {
             {contrato.fiscais.map((v) => (
               <li key={v.id} className="flex items-center justify-between text-sm">
                 <div>
-                  <span className="font-medium text-institucional-900">{v.nome}</span>{" "}
-                  <span className="text-xs text-institucional-500">({mascararMatricula(v.matricula)})</span>
-                  <p className="text-xs text-institucional-600">
+                  <span className="font-medium text-slate-900">{v.nome}</span>{" "}
+                  <span className="text-xs text-slate-500">({mascararMatricula(v.matricula)})</span>
+                  <p className="text-xs text-slate-500">
                     {v.data_inicio} até {v.data_fim ?? "hoje"}
                   </p>
                 </div>
@@ -1234,7 +1233,7 @@ export function ContratoDetalhe() {
                   {v.data_fim === null && (
                     <button
                       onClick={() => encerrarVinculo(v.id)}
-                      className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="btn-secondary btn-sm"
                     >
                       Encerrar vínculo
                     </button>
@@ -1242,7 +1241,7 @@ export function ContratoDetalhe() {
                   {ehAdministrador && (
                     <button
                       onClick={() => excluirVinculo(v.id, v.nome)}
-                      className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                      className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
                       title="Remove por completo — use quando o fiscal foi designado por engano neste contrato. Restrito a administrador."
                     >
                       Excluir
@@ -1252,18 +1251,18 @@ export function ContratoDetalhe() {
               </li>
             ))}
             {contrato.fiscais.length === 0 && (
-              <p className="text-sm text-institucional-500">Nenhum fiscal designado ainda.</p>
+              <p className="text-sm text-slate-500">Nenhum fiscal designado ainda.</p>
             )}
           </ul>
         </section>
 
-        <section className="rounded-lg bg-white p-5 shadow-sm">
+        <section className="card p-5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-institucional-900">Instrumentos processuais</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Instrumentos processuais</h2>
             {contrato.status !== "encerrado" && (
               <button
                 onClick={() => setMostrarFormInstrumento((v) => !v)}
-                className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700"
+                className="btn-primary btn-sm"
               >
                 {mostrarFormInstrumento ? "Cancelar" : "+ Novo instrumento"}
               </button>
@@ -1285,15 +1284,15 @@ export function ContratoDetalhe() {
 
           <div className="space-y-2">
             {contrato.instrumentos.length === 0 && (
-              <p className="text-sm text-institucional-500">Nenhum instrumento registrado ainda.</p>
+              <p className="text-sm text-slate-500">Nenhum instrumento registrado ainda.</p>
             )}
             {contrato.instrumentos.map((i) => (
-              <div key={i.id} className="rounded border border-institucional-100 p-3 text-sm">
+              <div key={i.id} className="rounded-lg border border-slate-200 p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-institucional-900">{ROTULOS_TIPO_INSTRUMENTO[i.tipo]}</p>
+                  <p className="font-medium text-slate-900">{ROTULOS_TIPO_INSTRUMENTO[i.tipo]}</p>
                   <div className="flex items-center gap-2">
                     <select
-                      className="rounded border border-institucional-200 px-2 py-1 text-xs"
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20"
                       value={i.sub_status}
                       onChange={(e) => alterarSubStatus(i.id, e.target.value as SubStatusInstrumento)}
                     >
@@ -1306,7 +1305,7 @@ export function ContratoDetalhe() {
                     {ehAdministrador && (
                       <button
                         onClick={() => excluirInstrumento(i.id, ROTULOS_TIPO_INSTRUMENTO[i.tipo])}
-                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
                         title="Exclusão definitiva — restrita a administrador"
                       >
                         Excluir
@@ -1314,18 +1313,18 @@ export function ContratoDetalhe() {
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-institucional-600">
+                <p className="text-xs text-slate-500">
                   {i.fundamentacao_lei === "lei_13303_16" ? "Lei 13.303/16" : "Lei 14.133/21"}, {i.fundamentacao_artigo}
                 </p>
                 {i.data_inicio_vigencia && i.data_fim_vigencia && (
-                  <p className="text-xs text-institucional-600">
+                  <p className="text-xs text-slate-500">
                     Vigência: {i.data_inicio_vigencia} até {i.data_fim_vigencia}
                   </p>
                 )}
                 {i.valor_delta && (
-                  <p className="text-xs text-institucional-600">Valor: {formatarMoeda(i.valor_delta)}</p>
+                  <p className="text-xs text-slate-500">Valor: {formatarMoeda(i.valor_delta)}</p>
                 )}
-                {i.observacoes && <p className="mt-1 text-xs text-institucional-500">{i.observacoes}</p>}
+                {i.observacoes && <p className="mt-1 text-xs text-slate-500">{i.observacoes}</p>}
               </div>
             ))}
           </div>
