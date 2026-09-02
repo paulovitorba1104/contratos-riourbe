@@ -14,6 +14,13 @@ const CORES_COLUNA: Record<StatusContrato, string> = {
   encerrado: "border-t-slate-400",
 };
 
+function resumoProcesso(contrato: Contrato): string {
+  const principal = contrato.processos.find((p) => p.tipo === "principal") ?? contrato.processos[0];
+  if (!principal) return "sem processo";
+  const apensos = contrato.processos.length - 1;
+  return `${principal.numero_processo}${apensos > 0 ? ` +${apensos} apenso${apensos > 1 ? "s" : ""}` : ""}`;
+}
+
 function CartaoContrato({ contrato }: { contrato: Contrato }) {
   return (
     <Link
@@ -22,7 +29,7 @@ function CartaoContrato({ contrato }: { contrato: Contrato }) {
     >
       <p className="font-semibold text-institucional-900">{contrato.numero_contrato}</p>
       <p className="mt-0.5 text-sm text-institucional-800">{contrato.tipo_servico}</p>
-      <p className="mt-1 text-xs text-institucional-700">{contrato.processo_sei}</p>
+      <p className="mt-1 text-xs text-institucional-700">{resumoProcesso(contrato)}</p>
       <p className="mt-1 text-xs text-institucional-600">
         {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
       </p>

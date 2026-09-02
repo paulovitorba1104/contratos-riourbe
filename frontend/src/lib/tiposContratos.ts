@@ -13,6 +13,8 @@ export type TipoInstrumento =
 export type SubStatusInstrumento = "elaboracao" | "parecer_juridico" | "assinatura" | "publicado";
 export type FundamentacaoLei = "lei_13303_16" | "lei_14133_21";
 export type NivelAlerta = "1_meses" | "3_meses" | "6_meses" | "vencido";
+export type SistemaProcesso = "sicop" | "processo_rio" | "sei_rio";
+export type TipoProcesso = "principal" | "apenso";
 
 export const ROTULOS_FORMA_CONTRATACAO: Record<FormaContratacao, string> = {
   pregao_eletronico: "Pregão Eletrônico",
@@ -43,6 +45,17 @@ export const ROTULOS_SUB_STATUS: Record<SubStatusInstrumento, string> = {
   parecer_juridico: "Parecer jurídico",
   assinatura: "Assinatura",
   publicado: "Publicado",
+};
+
+export const ROTULOS_SISTEMA_PROCESSO: Record<SistemaProcesso, string> = {
+  sicop: "SICOP (físico)",
+  processo_rio: "Processo.Rio",
+  sei_rio: "SEI.Rio",
+};
+
+export const ROTULOS_TIPO_PROCESSO: Record<TipoProcesso, string> = {
+  principal: "Principal",
+  apenso: "Apenso",
 };
 
 export const TIPOS_QUE_DEFINEM_VIGENCIA: TipoInstrumento[] = ["origem", "prorrogacao"];
@@ -104,10 +117,17 @@ export interface InstrumentoProcessual {
   observacoes: string | null;
 }
 
+export interface Processo {
+  id: string;
+  numero_processo: string;
+  sistema_origem: SistemaProcesso;
+  tipo: TipoProcesso;
+  criado_em: string;
+}
+
 export interface Contrato {
   id: string;
   numero_contrato: string;
-  processo_sei: string;
   tipo_servico: string;
   objeto: string;
   fornecedor_id: string;
@@ -125,6 +145,7 @@ export interface Contrato {
   item_patrimonial: string | null;
   codigo_ccon: string | null;
   observacoes: string | null;
+  processos: Processo[];
   alerta_vigencia: NivelAlerta | null;
   alerta_garantia: NivelAlerta | null;
 }
@@ -160,9 +181,14 @@ export interface InstrumentoOrigemPayload {
   data_fim_vigencia: string;
 }
 
+export interface ProcessoPayload {
+  numero_processo: string;
+  sistema_origem: SistemaProcesso;
+  tipo: TipoProcesso;
+}
+
 export interface NovoContratoPayload {
   numero_contrato: string;
-  processo_sei: string;
   tipo_servico: string;
   objeto: string;
   fornecedor_id: string;
@@ -171,12 +197,12 @@ export interface NovoContratoPayload {
   valor_inicial: string;
   observacoes?: string | null;
   instrumento_origem: InstrumentoOrigemPayload;
+  processos: ProcessoPayload[];
   fiscais_ids: string[];
 }
 
 export interface ContratoAtualizarPayload {
   numero_contrato?: string;
-  processo_sei?: string;
   tipo_servico?: string;
   objeto?: string;
   fornecedor_id?: string;

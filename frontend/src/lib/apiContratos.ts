@@ -9,6 +9,7 @@ import type {
   ModeloRipm,
   NovoContratoPayload,
   NovoInstrumentoPayload,
+  ProcessoPayload,
   StatusContrato,
   SubStatusInstrumento,
 } from "./tiposContratos";
@@ -59,6 +60,18 @@ export const apiContratos = {
     }),
   excluirInstrumento: (contratoId: string, instrumentoId: string) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/instrumentos/${instrumentoId}`, { method: "DELETE" }),
+  adicionarProcesso: (contratoId: string, dados: ProcessoPayload) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/processos`, {
+      method: "POST",
+      body: JSON.stringify(dados),
+    }),
+  atualizarProcesso: (contratoId: string, processoId: string, dados: Partial<ProcessoPayload>) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/processos/${processoId}`, {
+      method: "PATCH",
+      body: JSON.stringify(dados),
+    }),
+  excluirProcesso: (contratoId: string, processoId: string) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/processos/${processoId}`, { method: "DELETE" }),
 };
 
 export const apiFornecedores = {

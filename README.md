@@ -192,7 +192,10 @@ Conforme a seção 13 do plano de desenvolvimento:
 
 Implementa a seção 4 do plano de desenvolvimento:
 
-- **Contrato**: identificado por número do contrato + processo SEI; nasce de 1 forma de
+- **Contrato**: identificado por número do contrato + um ou mais números de processo
+  administrativo (mínimo 1), cada um marcado com o sistema de origem (SICOP físico,
+  Processo.Rio ou SEI.Rio — os 3 sistemas já usados pela Prefeitura) e se é o processo
+  principal ou um apenso dele; nasce de 1 forma de
   contratação (Pregão Eletrônico, Dispensa ou Inexigibilidade); status macro
   (`vigente` → `suspenso` → `encerrado`) só muda através de um instrumento de suspensão ou
   rescisão/extinção — nunca editado diretamente.

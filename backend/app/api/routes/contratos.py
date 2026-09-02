@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import exigir_administrador, get_current_user
 from app.db.session import get_db
-from app.models.contrato import Contrato, ContratoFiscal, GarantiaContrato, StatusContrato
+from app.models.contrato import Contrato, ContratoFiscal, GarantiaContrato, ProcessoContrato, StatusContrato
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import InstrumentoProcessual, TipoInstrumento
@@ -19,6 +19,8 @@ from app.schemas.contrato import (
     ContratoSaida,
     GarantiaCriar,
     GarantiaSaida,
+    ProcessoAtualizar,
+    ProcessoCriar,
 )
 from app.schemas.fiscal import FiscalEncerrarVinculo, FiscalVincular, FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualCriar, InstrumentoSubStatusAtualizar
@@ -35,6 +37,7 @@ def _carregar_contrato(db: Session, contrato_id: uuid.UUID) -> Contrato:
             selectinload(Contrato.instrumentos),
             selectinload(Contrato.fiscais).selectinload(ContratoFiscal.fiscal),
             selectinload(Contrato.garantias).selectinload(GarantiaContrato.registrado_por),
+            selectinload(Contrato.processos),
         )
         .filter(Contrato.id == contrato_id)
         .first()
@@ -104,6 +107,7 @@ def listar_contratos(
     query = db.query(Contrato).options(
         selectinload(Contrato.instrumentos),
         selectinload(Contrato.garantias),
+        selectinload(Contrato.processos),
     )
     if status_filtro is not None:
         query = query.filter(Contrato.status == status_filtro)
@@ -140,7 +144,7 @@ def criar_contrato(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Modelo RIPM não encontrado.")
 
     contrato = Contrato(
-        **dados.model_dump(exclude={"fiscais_ids", "instrumento_origem"}),
+        **dados.model_dump(exclude={"fiscais_ids", "instrumento_origem", "processos"}),
     )
     db.add(contrato)
     db.flush()
@@ -155,6 +159,9 @@ def criar_contrato(
     except regras.TetoVigenciaExcedido as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     db.add(instrumento_origem)
+
+    for processo in dados.processos:
+        db.add(ProcessoContrato(contrato_id=contrato.id, **processo.model_dump()))
 
     for fiscal_id in set(dados.fiscais_ids):
         db.add(
@@ -224,10 +231,105 @@ def excluir_contrato(
         acao="excluir_contrato",
         entidade="contrato",
         entidade_id=str(contrato.id),
-        detalhes={"numero_contrato": contrato.numero_contrato, "processo_sei": contrato.processo_sei},
+        detalhes={"numero_contrato": contrato.numero_contrato},
     )
     db.delete(contrato)
     db.commit()
+
+
+@router.post(
+    "/{contrato_id}/processos",
+    response_model=ContratoDetalhado,
+    status_code=status.HTTP_201_CREATED,
+)
+def adicionar_processo(
+    contrato_id: uuid.UUID,
+    dados: ProcessoCriar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    contrato = _carregar_contrato(db, contrato_id)
+    db.add(ProcessoContrato(contrato_id=contrato.id, **dados.model_dump()))
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="adicionar_processo_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato.id),
+        detalhes={"numero_processo": dados.numero_processo, "tipo": dados.tipo.value},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.patch(
+    "/{contrato_id}/processos/{processo_id}",
+    response_model=ContratoDetalhado,
+)
+def atualizar_processo(
+    contrato_id: uuid.UUID,
+    processo_id: uuid.UUID,
+    dados: ProcessoAtualizar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    processo = (
+        db.query(ProcessoContrato)
+        .filter(ProcessoContrato.id == processo_id, ProcessoContrato.contrato_id == contrato_id)
+        .first()
+    )
+    if processo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Processo não encontrado.")
+
+    dados_informados = dados.model_dump(exclude_unset=True)
+    for campo, valor in dados_informados.items():
+        setattr(processo, campo, valor)
+
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="atualizar_processo_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato_id),
+        detalhes={"processo_id": str(processo_id), "campos_alterados": list(dados_informados.keys())},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.delete(
+    "/{contrato_id}/processos/{processo_id}",
+    response_model=ContratoDetalhado,
+)
+def excluir_processo(
+    contrato_id: uuid.UUID,
+    processo_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva — restrita a administrador para não apagar dado por
+    # engano.
+    usuario: Usuario = Depends(exigir_administrador),
+) -> ContratoDetalhado:
+    contrato = _carregar_contrato(db, contrato_id)
+    processo = next((p for p in contrato.processos if p.id == processo_id), None)
+    if processo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Processo não encontrado.")
+    if len(contrato.processos) == 1:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="O contrato precisa ter ao menos um número de processo registrado.",
+        )
+
+    db.delete(processo)
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="excluir_processo_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato_id),
+        detalhes={"processo_id": str(processo_id)},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
 
 
 @router.post("/{contrato_id}/garantia", response_model=ContratoDetalhado, status_code=status.HTTP_201_CREATED)

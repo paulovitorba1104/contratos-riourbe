@@ -12,14 +12,19 @@ import type {
   FormaContratacao,
   Fornecedor,
   FundamentacaoLei,
+  Processo,
+  SistemaProcesso,
   SubStatusInstrumento,
   TipoInstrumento,
+  TipoProcesso,
 } from "../../lib/tiposContratos";
 import {
   ROTULOS_FORMA_CONTRATACAO,
+  ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_STATUS_CONTRATO,
   ROTULOS_SUB_STATUS,
   ROTULOS_TIPO_INSTRUMENTO,
+  ROTULOS_TIPO_PROCESSO,
   TIPOS_QUE_DEFINEM_VIGENCIA,
 } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
@@ -29,6 +34,13 @@ const campoClasse =
 
 function formatarMoeda(valor: string): string {
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function processoResumo(processos: Processo[]): string {
+  const principal = processos.find((p) => p.tipo === "principal") ?? processos[0];
+  if (!principal) return "sem processo";
+  const apensos = processos.length - 1;
+  return `${principal.numero_processo}${apensos > 0 ? ` (+${apensos} apenso${apensos > 1 ? "s" : ""})` : ""}`;
 }
 
 const CORES_STATUS: Record<string, string> = {
@@ -351,6 +363,185 @@ function RegistrarGarantiaForm({
   );
 }
 
+function CamposProcesso({
+  numeroProcesso,
+  sistemaOrigem,
+  tipo,
+  aoMudarNumero,
+  aoMudarSistema,
+  aoMudarTipo,
+}: {
+  numeroProcesso: string;
+  sistemaOrigem: SistemaProcesso;
+  tipo: TipoProcesso;
+  aoMudarNumero: (v: string) => void;
+  aoMudarSistema: (v: SistemaProcesso) => void;
+  aoMudarTipo: (v: TipoProcesso) => void;
+}) {
+  return (
+    <div className="grid grid-cols-[2fr_1.3fr_1fr] gap-2">
+      <input
+        className={campoClasse}
+        value={numeroProcesso}
+        onChange={(e) => aoMudarNumero(e.target.value)}
+        placeholder="ex.: SEI-04/000123/2026"
+      />
+      <select className={campoClasse} value={sistemaOrigem} onChange={(e) => aoMudarSistema(e.target.value as SistemaProcesso)}>
+        {Object.entries(ROTULOS_SISTEMA_PROCESSO).map(([valor, rotulo]) => (
+          <option key={valor} value={valor}>
+            {rotulo}
+          </option>
+        ))}
+      </select>
+      <select className={campoClasse} value={tipo} onChange={(e) => aoMudarTipo(e.target.value as TipoProcesso)}>
+        {Object.entries(ROTULOS_TIPO_PROCESSO).map(([valor, rotulo]) => (
+          <option key={valor} value={valor}>
+            {rotulo}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function NovoProcessoForm({
+  contratoId,
+  aoAdicionar,
+  aoCancelar,
+}: {
+  contratoId: string;
+  aoAdicionar: (c: ContratoDetalhado) => void;
+  aoCancelar: () => void;
+}) {
+  const [numeroProcesso, setNumeroProcesso] = useState("");
+  const [sistemaOrigem, setSistemaOrigem] = useState<SistemaProcesso>("sei_rio");
+  const [tipo, setTipo] = useState<TipoProcesso>("apenso");
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar() {
+    if (!numeroProcesso.trim()) {
+      setErro("Informe o número do processo.");
+      return;
+    }
+    setErro(null);
+    setEnviando(true);
+    try {
+      const atualizado = await apiContratos.adicionarProcesso(contratoId, {
+        numero_processo: numeroProcesso,
+        sistema_origem: sistemaOrigem,
+        tipo,
+      });
+      aoAdicionar(atualizado);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível adicionar o processo.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+      <CamposProcesso
+        numeroProcesso={numeroProcesso}
+        sistemaOrigem={sistemaOrigem}
+        tipo={tipo}
+        aoMudarNumero={setNumeroProcesso}
+        aoMudarSistema={setSistemaOrigem}
+        aoMudarTipo={setTipo}
+      />
+      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={enviar}
+          disabled={enviando}
+          className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+        >
+          {enviando ? "Adicionando..." : "Adicionar processo"}
+        </button>
+        <button
+          type="button"
+          onClick={aoCancelar}
+          className="rounded border border-institucional-300 px-3 py-1.5 text-xs text-institucional-700 hover:bg-institucional-100"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EditarProcessoForm({
+  contratoId,
+  processo,
+  aoSalvar,
+  aoCancelar,
+}: {
+  contratoId: string;
+  processo: Processo;
+  aoSalvar: (c: ContratoDetalhado) => void;
+  aoCancelar: () => void;
+}) {
+  const [numeroProcesso, setNumeroProcesso] = useState(processo.numero_processo);
+  const [sistemaOrigem, setSistemaOrigem] = useState<SistemaProcesso>(processo.sistema_origem);
+  const [tipo, setTipo] = useState<TipoProcesso>(processo.tipo);
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar() {
+    if (!numeroProcesso.trim()) {
+      setErro("Informe o número do processo.");
+      return;
+    }
+    setErro(null);
+    setEnviando(true);
+    try {
+      const atualizado = await apiContratos.atualizarProcesso(contratoId, processo.id, {
+        numero_processo: numeroProcesso,
+        sistema_origem: sistemaOrigem,
+        tipo,
+      });
+      aoSalvar(atualizado);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível salvar o processo.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+      <CamposProcesso
+        numeroProcesso={numeroProcesso}
+        sistemaOrigem={sistemaOrigem}
+        tipo={tipo}
+        aoMudarNumero={setNumeroProcesso}
+        aoMudarSistema={setSistemaOrigem}
+        aoMudarTipo={setTipo}
+      />
+      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={enviar}
+          disabled={enviando}
+          className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+        >
+          {enviando ? "Salvando..." : "Salvar"}
+        </button>
+        <button
+          type="button"
+          onClick={aoCancelar}
+          className="rounded border border-institucional-300 px-3 py-1.5 text-xs text-institucional-700 hover:bg-institucional-100"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EditarContratoForm({
   contrato,
   fornecedores,
@@ -363,7 +554,6 @@ function EditarContratoForm({
   aoCancelar: () => void;
 }) {
   const [numeroContrato, setNumeroContrato] = useState(contrato.numero_contrato);
-  const [processoSei, setProcessoSei] = useState(contrato.processo_sei);
   const [tipoServico, setTipoServico] = useState(contrato.tipo_servico);
   const [objeto, setObjeto] = useState(contrato.objeto);
   const [fornecedorId, setFornecedorId] = useState(contrato.fornecedor_id);
@@ -389,7 +579,6 @@ function EditarContratoForm({
     try {
       const atualizado = await apiContratos.atualizar(contrato.id, {
         numero_contrato: numeroContrato,
-        processo_sei: processoSei,
         tipo_servico: tipoServico,
         objeto,
         fornecedor_id: fornecedorId,
@@ -419,7 +608,7 @@ function EditarContratoForm({
     <section className="space-y-3 rounded-lg bg-white p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-institucional-900">Editar contrato</h2>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-institucional-800">Número do contrato</label>
           <input
@@ -429,14 +618,13 @@ function EditarContratoForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Processo SEI</label>
-          <input className={campoClasse} value={processoSei} onChange={(e) => setProcessoSei(e.target.value)} />
-        </div>
-        <div>
           <label className="mb-1 block text-xs font-medium text-institucional-800">Tipo de serviço</label>
           <input className={campoClasse} value={tipoServico} onChange={(e) => setTipoServico(e.target.value)} />
         </div>
       </div>
+      <p className="text-xs text-institucional-500">
+        Os números de processo são gerenciados na seção "Processos" abaixo.
+      </p>
 
       <div>
         <label className="mb-1 block text-xs font-medium text-institucional-800">Objeto</label>
@@ -597,6 +785,8 @@ export function ContratoDetalhe() {
   const [mostrarFormEditarContrato, setMostrarFormEditarContrato] = useState(false);
   const [mostrarFormGarantia, setMostrarFormGarantia] = useState(false);
   const [mostrarHistoricoGarantia, setMostrarHistoricoGarantia] = useState(false);
+  const [mostrarFormNovoProcesso, setMostrarFormNovoProcesso] = useState(false);
+  const [processoEmEdicaoId, setProcessoEmEdicaoId] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const { mostrarToast } = useToast();
 
@@ -699,6 +889,22 @@ export function ContratoDetalhe() {
     }
   }
 
+  async function excluirProcesso(processoId: string, numeroProcesso: string) {
+    if (!id) return;
+    if (!window.confirm(`Excluir o processo "${numeroProcesso}"? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      const atualizado = await apiContratos.excluirProcesso(id, processoId);
+      setContrato(atualizado);
+      mostrarToast("Processo excluído.");
+    } catch (e) {
+      const mensagem = e instanceof ErroApi ? e.message : "Não foi possível excluir o processo.";
+      setErro(mensagem);
+      mostrarToast(mensagem, "erro");
+    }
+  }
+
   async function excluirContrato() {
     if (!id || !contrato) return;
     if (
@@ -743,8 +949,8 @@ export function ContratoDetalhe() {
               </span>
             </div>
             <p className="text-sm text-institucional-700">
-              {contrato.tipo_servico} · {contrato.processo_sei} · {fornecedor?.razao_social ?? "..."} ·{" "}
-              {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
+              {contrato.tipo_servico} · {processoResumo(contrato.processos)} ·{" "}
+              {fornecedor?.razao_social ?? "..."} · {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
             </p>
           </div>
           <div className="flex gap-2">
@@ -786,6 +992,86 @@ export function ContratoDetalhe() {
         <section className="rounded-lg bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-sm font-semibold text-institucional-900">Objeto</h2>
           <p className="text-sm text-institucional-700">{contrato.objeto}</p>
+        </section>
+
+        <section className="rounded-lg bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-institucional-900">
+              Processos ({contrato.processos.length})
+            </h2>
+            <button
+              onClick={() => {
+                setProcessoEmEdicaoId(null);
+                setMostrarFormNovoProcesso((v) => !v);
+              }}
+              className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+            >
+              {mostrarFormNovoProcesso ? "Cancelar" : "+ Adicionar processo"}
+            </button>
+          </div>
+
+          {mostrarFormNovoProcesso && (
+            <div className="mb-3">
+              <NovoProcessoForm
+                contratoId={contrato.id}
+                aoAdicionar={(c) => {
+                  setContrato(c);
+                  setMostrarFormNovoProcesso(false);
+                  mostrarToast("Processo adicionado com sucesso.");
+                }}
+                aoCancelar={() => setMostrarFormNovoProcesso(false)}
+              />
+            </div>
+          )}
+
+          <ul className="space-y-2">
+            {contrato.processos.map((p) =>
+              processoEmEdicaoId === p.id ? (
+                <li key={p.id}>
+                  <EditarProcessoForm
+                    contratoId={contrato.id}
+                    processo={p}
+                    aoSalvar={(c) => {
+                      setContrato(c);
+                      setProcessoEmEdicaoId(null);
+                      mostrarToast("Processo atualizado com sucesso.");
+                    }}
+                    aoCancelar={() => setProcessoEmEdicaoId(null)}
+                  />
+                </li>
+              ) : (
+                <li key={p.id} className="flex items-center justify-between text-sm">
+                  <div>
+                    <span className="font-medium text-institucional-900">{p.numero_processo}</span>{" "}
+                    <span className="text-xs text-institucional-500">
+                      ({ROTULOS_SISTEMA_PROCESSO[p.sistema_origem]} ·{" "}
+                      {ROTULOS_TIPO_PROCESSO[p.tipo]})
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setMostrarFormNovoProcesso(false);
+                        setProcessoEmEdicaoId(p.id);
+                      }}
+                      className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                    >
+                      Editar
+                    </button>
+                    {ehAdministrador && (
+                      <button
+                        onClick={() => excluirProcesso(p.id, p.numero_processo)}
+                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        title="Exclusão definitiva — restrita a administrador"
+                      >
+                        Excluir
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ),
+            )}
+          </ul>
         </section>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -15,7 +15,6 @@ from app.services import contratos as regras
 def _contrato(**overrides) -> Contrato:
     padrao = dict(
         numero_contrato="CT-1",
-        processo_sei="SEI-1",
         tipo_servico="Serviço X",
         objeto="Objeto do contrato",
         fornecedor_id="00000000-0000-0000-0000-000000000000",
@@ -29,6 +28,7 @@ def _contrato(**overrides) -> Contrato:
     contrato = Contrato(**padrao)
     contrato.instrumentos = []
     contrato.garantias = []
+    contrato.processos = []
     return contrato
 
 
