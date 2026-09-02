@@ -43,6 +43,16 @@ def calcular_saldo_a_pagar(contrato: Contrato) -> Decimal:
     return calcular_valor_atualizado(contrato) - Decimal(str(contrato.valor_pago))
 
 
+def garantia_atual(contrato: Contrato) -> tuple[date | None, date | None]:
+    """Relógio 3: garantia contratual vigente — a mais recentemente registrada
+    no histórico (nunca a de maior data, já que uma correção pode inserir uma
+    data anterior à do registro que ela corrige)."""
+    if not contrato.garantias:
+        return None, None
+    mais_recente = max(contrato.garantias, key=lambda g: g.registrado_em)
+    return mais_recente.data_inicio_garantia, mais_recente.data_fim_garantia
+
+
 def vigencia_atual(contrato: Contrato) -> tuple[date | None, date | None]:
     """Relógio 1: período de vigência ativo — o mais recente entre origem e prorrogações."""
     candidatos = [
@@ -93,11 +103,12 @@ class AlertasContrato:
 def calcular_alertas(contrato: Contrato, hoje: date | None = None) -> AlertasContrato:
     hoje = hoje or date.today()
     _, vigencia_fim = vigencia_atual(contrato)
+    _, garantia_fim = garantia_atual(contrato)
     return AlertasContrato(
         vigencia_fim=vigencia_fim,
         alerta_vigencia=_nivel_alerta(vigencia_fim, hoje, LIMITES_ALERTA_VIGENCIA_MESES),
-        garantia_fim=contrato.data_fim_garantia,
-        alerta_garantia=_nivel_alerta(contrato.data_fim_garantia, hoje, LIMITES_ALERTA_GARANTIA_MESES),
+        garantia_fim=garantia_fim,
+        alerta_garantia=_nivel_alerta(garantia_fim, hoje, LIMITES_ALERTA_GARANTIA_MESES),
     )
 
 

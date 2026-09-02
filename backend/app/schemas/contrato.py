@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator
@@ -10,6 +10,7 @@ from app.schemas.instrumento import InstrumentoProcessualSaida
 
 
 class ContratoCriar(BaseModel):
+    numero_contrato: str = Field(..., max_length=50)
     processo_sei: str = Field(..., max_length=50)
     tipo_servico: str = Field(..., max_length=200)
     objeto: str = Field(..., min_length=3)
@@ -38,6 +39,7 @@ class ContratoAtualizar(BaseModel):
     processual, seção 4.3) nem `fiscais` (têm endpoints próprios, já que são
     vínculos temporais, não um campo simples do contrato)."""
 
+    numero_contrato: str | None = Field(None, max_length=50)
     processo_sei: str | None = Field(None, max_length=50)
     tipo_servico: str | None = Field(None, max_length=200)
     objeto: str | None = Field(None, min_length=3)
@@ -57,9 +59,13 @@ class ContratoAtualizar(BaseModel):
     observacoes: str | None = None
 
 
-class ContratoAtualizarGarantia(BaseModel):
+class GarantiaCriar(BaseModel):
+    """Registra uma nova entrada no histórico de garantia — nunca sobrescreve
+    a anterior (seção sobre o Relógio 3 no README)."""
+
     data_inicio_garantia: date | None = None
     data_fim_garantia: date | None = None
+    observacao: str | None = None
 
     @field_validator("data_fim_garantia")
     @classmethod
@@ -70,12 +76,24 @@ class ContratoAtualizarGarantia(BaseModel):
         return v
 
 
+class GarantiaSaida(BaseModel):
+    id: uuid.UUID
+    data_inicio_garantia: date | None
+    data_fim_garantia: date | None
+    observacao: str | None
+    registrado_por_nome: str
+    registrado_em: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ContratoAtualizarPagamento(BaseModel):
     valor_pago: Decimal = Field(..., ge=0)
 
 
 class ContratoSaida(BaseModel):
     id: uuid.UUID
+    numero_contrato: str
     processo_sei: str
     tipo_servico: str
     objeto: str
@@ -93,9 +111,12 @@ class ContratoSaida(BaseModel):
     tipo_patrimonial: str | None
     item_patrimonial: str | None
     codigo_ccon: str | None
-    data_inicio_garantia: date | None
-    data_fim_garantia: date | None
     observacoes: str | None
+    # Incluídos aqui (não só em ContratoDetalhado) para aparecer já na
+    # listagem/dashboard — contratos perto de vencer vigência ou garantia
+    # precisam ser visíveis no Kanban, não só na ficha do contrato.
+    alerta_vigencia: str | None
+    alerta_garantia: str | None
 
     model_config = {"from_attributes": True}
 
@@ -107,6 +128,7 @@ class ContratoDetalhado(ContratoSaida):
     vigencia_inicio: date | None
     vigencia_fim: date | None
     teto_vigencia: date
-    alerta_vigencia: str | None
-    alerta_garantia: str | None
+    garantia_inicio: date | None
+    garantia_fim: date | None
+    garantias: list[GarantiaSaida]
     instrumentos: list[InstrumentoProcessualSaida]
