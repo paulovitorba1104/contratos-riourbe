@@ -68,7 +68,11 @@ class InstrumentoProcessual(Base):
         Enum(TipoInstrumento, name="tipo_instrumento", schema="contratos", values_callable=_valores_enum),
         nullable=False,
     )
-    modelo_ripm_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contratos.modelos_ripm.id"), nullable=False)
+    # RIPM é só um checklist de instrução processual (apoio administrativo,
+    # não documento jurídico como o próprio instrumento) — por isso é opcional.
+    modelo_ripm_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("contratos.modelos_ripm.id"), nullable=True
+    )
 
     fundamentacao_lei: Mapped[FundamentacaoLei] = mapped_column(
         Enum(FundamentacaoLei, name="fundamentacao_lei", schema="contratos", values_callable=_valores_enum),

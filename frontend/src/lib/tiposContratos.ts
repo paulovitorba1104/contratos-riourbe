@@ -93,7 +93,7 @@ export interface InstrumentoProcessual {
   id: string;
   contrato_id: string;
   tipo: TipoInstrumento;
-  modelo_ripm_id: string;
+  modelo_ripm_id: string | null;
   fundamentacao_lei: FundamentacaoLei;
   fundamentacao_artigo: string;
   sub_status: SubStatusInstrumento;
@@ -152,7 +152,7 @@ export interface ContratoDetalhado extends Contrato {
 }
 
 export interface InstrumentoOrigemPayload {
-  modelo_ripm_id: string;
+  modelo_ripm_id?: string | null;
   fundamentacao_lei: FundamentacaoLei;
   fundamentacao_artigo: string;
   numero_documento_sei?: string | null;
@@ -197,7 +197,7 @@ export interface ContratoAtualizarPayload {
 
 export interface NovoInstrumentoPayload {
   tipo: TipoInstrumento;
-  modelo_ripm_id: string;
+  modelo_ripm_id?: string | null;
   fundamentacao_lei: FundamentacaoLei;
   fundamentacao_artigo: string;
   numero_documento_sei?: string | null;

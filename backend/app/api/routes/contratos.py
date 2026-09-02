@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.deps import get_current_user
+from app.api.deps import exigir_administrador, get_current_user
 from app.db.session import get_db
 from app.models.contrato import Contrato, ContratoFiscal, GarantiaContrato, StatusContrato
 from app.models.fiscal import Fiscal
@@ -134,7 +134,9 @@ def criar_contrato(
     if len(fiscais_encontrados) != len(set(dados.fiscais_ids)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Um ou mais fiscais não encontrados.")
 
-    if db.get(ModeloRipm, dados.instrumento_origem.modelo_ripm_id) is None:
+    if dados.instrumento_origem.modelo_ripm_id is not None and db.get(
+        ModeloRipm, dados.instrumento_origem.modelo_ripm_id
+    ) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Modelo RIPM não encontrado.")
 
     contrato = Contrato(
@@ -202,6 +204,30 @@ def atualizar_contrato(
     )
     db.commit()
     return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.delete("/{contrato_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_contrato(
+    contrato_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva do contrato inteiro (cascata: instrumentos, vínculos
+    # de fiscal, histórico de garantia) — a ação mais destrutiva do sistema,
+    # por isso restrita a administrador.
+    usuario: Usuario = Depends(exigir_administrador),
+) -> None:
+    contrato = db.get(Contrato, contrato_id)
+    if contrato is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contrato não encontrado.")
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="excluir_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato.id),
+        detalhes={"numero_contrato": contrato.numero_contrato, "processo_sei": contrato.processo_sei},
+    )
+    db.delete(contrato)
+    db.commit()
 
 
 @router.post("/{contrato_id}/garantia", response_model=ContratoDetalhado, status_code=status.HTTP_201_CREATED)
@@ -331,7 +357,9 @@ def excluir_vinculo_fiscal(
     contrato_id: uuid.UUID,
     vinculo_id: uuid.UUID,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
+    # Exclusão definitiva — restrita a administrador para não apagar dado por
+    # engano.
+    usuario: Usuario = Depends(exigir_administrador),
 ) -> ContratoDetalhado:
     """Remove o vínculo por completo — diferente de encerrar (seção acima):
     é para quando o fiscal foi designado por engano nesse contrato, não para
@@ -371,7 +399,7 @@ def criar_instrumento(
 ) -> ContratoDetalhado:
     contrato = _carregar_contrato(db, contrato_id)
 
-    if db.get(ModeloRipm, dados.modelo_ripm_id) is None:
+    if dados.modelo_ripm_id is not None and db.get(ModeloRipm, dados.modelo_ripm_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Modelo RIPM não encontrado.")
 
     instrumento = InstrumentoProcessual(contrato_id=contrato.id, **dados.model_dump())
@@ -425,5 +453,39 @@ def atualizar_sub_status_instrumento(
         entidade_id=str(instrumento.id),
         detalhes={"novo_sub_status": dados.sub_status.value},
     )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.delete(
+    "/{contrato_id}/instrumentos/{instrumento_id}",
+    response_model=ContratoDetalhado,
+)
+def excluir_instrumento(
+    contrato_id: uuid.UUID,
+    instrumento_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva — restrita a administrador para não apagar dado por
+    # engano; recalcula vigência/valor automaticamente a partir dos
+    # instrumentos restantes.
+    usuario: Usuario = Depends(exigir_administrador),
+) -> ContratoDetalhado:
+    instrumento = (
+        db.query(InstrumentoProcessual)
+        .filter(InstrumentoProcessual.id == instrumento_id, InstrumentoProcessual.contrato_id == contrato_id)
+        .first()
+    )
+    if instrumento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrumento não encontrado.")
+
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="excluir_instrumento_processual",
+        entidade="instrumento_processual",
+        entidade_id=str(instrumento.id),
+        detalhes={"tipo_instrumento": instrumento.tipo.value},
+    )
+    db.delete(instrumento)
     db.commit()
     return _para_detalhado(_carregar_contrato(db, contrato_id))

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { BadgeAlerta } from "../../components/BadgeAlerta";
 import { ErroApi } from "../../lib/api";
 import { apiContratos, apiFiscais, apiFornecedores, apiModelosRipm } from "../../lib/apiContratos";
+import { useAuth } from "../../lib/AuthContext";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type {
   ContratoDetalhado,
@@ -63,15 +64,11 @@ function NovoInstrumentoForm({
 
   async function enviar() {
     setErro(null);
-    if (!modeloRipmId) {
-      setErro("Selecione um modelo RIPM.");
-      return;
-    }
     setEnviando(true);
     try {
       const contrato = await apiContratos.criarInstrumento(contratoId, {
         tipo,
-        modelo_ripm_id: modeloRipmId,
+        modelo_ripm_id: modeloRipmId || null,
         fundamentacao_lei: fundamentacaoLei,
         fundamentacao_artigo: fundamentacaoArtigo,
         numero_documento_sei: numeroDocumentoSei || null,
@@ -108,20 +105,15 @@ function NovoInstrumentoForm({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Modelo RIPM</label>
+          <label className="mb-1 block text-xs font-medium text-institucional-800">Modelo RIPM (opcional)</label>
           <select className={campoClasse} value={modeloRipmId} onChange={(e) => setModeloRipmId(e.target.value)}>
-            <option value="">Selecione...</option>
+            <option value="">Nenhum</option>
             {modelos.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.codigo} — {m.nome}
               </option>
             ))}
           </select>
-          {modelos.length === 0 && (
-            <p className="mt-1 text-xs text-red-600">
-              Nenhum modelo RIPM cadastrado ainda — peça a um administrador para cadastrar em /modelos-ripm.
-            </p>
-          )}
         </div>
       </div>
 
@@ -612,6 +604,9 @@ function EditarContratoForm({
 
 export function ContratoDetalhe() {
   const { id } = useParams<{ id: string }>();
+  const navegar = useNavigate();
+  const { usuario } = useAuth();
+  const ehAdministrador = usuario?.papel === "administrador";
   const [contrato, setContrato] = useState<ContratoDetalhado | null>(null);
   const [fornecedor, setFornecedor] = useState<Fornecedor | null>(null);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
@@ -705,6 +700,46 @@ export function ContratoDetalhe() {
     }
   }
 
+  async function excluirInstrumento(instrumentoId: string, tipo: string) {
+    if (!id) return;
+    if (
+      !window.confirm(
+        `Excluir o instrumento "${tipo}"? Essa ação não pode ser desfeita e pode alterar a vigência calculada do contrato.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      const atualizado = await apiContratos.excluirInstrumento(id, instrumentoId);
+      setContrato(atualizado);
+      mostrarToast("Instrumento excluído.");
+    } catch (e) {
+      const mensagem = e instanceof ErroApi ? e.message : "Não foi possível excluir o instrumento.";
+      setErro(mensagem);
+      mostrarToast(mensagem, "erro");
+    }
+  }
+
+  async function excluirContrato() {
+    if (!id || !contrato) return;
+    if (
+      !window.confirm(
+        `Excluir o contrato "${contrato.numero_contrato}" por completo? Isso apaga também todos os instrumentos, vínculos de fiscal e histórico de garantia. Essa ação não pode ser desfeita.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await apiContratos.excluir(id);
+      mostrarToast("Contrato excluído.");
+      navegar("/contratos");
+    } catch (e) {
+      const mensagem = e instanceof ErroApi ? e.message : "Não foi possível excluir o contrato.";
+      setErro(mensagem);
+      mostrarToast(mensagem, "erro");
+    }
+  }
+
   if (erro && !contrato) {
     return <p className="p-6 text-sm text-red-600">{erro}</p>;
   }
@@ -733,12 +768,23 @@ export function ContratoDetalhe() {
               {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
             </p>
           </div>
-          <button
-            onClick={() => setMostrarFormEditarContrato((v) => !v)}
-            className="whitespace-nowrap rounded border border-institucional-300 px-3 py-1.5 text-xs font-medium text-institucional-700 hover:bg-institucional-100"
-          >
-            {mostrarFormEditarContrato ? "Cancelar edição" : "Editar contrato"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMostrarFormEditarContrato((v) => !v)}
+              className="whitespace-nowrap rounded border border-institucional-300 px-3 py-1.5 text-xs font-medium text-institucional-700 hover:bg-institucional-100"
+            >
+              {mostrarFormEditarContrato ? "Cancelar edição" : "Editar contrato"}
+            </button>
+            {ehAdministrador && (
+              <button
+                onClick={excluirContrato}
+                className="whitespace-nowrap rounded border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                title="Exclusão definitiva — restrita a administrador"
+              >
+                Excluir contrato
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -928,13 +974,15 @@ export function ContratoDetalhe() {
                       Encerrar vínculo
                     </button>
                   )}
-                  <button
-                    onClick={() => excluirVinculo(v.id, v.nome)}
-                    className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
-                    title="Remove por completo — use quando o fiscal foi designado por engano neste contrato"
-                  >
-                    Excluir
-                  </button>
+                  {ehAdministrador && (
+                    <button
+                      onClick={() => excluirVinculo(v.id, v.nome)}
+                      className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                      title="Remove por completo — use quando o fiscal foi designado por engano neste contrato. Restrito a administrador."
+                    >
+                      Excluir
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
@@ -977,19 +1025,30 @@ export function ContratoDetalhe() {
             )}
             {contrato.instrumentos.map((i) => (
               <div key={i.id} className="rounded border border-institucional-100 p-3 text-sm">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <p className="font-medium text-institucional-900">{ROTULOS_TIPO_INSTRUMENTO[i.tipo]}</p>
-                  <select
-                    className="rounded border border-institucional-200 px-2 py-1 text-xs"
-                    value={i.sub_status}
-                    onChange={(e) => alterarSubStatus(i.id, e.target.value as SubStatusInstrumento)}
-                  >
-                    {Object.entries(ROTULOS_SUB_STATUS).map(([valor, rotulo]) => (
-                      <option key={valor} value={valor}>
-                        {rotulo}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="rounded border border-institucional-200 px-2 py-1 text-xs"
+                      value={i.sub_status}
+                      onChange={(e) => alterarSubStatus(i.id, e.target.value as SubStatusInstrumento)}
+                    >
+                      {Object.entries(ROTULOS_SUB_STATUS).map(([valor, rotulo]) => (
+                        <option key={valor} value={valor}>
+                          {rotulo}
+                        </option>
+                      ))}
+                    </select>
+                    {ehAdministrador && (
+                      <button
+                        onClick={() => excluirInstrumento(i.id, ROTULOS_TIPO_INSTRUMENTO[i.tipo])}
+                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        title="Exclusão definitiva — restrita a administrador"
+                      >
+                        Excluir
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-institucional-600">
                   {i.fundamentacao_lei === "lei_13303_16" ? "Lei 13.303/16" : "Lei 14.133/21"}, {i.fundamentacao_artigo}

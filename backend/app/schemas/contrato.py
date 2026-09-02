@@ -13,11 +13,12 @@ from app.schemas.instrumento import InstrumentoProcessualSaida
 class InstrumentoOrigemCriar(BaseModel):
     """O instrumento de Origem — primeiro prazo de vigência do contrato,
     criado junto com o contrato (não depois, como os aditivos). O RIPM aqui é
-    o checklist de instrução processual que a jurídica confere na abertura do
-    processo; a fundamentação legal (lei + artigo) é a mesma exigida de
-    qualquer instrumento que define vigência (seção 4.2)."""
+    só o checklist de apoio administrativo (não é documento jurídico do
+    processo como o próprio instrumento), por isso é opcional; a
+    fundamentação legal (lei + artigo) é a mesma exigida de qualquer
+    instrumento que define vigência (seção 4.2)."""
 
-    modelo_ripm_id: uuid.UUID
+    modelo_ripm_id: uuid.UUID | None = None
     fundamentacao_lei: FundamentacaoLei
     fundamentacao_artigo: str = Field(..., max_length=100)
     numero_documento_sei: str | None = Field(None, max_length=50)

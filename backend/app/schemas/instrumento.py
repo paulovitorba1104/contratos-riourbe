@@ -14,7 +14,9 @@ from app.models.instrumento_processual import (
 
 class InstrumentoProcessualCriar(BaseModel):
     tipo: TipoInstrumento
-    modelo_ripm_id: uuid.UUID
+    # RIPM é só um checklist de apoio administrativo (não documento jurídico
+    # do processo) — opcional.
+    modelo_ripm_id: uuid.UUID | None = None
     fundamentacao_lei: FundamentacaoLei
     fundamentacao_artigo: str = Field(..., max_length=100)
     numero_documento_sei: str | None = Field(None, max_length=50)
@@ -61,7 +63,7 @@ class InstrumentoProcessualSaida(BaseModel):
     id: uuid.UUID
     contrato_id: uuid.UUID
     tipo: TipoInstrumento
-    modelo_ripm_id: uuid.UUID
+    modelo_ripm_id: uuid.UUID | None
     fundamentacao_lei: FundamentacaoLei
     fundamentacao_artigo: str
     sub_status: SubStatusInstrumento

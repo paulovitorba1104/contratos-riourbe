@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { ErroApi } from "../../lib/api";
 import { apiFornecedores } from "../../lib/apiContratos";
+import { useAuth } from "../../lib/AuthContext";
 import { mascararCnpj } from "../../lib/mascaras";
 import type { Fornecedor } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
@@ -96,6 +97,8 @@ export function Fornecedores() {
   const [fornecedorEmEdicao, setFornecedorEmEdicao] = useState<Fornecedor | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const { mostrarToast } = useToast();
+  const { usuario } = useAuth();
+  const ehAdministrador = usuario?.papel === "administrador";
 
   function carregar() {
     apiFornecedores.listar().then(setFornecedores).catch(() => setErro("Não foi possível carregar os fornecedores."));
@@ -125,6 +128,19 @@ export function Fornecedores() {
       mostrarToast(fornecedor.ativo ? "Fornecedor inativado." : "Fornecedor reativado.");
     } catch (e) {
       mostrarToast(e instanceof ErroApi ? e.message : "Não foi possível alterar o status do fornecedor.", "erro");
+    }
+  }
+
+  async function excluir(fornecedor: Fornecedor) {
+    if (!window.confirm(`Excluir "${fornecedor.razao_social}" definitivamente? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      await apiFornecedores.excluir(fornecedor.id);
+      carregar();
+      mostrarToast("Fornecedor excluído.");
+    } catch (e) {
+      mostrarToast(e instanceof ErroApi ? e.message : "Não foi possível excluir o fornecedor.", "erro");
     }
   }
 
@@ -195,10 +211,19 @@ export function Fornecedores() {
                     </button>
                     <button
                       onClick={() => alternarAtivo(f)}
-                      className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="mr-2 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
                     >
                       {f.ativo ? "Inativar" : "Reativar"}
                     </button>
+                    {ehAdministrador && (
+                      <button
+                        onClick={() => excluir(f)}
+                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        title="Exclusão definitiva — restrita a administrador"
+                      >
+                        Excluir
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
