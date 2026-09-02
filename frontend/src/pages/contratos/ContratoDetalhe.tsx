@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { BadgeAlerta } from "../../components/BadgeAlerta";
 import { ErroApi } from "../../lib/api";
-import { apiContratos, apiFiscais, apiFornecedores, apiModelosRipm } from "../../lib/apiContratos";
+import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { useAuth } from "../../lib/AuthContext";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type {
@@ -12,7 +12,6 @@ import type {
   FormaContratacao,
   Fornecedor,
   FundamentacaoLei,
-  ModeloRipm,
   SubStatusInstrumento,
   TipoInstrumento,
 } from "../../lib/tiposContratos";
@@ -40,15 +39,12 @@ const CORES_STATUS: Record<string, string> = {
 
 function NovoInstrumentoForm({
   contratoId,
-  modelos,
   aoCriar,
 }: {
   contratoId: string;
-  modelos: ModeloRipm[];
   aoCriar: (c: ContratoDetalhado) => void;
 }) {
   const [tipo, setTipo] = useState<TipoInstrumento>("apostilamento");
-  const [modeloRipmId, setModeloRipmId] = useState("");
   const [fundamentacaoLei, setFundamentacaoLei] = useState<FundamentacaoLei>("lei_13303_16");
   const [fundamentacaoArtigo, setFundamentacaoArtigo] = useState("");
   const [numeroDocumentoSei, setNumeroDocumentoSei] = useState("");
@@ -68,7 +64,6 @@ function NovoInstrumentoForm({
     try {
       const contrato = await apiContratos.criarInstrumento(contratoId, {
         tipo,
-        modelo_ripm_id: modeloRipmId || null,
         fundamentacao_lei: fundamentacaoLei,
         fundamentacao_artigo: fundamentacaoArtigo,
         numero_documento_sei: numeroDocumentoSei || null,
@@ -93,7 +88,7 @@ function NovoInstrumentoForm({
 
   return (
     <div className="space-y-3 rounded border border-institucional-200 bg-institucional-50 p-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-institucional-800">Tipo</label>
           <select className={campoClasse} value={tipo} onChange={(e) => setTipo(e.target.value as TipoInstrumento)}>
@@ -104,20 +99,6 @@ function NovoInstrumentoForm({
             ))}
           </select>
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-institucional-800">Modelo RIPM (opcional)</label>
-          <select className={campoClasse} value={modeloRipmId} onChange={(e) => setModeloRipmId(e.target.value)}>
-            <option value="">Nenhum</option>
-            {modelos.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.codigo} — {m.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-institucional-800">Fundamentação (lei)</label>
           <select
@@ -611,7 +592,6 @@ export function ContratoDetalhe() {
   const [fornecedor, setFornecedor] = useState<Fornecedor | null>(null);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [fiscaisDisponiveis, setFiscaisDisponiveis] = useState<Fiscal[]>([]);
-  const [modelos, setModelos] = useState<ModeloRipm[]>([]);
   const [mostrarFormInstrumento, setMostrarFormInstrumento] = useState(false);
   const [mostrarFormFiscal, setMostrarFormFiscal] = useState(false);
   const [mostrarFormEditarContrato, setMostrarFormEditarContrato] = useState(false);
@@ -637,7 +617,6 @@ export function ContratoDetalhe() {
 
   useEffect(() => {
     apiFiscais.listar().then(setFiscaisDisponiveis).catch(() => {});
-    apiModelosRipm.listar().then(setModelos).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1009,7 +988,6 @@ export function ContratoDetalhe() {
             <div className="mb-4">
               <NovoInstrumentoForm
                 contratoId={contrato.id}
-                modelos={modelos}
                 aoCriar={(c) => {
                   setContrato(c);
                   setMostrarFormInstrumento(false);
