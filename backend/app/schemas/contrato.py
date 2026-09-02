@@ -4,10 +4,32 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.contrato import FormaContratacao, StatusContrato
+from app.models.contrato import FormaContratacao, SistemaProcesso, StatusContrato, TipoProcesso
 from app.models.instrumento_processual import FundamentacaoLei
 from app.schemas.fiscal import FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualSaida
+
+
+class ProcessoCriar(BaseModel):
+    numero_processo: str = Field(..., max_length=50)
+    sistema_origem: SistemaProcesso
+    tipo: TipoProcesso
+
+
+class ProcessoAtualizar(BaseModel):
+    numero_processo: str | None = Field(None, max_length=50)
+    sistema_origem: SistemaProcesso | None = None
+    tipo: TipoProcesso | None = None
+
+
+class ProcessoSaida(BaseModel):
+    id: uuid.UUID
+    numero_processo: str
+    sistema_origem: SistemaProcesso
+    tipo: TipoProcesso
+    criado_em: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class InstrumentoOrigemCriar(BaseModel):
@@ -36,7 +58,6 @@ class InstrumentoOrigemCriar(BaseModel):
 
 class ContratoCriar(BaseModel):
     numero_contrato: str = Field(..., max_length=50)
-    processo_sei: str = Field(..., max_length=50)
     tipo_servico: str = Field(..., max_length=200)
     objeto: str = Field(..., min_length=3)
     fornecedor_id: uuid.UUID
@@ -56,6 +77,10 @@ class ContratoCriar(BaseModel):
     # funciona corretamente se o contrato já nascer com esse marco zero;
     # prorrogações depois entram como novos instrumentos na ficha do contrato.
     instrumento_origem: InstrumentoOrigemCriar
+    # Número(s) de processo — sempre pelo menos 1 (histórico entre os 3
+    # sistemas já usados: SICOP físico, Processo.Rio, SEI.Rio, e/ou apensos
+    # ao processo principal).
+    processos: list[ProcessoCriar] = Field(..., min_length=1)
     # Fiscal obrigatório — gap identificado na planilha antiga (seção 4.5).
     # Vínculo(s) inicial(is); data_inicio de cada um é a data de assinatura
     # original por padrão do lado do frontend, mas pode ser ajustada.
@@ -65,11 +90,10 @@ class ContratoCriar(BaseModel):
 class ContratoAtualizar(BaseModel):
     """Edição geral do contrato — todos os campos opcionais (só atualiza o
     que for enviado). Não inclui `status` (só muda via instrumento
-    processual, seção 4.3) nem `fiscais` (têm endpoints próprios, já que são
-    vínculos temporais, não um campo simples do contrato)."""
+    processual, seção 4.3) nem `fiscais`/`processos` (têm endpoints
+    próprios, já que são coleções, não um campo simples do contrato)."""
 
     numero_contrato: str | None = Field(None, max_length=50)
-    processo_sei: str | None = Field(None, max_length=50)
     tipo_servico: str | None = Field(None, max_length=200)
     objeto: str | None = Field(None, min_length=3)
     fornecedor_id: uuid.UUID | None = None
@@ -123,7 +147,6 @@ class ContratoAtualizarPagamento(BaseModel):
 class ContratoSaida(BaseModel):
     id: uuid.UUID
     numero_contrato: str
-    processo_sei: str
     tipo_servico: str
     objeto: str
     fornecedor_id: uuid.UUID
@@ -141,6 +164,7 @@ class ContratoSaida(BaseModel):
     item_patrimonial: str | None
     codigo_ccon: str | None
     observacoes: str | None
+    processos: list[ProcessoSaida]
     # Incluídos aqui (não só em ContratoDetalhado) para aparecer já na
     # listagem/dashboard — contratos perto de vencer vigência ou garantia
     # precisam ser visíveis no Kanban, não só na ficha do contrato.

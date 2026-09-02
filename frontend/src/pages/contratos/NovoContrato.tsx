@@ -4,8 +4,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
 import { mascararCnpj, mascararCpf, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
-import type { Fiscal, Fornecedor, FormaContratacao, FundamentacaoLei } from "../../lib/tiposContratos";
-import { ROTULOS_FORMA_CONTRATACAO } from "../../lib/tiposContratos";
+import type {
+  Fiscal,
+  Fornecedor,
+  FormaContratacao,
+  FundamentacaoLei,
+  ProcessoPayload,
+  SistemaProcesso,
+  TipoProcesso,
+} from "../../lib/tiposContratos";
+import { ROTULOS_FORMA_CONTRATACAO, ROTULOS_SISTEMA_PROCESSO, ROTULOS_TIPO_PROCESSO } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
 const campoClasse =
@@ -28,7 +36,9 @@ export function NovoContrato() {
   const [novoFiscalCpf, setNovoFiscalCpf] = useState("");
 
   const [numeroContrato, setNumeroContrato] = useState("");
-  const [processoSei, setProcessoSei] = useState("");
+  const [processos, setProcessos] = useState<ProcessoPayload[]>([
+    { numero_processo: "", sistema_origem: "sei_rio", tipo: "principal" },
+  ]);
   const [tipoServico, setTipoServico] = useState("");
   const [objeto, setObjeto] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
@@ -96,6 +106,18 @@ export function NovoContrato() {
     );
   }
 
+  function adicionarProcesso() {
+    setProcessos((atual) => [...atual, { numero_processo: "", sistema_origem: "sei_rio", tipo: "apenso" }]);
+  }
+
+  function removerProcesso(indice: number) {
+    setProcessos((atual) => atual.filter((_, i) => i !== indice));
+  }
+
+  function atualizarProcesso(indice: number, alteracoes: Partial<ProcessoPayload>) {
+    setProcessos((atual) => atual.map((p, i) => (i === indice ? { ...p, ...alteracoes } : p)));
+  }
+
   async function aoEnviar(evento: FormEvent) {
     evento.preventDefault();
     setErro(null);
@@ -108,11 +130,14 @@ export function NovoContrato() {
       setErro("Selecione ao menos um fiscal do contrato.");
       return;
     }
+    if (processos.some((p) => !p.numero_processo.trim())) {
+      setErro("Preencha o número de todos os processos ou remova as linhas vazias.");
+      return;
+    }
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
         numero_contrato: numeroContrato,
-        processo_sei: processoSei,
         tipo_servico: tipoServico,
         objeto,
         fornecedor_id: fornecedorId,
@@ -127,6 +152,7 @@ export function NovoContrato() {
           data_inicio_vigencia: dataInicioVigencia,
           data_fim_vigencia: dataFimVigencia,
         },
+        processos,
         fiscais_ids: fiscaisSelecionados,
       });
       mostrarToast("Contrato criado com sucesso.");
@@ -163,16 +189,76 @@ export function NovoContrato() {
           </div>
 
           <div>
-            <label className={rotuloClasse} htmlFor="processo_sei">
-              Processo SEI
-            </label>
-            <input
-              id="processo_sei"
-              className={campoClasse}
-              value={processoSei}
-              onChange={(e) => setProcessoSei(e.target.value)}
-              required
-            />
+            <div className="mb-1 flex items-center justify-between">
+              <span className={rotuloClasse}>Número(s) de processo *</span>
+              <button
+                type="button"
+                onClick={adicionarProcesso}
+                className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+              >
+                + Adicionar processo
+              </button>
+            </div>
+            <p className="mb-2 text-xs text-institucional-500">
+              Um contrato pode ter mais de um número (SICOP físico, Processo.Rio, SEI.Rio) e/ou
+              processos apensos ao principal.
+            </p>
+            <div className="space-y-2">
+              {processos.map((processo, indice) => (
+                <div key={indice} className="grid grid-cols-[2fr_1.3fr_1fr_auto] items-end gap-2">
+                  <div>
+                    {indice === 0 && <label className="mb-1 block text-xs text-institucional-700">Número</label>}
+                    <input
+                      id={indice === 0 ? "numero_processo_0" : undefined}
+                      className={campoClasse}
+                      value={processo.numero_processo}
+                      onChange={(e) => atualizarProcesso(indice, { numero_processo: e.target.value })}
+                      placeholder="ex.: SEI-04/000123/2026"
+                      required
+                    />
+                  </div>
+                  <div>
+                    {indice === 0 && <label className="mb-1 block text-xs text-institucional-700">Sistema</label>}
+                    <select
+                      className={campoClasse}
+                      value={processo.sistema_origem}
+                      onChange={(e) =>
+                        atualizarProcesso(indice, { sistema_origem: e.target.value as SistemaProcesso })
+                      }
+                    >
+                      {Object.entries(ROTULOS_SISTEMA_PROCESSO).map(([valor, rotulo]) => (
+                        <option key={valor} value={valor}>
+                          {rotulo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    {indice === 0 && <label className="mb-1 block text-xs text-institucional-700">Tipo</label>}
+                    <select
+                      className={campoClasse}
+                      value={processo.tipo}
+                      onChange={(e) => atualizarProcesso(indice, { tipo: e.target.value as TipoProcesso })}
+                    >
+                      {Object.entries(ROTULOS_TIPO_PROCESSO).map(([valor, rotulo]) => (
+                        <option key={valor} value={valor}>
+                          {rotulo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removerProcesso(indice)}
+                    disabled={processos.length === 1}
+                    className="rounded border border-institucional-300 px-2 py-2 text-xs text-institucional-700 hover:bg-institucional-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    title={processos.length === 1 ? "O contrato precisa ter ao menos um processo" : "Remover"}
+                  >
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div>

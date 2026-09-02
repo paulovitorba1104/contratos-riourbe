@@ -27,6 +27,20 @@ class StatusContrato(str, enum.Enum):
     ENCERRADO = "encerrado"
 
 
+class SistemaProcesso(str, enum.Enum):
+    """Sistema onde o número do processo foi aberto — a Prefeitura já passou
+    por 3 sistemas de processo administrativo."""
+
+    SICOP = "sicop"
+    PROCESSO_RIO = "processo_rio"
+    SEI_RIO = "sei_rio"
+
+
+class TipoProcesso(str, enum.Enum):
+    PRINCIPAL = "principal"
+    APENSO = "apenso"
+
+
 def _valores_enum(enum_cls):
     return [membro.value for membro in enum_cls]
 
@@ -46,7 +60,6 @@ class Contrato(Base):
 
     # Identificação
     numero_contrato: Mapped[str] = mapped_column(String(50), nullable=False)
-    processo_sei: Mapped[str] = mapped_column(String(50), nullable=False)
     tipo_servico: Mapped[str] = mapped_column(String(200), nullable=False)
     objeto: Mapped[str] = mapped_column(Text, nullable=False)
     fornecedor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.fornecedores.id"), nullable=False)
@@ -91,6 +104,12 @@ class Contrato(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    # Número(s) de processo administrativo — um contrato pode ter mais de um
+    # (histórico entre os 3 sistemas já usados: SICOP físico, Processo.Rio,
+    # SEI.Rio), cada um marcado como o processo principal ou um apenso dele.
+    processos: Mapped[list["ProcessoContrato"]] = relationship(
+        back_populates="contrato", order_by="ProcessoContrato.criado_em", cascade="all, delete-orphan"
+    )
     instrumentos: Mapped[list["InstrumentoProcessual"]] = relationship(
         back_populates="contrato", order_by="InstrumentoProcessual.criado_em", cascade="all, delete-orphan"
     )
@@ -157,3 +176,33 @@ class GarantiaContrato(Base):
 
     contrato: Mapped["Contrato"] = relationship(back_populates="garantias")
     registrado_por: Mapped["Usuario"] = relationship()
+
+
+class ProcessoContrato(Base):
+    """Número de processo administrativo vinculado ao contrato. Um contrato
+    pode ter mais de um: histórico entre os 3 sistemas já usados (SICOP
+    físico, Processo.Rio, SEI.Rio) e/ou processos apensos ao principal."""
+
+    __tablename__ = "processos_contrato"
+    __table_args__ = {"schema": "contratos"}
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    contrato_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contratos.contratos.id", ondelete="CASCADE"), nullable=False
+    )
+    numero_processo: Mapped[str] = mapped_column(String(50), nullable=False)
+    sistema_origem: Mapped[SistemaProcesso] = mapped_column(
+        Enum(SistemaProcesso, name="sistema_processo", schema="contratos", values_callable=_valores_enum),
+        nullable=False,
+    )
+    tipo: Mapped[TipoProcesso] = mapped_column(
+        Enum(TipoProcesso, name="tipo_processo", schema="contratos", values_callable=_valores_enum),
+        nullable=False,
+    )
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    contrato: Mapped["Contrato"] = relationship(back_populates="processos")
