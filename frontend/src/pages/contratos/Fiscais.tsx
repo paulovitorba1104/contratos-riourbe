@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { ErroApi } from "../../lib/api";
 import { apiFiscais } from "../../lib/apiContratos";
+import { useAuth } from "../../lib/AuthContext";
 import { mascararCpf, mascararMatricula } from "../../lib/mascaras";
 import type { Fiscal } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
@@ -106,6 +107,8 @@ export function Fiscais() {
   const [fiscalEmEdicao, setFiscalEmEdicao] = useState<Fiscal | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const { mostrarToast } = useToast();
+  const { usuario } = useAuth();
+  const ehAdministrador = usuario?.papel === "administrador";
 
   function carregar() {
     apiFiscais
@@ -138,6 +141,17 @@ export function Fiscais() {
       mostrarToast(fiscal.ativo ? "Fiscal inativado." : "Fiscal reativado.");
     } catch (e) {
       mostrarToast(e instanceof ErroApi ? e.message : "Não foi possível alterar o status do fiscal.", "erro");
+    }
+  }
+
+  async function excluir(fiscal: Fiscal) {
+    if (!window.confirm(`Excluir "${fiscal.nome}" definitivamente? Essa ação não pode ser desfeita.`)) return;
+    try {
+      await apiFiscais.excluir(fiscal.id);
+      carregar();
+      mostrarToast("Fiscal excluído.");
+    } catch (e) {
+      mostrarToast(e instanceof ErroApi ? e.message : "Não foi possível excluir o fiscal.", "erro");
     }
   }
 
@@ -210,10 +224,19 @@ export function Fiscais() {
                     </button>
                     <button
                       onClick={() => alternarAtivo(f)}
-                      className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                      className="mr-2 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
                     >
                       {f.ativo ? "Inativar" : "Reativar"}
                     </button>
+                    {ehAdministrador && (
+                      <button
+                        onClick={() => excluir(f)}
+                        className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                        title="Exclusão definitiva — restrita a administrador"
+                      >
+                        Excluir
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

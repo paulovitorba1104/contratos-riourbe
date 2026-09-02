@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, status
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import exigir_administrador, get_current_user
@@ -35,3 +37,19 @@ def criar_modelo_ripm(
     db.commit()
     db.refresh(modelo)
     return modelo
+
+
+@router.delete("/{modelo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_modelo_ripm(
+    modelo_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva — restrita a administrador; se o modelo já estiver
+    # usado em algum instrumento, o banco recusa (chave estrangeira) e o
+    # handler global devolve 409.
+    _: Usuario = Depends(exigir_administrador),
+) -> None:
+    modelo = db.get(ModeloRipm, modelo_id)
+    if modelo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Modelo RIPM não encontrado.")
+    db.delete(modelo)
+    db.commit()

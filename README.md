@@ -227,7 +227,10 @@ Implementa a seção 4 do plano de desenvolvimento:
 A tabela `contratos.modelos_ripm` reaproveita o padrão `modelos_checklist`/`conferencias` do
 sistema de Faturas, mas fica **vazia até a lista oficial dos 32 modelos RIPM da PGM-Rio ser
 fornecida** — é possível cadastrar modelos via `POST /api/modelos-ripm` (restrito a
-administrador) enquanto isso.
+administrador) enquanto isso. RIPM é só um checklist de apoio administrativo (a jurídica confere
+se cada item da instrução processual foi cumprido) — não é documento jurídico do processo como o
+próprio instrumento (origem, apostilamento etc.), então vincular um modelo RIPM ao registrar um
+instrumento é **opcional**, nunca obrigatório.
 
 ## Pendências (ver seção 16 do plano)
 
@@ -255,6 +258,25 @@ de Faturamento (mesmo sistema já citado na seção de modelos RIPM) — cada fa
 soma no valor pago do contrato correspondente, mantendo `valor_atualizado`/`saldo_a_pagar`
 sempre em dia sem depender de alguém lançar o valor à mão. Os endpoints manuais continuam
 existindo até essa integração ser construída.
+
+**RIPM em PDF (planejado, não implementado)**: hoje o RIPM é só um cadastro de referência
+(`contratos.modelos_ripm`, opcionalmente vinculado a um instrumento). A ideia é o RIPM virar um
+formulário preenchível dentro do sistema — a pessoa preenche a instrução processual passo a
+passo e o sistema gera um PDF do documento preenchido, como qualquer outro documento de apoio
+administrativo do processo (não é documento jurídico do processo em si).
+
+**Timeout de sessão logada (planejado, não implementado)**: hoje a sessão dura o tempo fixo do
+JWT (`JWT_EXPIRA_HORAS`, 12h por padrão), sem expirar por inatividade. Fica para ser feito junto
+com a tela de "esqueci minha senha"/recuperação de senha (e-mail transacional via Brevo, já
+citado nas pendências gerais), já que as duas mexem no mesmo fluxo de autenticação.
+
+**Exclusão de registros**: restrita a administrador (`papel = administrador`) em todos os
+cadastros do módulo Contratos — contrato (exclusão em cascata: instrumentos, vínculos de fiscal,
+histórico de garantia), fiscal, fornecedor, instrumento processual, ata de registro de preço e
+modelo RIPM. Um cadastro referenciado por outro (ex.: fiscal já vinculado a um contrato) não pode
+ser excluído — o banco recusa por chave estrangeira e a API devolve 409. O histórico de garantia
+(seção acima) e o log de auditoria nunca são excluíveis — são registros de auditoria por
+definição.
 
 ---
 

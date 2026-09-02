@@ -21,6 +21,7 @@ export const apiContratos = {
     requisicao<ContratoDetalhado>("/contratos", { method: "POST", body: JSON.stringify(dados) }),
   atualizar: (id: string, dados: ContratoAtualizarPayload) =>
     requisicao<ContratoDetalhado>(`/contratos/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
+  excluir: (id: string) => requisicao<void>(`/contratos/${id}`, { method: "DELETE" }),
   registrarGarantia: (
     id: string,
     dados: { data_inicio_garantia: string | null; data_fim_garantia: string | null; observacao?: string | null },
@@ -56,6 +57,8 @@ export const apiContratos = {
       method: "PATCH",
       body: JSON.stringify({ sub_status }),
     }),
+  excluirInstrumento: (contratoId: string, instrumentoId: string) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/instrumentos/${instrumentoId}`, { method: "DELETE" }),
 };
 
 export const apiFornecedores = {
@@ -64,6 +67,7 @@ export const apiFornecedores = {
     requisicao<Fornecedor>("/fornecedores", { method: "POST", body: JSON.stringify(dados) }),
   atualizar: (id: string, dados: { razao_social?: string; cnpj?: string; ativo?: boolean }) =>
     requisicao<Fornecedor>(`/fornecedores/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
+  excluir: (id: string) => requisicao<void>(`/fornecedores/${id}`, { method: "DELETE" }),
 };
 
 export const apiFiscais = {
@@ -72,6 +76,7 @@ export const apiFiscais = {
     requisicao<Fiscal>("/fiscais", { method: "POST", body: JSON.stringify(dados) }),
   atualizar: (id: string, dados: { nome?: string; matricula?: string; cpf?: string | null; ativo?: boolean }) =>
     requisicao<Fiscal>(`/fiscais/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
+  excluir: (id: string) => requisicao<void>(`/fiscais/${id}`, { method: "DELETE" }),
 };
 
 export const apiModelosRipm = {
@@ -88,4 +93,5 @@ export const apiAtas = {
     data_validade: string;
     observacoes?: string | null;
   }) => requisicao<AtaRegistroPreco>("/atas-registro-preco", { method: "POST", body: JSON.stringify(dados) }),
+  excluir: (id: string) => requisicao<void>(`/atas-registro-preco/${id}`, { method: "DELETE" }),
 };

@@ -111,11 +111,6 @@ export function NovoContrato() {
       setErro("Selecione ao menos um fiscal do contrato.");
       return;
     }
-    if (!modeloRipmId) {
-      setErro("Selecione o modelo RIPM da vigência inicial.");
-      return;
-    }
-
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
@@ -129,7 +124,7 @@ export function NovoContrato() {
         valor_inicial: moedaParaNumero(valorInicial),
         observacoes: observacoes || null,
         instrumento_origem: {
-          modelo_ripm_id: modeloRipmId,
+          modelo_ripm_id: modeloRipmId || null,
           fundamentacao_lei: fundamentacaoLei,
           fundamentacao_artigo: fundamentacaoArtigo,
           numero_documento_sei: numeroDocumentoSei || null,
@@ -320,28 +315,25 @@ export function NovoContrato() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={rotuloClasse} htmlFor="modelo_ripm">
-                  Modelo RIPM
+                  Modelo RIPM (opcional)
                 </label>
                 <select
                   id="modelo_ripm"
                   className={campoClasse}
                   value={modeloRipmId}
                   onChange={(e) => setModeloRipmId(e.target.value)}
-                  required
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">Nenhum</option>
                   {modelos.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.codigo} — {m.nome}
                     </option>
                   ))}
                 </select>
-                {modelos.length === 0 && (
-                  <p className="mt-1 text-xs text-red-600">
-                    Nenhum modelo RIPM cadastrado ainda — peça a um administrador para cadastrar em
-                    /modelos-ripm.
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-institucional-500">
+                  RIPM é só o checklist de instrução processual — não é obrigatório para registrar o
+                  instrumento.
+                </p>
               </div>
               <div>
                 <label className={rotuloClasse} htmlFor="fundamentacao_lei">

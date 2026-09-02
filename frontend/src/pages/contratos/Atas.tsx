@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 
 import { ErroApi } from "../../lib/api";
 import { apiAtas } from "../../lib/apiContratos";
+import { useAuth } from "../../lib/AuthContext";
 import type { AtaRegistroPreco } from "../../lib/tiposContratos";
+import { useToast } from "../../lib/ToastContext";
 
 const campoClasse =
   "w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none";
@@ -16,6 +18,9 @@ export function Atas() {
   const [objeto, setObjeto] = useState("");
   const [dataValidade, setDataValidade] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const { mostrarToast } = useToast();
+  const { usuario } = useAuth();
+  const ehAdministrador = usuario?.papel === "administrador";
 
   function carregar() {
     apiAtas.listar(true).then(setAtas).catch(() => setErro("Não foi possível carregar as atas."));
@@ -36,6 +41,19 @@ export function Atas() {
       carregar();
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : "Não foi possível cadastrar a ata.");
+    }
+  }
+
+  async function excluir(ata: AtaRegistroPreco) {
+    if (!window.confirm(`Excluir a ata "${ata.numero_ata}" definitivamente? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      await apiAtas.excluir(ata.id);
+      carregar();
+      mostrarToast("Ata excluída.");
+    } catch (e) {
+      mostrarToast(e instanceof ErroApi ? e.message : "Não foi possível excluir a ata.", "erro");
     }
   }
 
@@ -104,12 +122,23 @@ export function Atas() {
 
         <div className="space-y-2">
           {atas.map((ata) => (
-            <div key={ata.id} className="rounded-lg bg-white p-4 shadow-sm">
-              <p className="font-medium text-institucional-900">
-                {ata.orgao} — {ata.numero_ata}
-              </p>
-              <p className="text-sm text-institucional-700">{ata.objeto}</p>
-              <p className="text-xs text-institucional-500">Válida até {ata.data_validade}</p>
+            <div key={ata.id} className="flex items-start justify-between rounded-lg bg-white p-4 shadow-sm">
+              <div>
+                <p className="font-medium text-institucional-900">
+                  {ata.orgao} — {ata.numero_ata}
+                </p>
+                <p className="text-sm text-institucional-700">{ata.objeto}</p>
+                <p className="text-xs text-institucional-500">Válida até {ata.data_validade}</p>
+              </div>
+              {ehAdministrador && (
+                <button
+                  onClick={() => excluir(ata)}
+                  className="whitespace-nowrap rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50"
+                  title="Exclusão definitiva — restrita a administrador"
+                >
+                  Excluir
+                </button>
+              )}
             </div>
           ))}
           {atas.length === 0 && <p className="text-sm text-institucional-500">Nenhuma ata disponível para adesão.</p>}

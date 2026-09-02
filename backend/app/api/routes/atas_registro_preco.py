@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import exigir_administrador, get_current_user
 from app.db.session import get_db
 from app.models.ata_registro_preco import AtaRegistroPreco
 from app.models.usuario import Usuario
@@ -56,3 +56,16 @@ def atualizar_ata(
     db.commit()
     db.refresh(ata)
     return ata
+
+
+@router.delete("/{ata_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_ata(
+    ata_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(exigir_administrador),
+) -> None:
+    ata = db.get(AtaRegistroPreco, ata_id)
+    if ata is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ata não encontrada.")
+    db.delete(ata)
+    db.commit()

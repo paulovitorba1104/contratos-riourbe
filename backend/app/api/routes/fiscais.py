@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import exigir_administrador, get_current_user
 from app.db.session import get_db
 from app.models.fiscal import Fiscal
 from app.models.usuario import Usuario
@@ -52,3 +52,19 @@ def atualizar_fiscal(
     db.commit()
     db.refresh(fiscal)
     return fiscal
+
+
+@router.delete("/{fiscal_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_fiscal(
+    fiscal_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva — restrita a administrador para não apagar dado por
+    # engano; se o fiscal já foi vinculado a algum contrato, o banco recusa
+    # (chave estrangeira) e o handler global devolve 409.
+    _: Usuario = Depends(exigir_administrador),
+) -> None:
+    fiscal = db.get(Fiscal, fiscal_id)
+    if fiscal is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal não encontrado.")
+    db.delete(fiscal)
+    db.commit()

@@ -45,3 +45,14 @@ def test_contrato_criar_exige_instrumento_origem():
 def test_contrato_criar_aceita_com_instrumento_origem():
     contrato = ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE)
     assert contrato.instrumento_origem.data_inicio_vigencia == date(2024, 1, 10)
+
+
+def test_contrato_criar_nao_exige_modelo_ripm_no_instrumento_origem():
+    """RIPM é só um checklist de apoio administrativo — não é obrigatório
+    para registrar a vigência inicial do contrato."""
+    dados_sem_ripm = {k: v for k, v in INSTRUMENTO_ORIGEM_BASE.items() if k != "modelo_ripm_id"}
+    contrato = ContratoCriar(**DADOS_BASE, instrumento_origem=dados_sem_ripm)
+    assert contrato.instrumento_origem.modelo_ripm_id is None
+    # As datas de vigência — o que de fato alimenta o teto de 5 anos — continuam exigidas.
+    assert contrato.instrumento_origem.data_inicio_vigencia == date(2024, 1, 10)
+    assert contrato.instrumento_origem.data_fim_vigencia == date(2026, 1, 10)

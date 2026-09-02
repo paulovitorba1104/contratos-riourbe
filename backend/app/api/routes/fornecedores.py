@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import exigir_administrador, get_current_user
 from app.core.cnpj_lookup import consultar_situacao_cnpj
 from app.db.session import get_db
 from app.models.fornecedor import Fornecedor
@@ -68,3 +68,19 @@ def atualizar_fornecedor(
     db.commit()
     db.refresh(fornecedor)
     return fornecedor
+
+
+@router.delete("/{fornecedor_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_fornecedor(
+    fornecedor_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva — restrita a administrador; se o fornecedor já
+    # estiver vinculado a algum contrato, o banco recusa (chave estrangeira)
+    # e o handler global devolve 409.
+    _: Usuario = Depends(exigir_administrador),
+) -> None:
+    fornecedor = db.get(Fornecedor, fornecedor_id)
+    if fornecedor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fornecedor não encontrado.")
+    db.delete(fornecedor)
+    db.commit()
