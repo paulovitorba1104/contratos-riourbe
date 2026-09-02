@@ -8,18 +8,21 @@ from sqlalchemy.sql import func
 from app.db.base import Base
 
 
-class Fornecedor(Base):
-    """Cadastro mínimo de fornecedor — dado mestre compartilhado entre módulos
-    (Contratos, Faturas, Licitação). Vive em 'core' por ser transversal aos
-    schemas de domínio; cada módulo estende o que precisar via FK.
+class Fiscal(Base):
+    """Cadastro de fiscais de contrato — dado mestre próprio, independente de
+    usuário do sistema (nem todo fiscal tem login). Vive em 'core' por ser
+    transversal (Contratos hoje, Faturas/Fiscalização depois).
+
+    Identificado pela matrícula (obrigatória e única); CPF é opcional.
     """
 
-    __tablename__ = "fornecedores"
+    __tablename__ = "fiscais"
     __table_args__ = {"schema": "core"}
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    razao_social: Mapped[str] = mapped_column(String(255), nullable=False)
-    cnpj: Mapped[str] = mapped_column(String(14), unique=True, nullable=False)
+    nome: Mapped[str] = mapped_column(String(200), nullable=False)
+    matricula: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+    cpf: Mapped[str | None] = mapped_column(String(11), unique=True, nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

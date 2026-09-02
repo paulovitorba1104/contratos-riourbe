@@ -32,16 +32,6 @@ class UsuarioAtualizarPapel(BaseModel):
     papel: PapelUsuario
 
 
-class UsuarioBasico(BaseModel):
-    """Campos mínimos para seleção em outros módulos (ex.: fiscais de um
-    contrato) — não expõe CPF/e-mail/matrícula a qualquer operador."""
-
-    id: uuid.UUID
-    nome: str
-
-    model_config = {"from_attributes": True}
-
-
 class UsuarioSaida(BaseModel):
     id: uuid.UUID
     nome: str

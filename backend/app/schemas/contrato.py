@@ -5,6 +5,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.contrato import FormaContratacao, StatusContrato
+from app.schemas.fiscal import FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualSaida
 
 
@@ -25,7 +26,9 @@ class ContratoCriar(BaseModel):
     item_patrimonial: str | None = None
     codigo_ccon: str | None = None
     observacoes: str | None = None
-    # Fiscal obrigatório — gap identificado na planilha antiga (seção 4.5)
+    # Fiscal obrigatório — gap identificado na planilha antiga (seção 4.5).
+    # Vínculo(s) inicial(is); data_inicio de cada um é a data de assinatura
+    # original por padrão do lado do frontend, mas pode ser ajustada.
     fiscais_ids: list[uuid.UUID] = Field(..., min_length=1)
 
 
@@ -73,7 +76,7 @@ class ContratoSaida(BaseModel):
 
 
 class ContratoDetalhado(ContratoSaida):
-    fiscais_ids: list[uuid.UUID]
+    fiscais: list[FiscalVinculoSaida]
     valor_atualizado: Decimal
     saldo_a_pagar: Decimal
     vigencia_inicio: date | None

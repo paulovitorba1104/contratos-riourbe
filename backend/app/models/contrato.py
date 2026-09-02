@@ -10,6 +10,7 @@ from sqlalchemy.sql import func
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.fiscal import Fiscal
     from app.models.instrumento_processual import InstrumentoProcessual
 
 
@@ -101,14 +102,28 @@ class Contrato(Base):
 
 
 class ContratoFiscal(Base):
-    """Fiscal(is) do contrato — obrigatório, gap identificado na planilha antiga."""
+    """Vínculo de fiscalização — fiscal(is) do contrato, obrigatório (gap
+    identificado na planilha antiga). É um vínculo temporal, não uma simples
+    associação: um fiscal pode entrar e sair da fiscalização ao longo da
+    vida do contrato (substituição), então cada linha tem início e,
+    opcionalmente, fim de vigência. `data_fim` nula = vínculo ainda ativo.
+    """
 
     __tablename__ = "contrato_fiscais"
     __table_args__ = {"schema": "contratos"}
 
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     contrato_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("contratos.contratos.id", ondelete="CASCADE"), primary_key=True
+        ForeignKey("contratos.contratos.id", ondelete="CASCADE"), nullable=False
     )
-    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.usuarios.id"), primary_key=True)
+    fiscal_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.fiscais.id"), nullable=False)
+    data_inicio: Mapped[date] = mapped_column(Date, nullable=False)
+    data_fim: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     contrato: Mapped["Contrato"] = relationship(back_populates="fiscais")
+    fiscal: Mapped["Fiscal"] = relationship()

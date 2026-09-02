@@ -21,5 +21,6 @@ class FornecedorSaida(BaseModel):
     id: uuid.UUID
     razao_social: str
     cnpj: str
+    ativo: bool
 
     model_config = {"from_attributes": True}

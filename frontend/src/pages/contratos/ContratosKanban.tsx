@@ -53,6 +53,18 @@ export function ContratosKanban() {
         </div>
         <div className="flex gap-2">
           <Link
+            to="/contratos/fiscais"
+            className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
+          >
+            Fiscais
+          </Link>
+          <Link
+            to="/contratos/fornecedores"
+            className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
+          >
+            Fornecedores
+          </Link>
+          <Link
             to="/contratos/atas"
             className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
           >
