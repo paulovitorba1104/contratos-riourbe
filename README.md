@@ -198,7 +198,11 @@ Implementa a seção 4 do plano de desenvolvimento:
   rescisão/extinção — nunca editado diretamente.
 - **Instrumentos processuais**: origem + aditivos (prorrogação, acréscimo/supressão de valor,
   alteração qualitativa, reequilíbrio, apostilamento, suspensão, rescisão/extinção), cada um
-  mapeado a um modelo RIPM e com fundamentação legal estruturada (lei + artigo).
+  mapeado a um modelo RIPM e com fundamentação legal estruturada (lei + artigo). O instrumento de
+  Origem é criado junto com o contrato — a tela "Novo contrato" já pergunta o prazo inicial de
+  vigência (início/fim), RIPM e fundamentação; as prorrogações seguintes são registradas depois,
+  na ficha do contrato, e só são aceitas até completar o teto de 5 anos contado da assinatura
+  original (ex.: 2 anos na contratação inicial + 2 anos + 1 ano de prorrogações = 5 anos).
 - **3 relógios de prazo**: vigência atual (derivada do instrumento de origem/prorrogação mais
   recente), teto rígido de 5 anos desde a assinatura original (bloqueia prorrogação que
   ultrapasse — `TetoVigenciaExcedido`), e garantia contratual independente. A garantia é um

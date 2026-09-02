@@ -5,8 +5,32 @@ from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.contrato import FormaContratacao, StatusContrato
+from app.models.instrumento_processual import FundamentacaoLei
 from app.schemas.fiscal import FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualSaida
+
+
+class InstrumentoOrigemCriar(BaseModel):
+    """O instrumento de Origem — primeiro prazo de vigência do contrato,
+    criado junto com o contrato (não depois, como os aditivos). O RIPM aqui é
+    o checklist de instrução processual que a jurídica confere na abertura do
+    processo; a fundamentação legal (lei + artigo) é a mesma exigida de
+    qualquer instrumento que define vigência (seção 4.2)."""
+
+    modelo_ripm_id: uuid.UUID
+    fundamentacao_lei: FundamentacaoLei
+    fundamentacao_artigo: str = Field(..., max_length=100)
+    numero_documento_sei: str | None = Field(None, max_length=50)
+    data_inicio_vigencia: date
+    data_fim_vigencia: date
+
+    @field_validator("data_fim_vigencia")
+    @classmethod
+    def _fim_apos_inicio(cls, v: date, info) -> date:
+        inicio = info.data.get("data_inicio_vigencia")
+        if inicio is not None and v <= inicio:
+            raise ValueError("A data de fim de vigência deve ser posterior à data de início.")
+        return v
 
 
 class ContratoCriar(BaseModel):
@@ -27,6 +51,10 @@ class ContratoCriar(BaseModel):
     item_patrimonial: str | None = None
     codigo_ccon: str | None = None
     observacoes: str | None = None
+    # Prazo de vigência inicial (Relógio 1) — o teto de 5 anos (Relógio 2) só
+    # funciona corretamente se o contrato já nascer com esse marco zero;
+    # prorrogações depois entram como novos instrumentos na ficha do contrato.
+    instrumento_origem: InstrumentoOrigemCriar
     # Fiscal obrigatório — gap identificado na planilha antiga (seção 4.5).
     # Vínculo(s) inicial(is); data_inicio de cada um é a data de assinatura
     # original por padrão do lado do frontend, mas pode ser ajustada.

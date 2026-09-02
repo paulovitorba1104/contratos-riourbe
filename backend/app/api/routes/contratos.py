@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.models.contrato import Contrato, ContratoFiscal, GarantiaContrato, StatusContrato
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
-from app.models.instrumento_processual import InstrumentoProcessual
+from app.models.instrumento_processual import InstrumentoProcessual, TipoInstrumento
 from app.models.modelo_ripm import ModeloRipm
 from app.models.usuario import Usuario
 from app.schemas.contrato import (
@@ -134,11 +134,25 @@ def criar_contrato(
     if len(fiscais_encontrados) != len(set(dados.fiscais_ids)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Um ou mais fiscais não encontrados.")
 
+    if db.get(ModeloRipm, dados.instrumento_origem.modelo_ripm_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Modelo RIPM não encontrado.")
+
     contrato = Contrato(
-        **dados.model_dump(exclude={"fiscais_ids"}),
+        **dados.model_dump(exclude={"fiscais_ids", "instrumento_origem"}),
     )
     db.add(contrato)
     db.flush()
+
+    instrumento_origem = InstrumentoProcessual(
+        contrato_id=contrato.id,
+        tipo=TipoInstrumento.ORIGEM,
+        **dados.instrumento_origem.model_dump(),
+    )
+    try:
+        regras.validar_instrumento(contrato, instrumento_origem)
+    except regras.TetoVigenciaExcedido as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    db.add(instrumento_origem)
 
     for fiscal_id in set(dados.fiscais_ids):
         db.add(

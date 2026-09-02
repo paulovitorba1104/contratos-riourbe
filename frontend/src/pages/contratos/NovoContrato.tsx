@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
+import { apiContratos, apiFiscais, apiFornecedores, apiModelosRipm } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
 import { mascararCnpj, mascararCpf, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
-import type { Fiscal, Fornecedor, FormaContratacao } from "../../lib/tiposContratos";
+import type { Fiscal, Fornecedor, FormaContratacao, FundamentacaoLei, ModeloRipm } from "../../lib/tiposContratos";
 import { ROTULOS_FORMA_CONTRATACAO } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
@@ -38,12 +38,21 @@ export function NovoContrato() {
   const [observacoes, setObservacoes] = useState("");
   const [fiscaisSelecionados, setFiscaisSelecionados] = useState<string[]>([]);
 
+  const [modelos, setModelos] = useState<ModeloRipm[]>([]);
+  const [modeloRipmId, setModeloRipmId] = useState("");
+  const [fundamentacaoLei, setFundamentacaoLei] = useState<FundamentacaoLei>("lei_13303_16");
+  const [fundamentacaoArtigo, setFundamentacaoArtigo] = useState("");
+  const [numeroDocumentoSei, setNumeroDocumentoSei] = useState("");
+  const [dataInicioVigencia, setDataInicioVigencia] = useState("");
+  const [dataFimVigencia, setDataFimVigencia] = useState("");
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     apiFornecedores.listar().then(setFornecedores).catch(() => setErro("Não foi possível carregar fornecedores."));
     apiFiscais.listar().then(setFiscais).catch(() => setErro("Não foi possível carregar fiscais."));
+    apiModelosRipm.listar().then(setModelos).catch(() => setErro("Não foi possível carregar modelos RIPM."));
   }, []);
 
   async function criarFornecedor() {
@@ -102,6 +111,10 @@ export function NovoContrato() {
       setErro("Selecione ao menos um fiscal do contrato.");
       return;
     }
+    if (!modeloRipmId) {
+      setErro("Selecione o modelo RIPM da vigência inicial.");
+      return;
+    }
 
     setEnviando(true);
     try {
@@ -115,6 +128,14 @@ export function NovoContrato() {
         data_assinatura_original: dataAssinatura,
         valor_inicial: moedaParaNumero(valorInicial),
         observacoes: observacoes || null,
+        instrumento_origem: {
+          modelo_ripm_id: modeloRipmId,
+          fundamentacao_lei: fundamentacaoLei,
+          fundamentacao_artigo: fundamentacaoArtigo,
+          numero_documento_sei: numeroDocumentoSei || null,
+          data_inicio_vigencia: dataInicioVigencia,
+          data_fim_vigencia: dataFimVigencia,
+        },
         fiscais_ids: fiscaisSelecionados,
       });
       mostrarToast("Contrato criado com sucesso.");
@@ -290,6 +311,113 @@ export function NovoContrato() {
                 required
               />
             </div>
+          </div>
+
+          <div className="rounded border border-institucional-200 bg-institucional-50 p-4">
+            <p className="mb-3 text-sm font-semibold text-institucional-900">
+              Vigência inicial (instrumento de Origem)
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={rotuloClasse} htmlFor="modelo_ripm">
+                  Modelo RIPM
+                </label>
+                <select
+                  id="modelo_ripm"
+                  className={campoClasse}
+                  value={modeloRipmId}
+                  onChange={(e) => setModeloRipmId(e.target.value)}
+                  required
+                >
+                  <option value="">Selecione...</option>
+                  {modelos.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.codigo} — {m.nome}
+                    </option>
+                  ))}
+                </select>
+                {modelos.length === 0 && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Nenhum modelo RIPM cadastrado ainda — peça a um administrador para cadastrar em
+                    /modelos-ripm.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className={rotuloClasse} htmlFor="fundamentacao_lei">
+                  Fundamentação (lei)
+                </label>
+                <select
+                  id="fundamentacao_lei"
+                  className={campoClasse}
+                  value={fundamentacaoLei}
+                  onChange={(e) => setFundamentacaoLei(e.target.value as FundamentacaoLei)}
+                >
+                  <option value="lei_13303_16">Lei 13.303/16</option>
+                  <option value="lei_14133_21">Lei 14.133/21</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <label className={rotuloClasse} htmlFor="fundamentacao_artigo">
+                  Artigo
+                </label>
+                <input
+                  id="fundamentacao_artigo"
+                  className={campoClasse}
+                  value={fundamentacaoArtigo}
+                  onChange={(e) => setFundamentacaoArtigo(e.target.value)}
+                  placeholder="ex.: art. 71"
+                  required
+                />
+              </div>
+              <div>
+                <label className={rotuloClasse} htmlFor="numero_documento_sei">
+                  Nº documento SEI (opcional)
+                </label>
+                <input
+                  id="numero_documento_sei"
+                  className={campoClasse}
+                  value={numeroDocumentoSei}
+                  onChange={(e) => setNumeroDocumentoSei(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <label className={rotuloClasse} htmlFor="data_inicio_vigencia">
+                  Início da vigência
+                </label>
+                <input
+                  id="data_inicio_vigencia"
+                  type="date"
+                  className={campoClasse}
+                  value={dataInicioVigencia}
+                  onChange={(e) => setDataInicioVigencia(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className={rotuloClasse} htmlFor="data_fim_vigencia">
+                  Fim da vigência
+                </label>
+                <input
+                  id="data_fim_vigencia"
+                  type="date"
+                  className={campoClasse}
+                  value={dataFimVigencia}
+                  onChange={(e) => setDataFimVigencia(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-institucional-500">
+              Prazo inicial da vigência — as próximas prorrogações (feitas depois, na ficha do contrato)
+              só são aceitas até completar 5 anos a partir da data de assinatura original.
+            </p>
           </div>
 
           <div>
