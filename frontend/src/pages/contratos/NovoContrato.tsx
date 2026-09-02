@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { apiContratos, apiFiscais, apiFornecedores, apiModelosRipm } from "../../lib/apiContratos";
+import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
 import { mascararCnpj, mascararCpf, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
-import type { Fiscal, Fornecedor, FormaContratacao, FundamentacaoLei, ModeloRipm } from "../../lib/tiposContratos";
+import type { Fiscal, Fornecedor, FormaContratacao, FundamentacaoLei } from "../../lib/tiposContratos";
 import { ROTULOS_FORMA_CONTRATACAO } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
@@ -38,8 +38,6 @@ export function NovoContrato() {
   const [observacoes, setObservacoes] = useState("");
   const [fiscaisSelecionados, setFiscaisSelecionados] = useState<string[]>([]);
 
-  const [modelos, setModelos] = useState<ModeloRipm[]>([]);
-  const [modeloRipmId, setModeloRipmId] = useState("");
   const [fundamentacaoLei, setFundamentacaoLei] = useState<FundamentacaoLei>("lei_13303_16");
   const [fundamentacaoArtigo, setFundamentacaoArtigo] = useState("");
   const [numeroDocumentoSei, setNumeroDocumentoSei] = useState("");
@@ -52,7 +50,6 @@ export function NovoContrato() {
   useEffect(() => {
     apiFornecedores.listar().then(setFornecedores).catch(() => setErro("Não foi possível carregar fornecedores."));
     apiFiscais.listar().then(setFiscais).catch(() => setErro("Não foi possível carregar fiscais."));
-    apiModelosRipm.listar().then(setModelos).catch(() => setErro("Não foi possível carregar modelos RIPM."));
   }, []);
 
   async function criarFornecedor() {
@@ -124,7 +121,6 @@ export function NovoContrato() {
         valor_inicial: moedaParaNumero(valorInicial),
         observacoes: observacoes || null,
         instrumento_origem: {
-          modelo_ripm_id: modeloRipmId || null,
           fundamentacao_lei: fundamentacaoLei,
           fundamentacao_artigo: fundamentacaoArtigo,
           numero_documento_sei: numeroDocumentoSei || null,
@@ -312,29 +308,7 @@ export function NovoContrato() {
             <p className="mb-3 text-sm font-semibold text-institucional-900">
               Vigência inicial (instrumento de Origem)
             </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={rotuloClasse} htmlFor="modelo_ripm">
-                  Modelo RIPM (opcional)
-                </label>
-                <select
-                  id="modelo_ripm"
-                  className={campoClasse}
-                  value={modeloRipmId}
-                  onChange={(e) => setModeloRipmId(e.target.value)}
-                >
-                  <option value="">Nenhum</option>
-                  {modelos.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.codigo} — {m.nome}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-institucional-500">
-                  RIPM é só o checklist de instrução processual — não é obrigatório para registrar o
-                  instrumento.
-                </p>
-              </div>
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className={rotuloClasse} htmlFor="fundamentacao_lei">
                   Fundamentação (lei)
@@ -349,9 +323,6 @@ export function NovoContrato() {
                   <option value="lei_14133_21">Lei 14.133/21</option>
                 </select>
               </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-4">
               <div>
                 <label className={rotuloClasse} htmlFor="fundamentacao_artigo">
                   Artigo
