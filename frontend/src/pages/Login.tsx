@@ -28,21 +28,21 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-institucional-50">
-      <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-md">
-        <div className="mb-6 text-center">
-          <img src={logoRioUrbe} alt="Prefeitura do Rio — Rio-Urbe" className="mx-auto mb-3 h-auto w-full max-w-[260px]" />
-          <p className="text-sm text-institucional-700">Sistema de Gestão de Contratos</p>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/60">
+        <div className="mb-7 text-center">
+          <img src={logoRioUrbe} alt="Prefeitura do Rio — Rio-Urbe" className="mx-auto mb-4 h-auto w-full max-w-[240px]" />
+          <p className="text-sm text-slate-500">Sistema de Gestão de Contratos</p>
         </div>
 
         <form onSubmit={aoEnviar} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-institucional-800" htmlFor="identificador">
+            <label className="field-label" htmlFor="identificador">
               Matrícula ou CPF
             </label>
             <input
               id="identificador"
-              className="w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none"
+              className="field-input"
               value={identificador}
               onChange={(e) => setIdentificador(e.target.value)}
               autoComplete="username"
@@ -50,13 +50,13 @@ export function Login() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-institucional-800" htmlFor="senha">
+            <label className="field-label" htmlFor="senha">
               Senha
             </label>
             <input
               id="senha"
               type="password"
-              className="w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none"
+              className="field-input"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               autoComplete="current-password"
@@ -66,11 +66,7 @@ export function Login() {
 
           {erro && <p className="text-sm text-red-600">{erro}</p>}
 
-          <button
-            type="submit"
-            disabled={enviando}
-            className="w-full rounded bg-institucional-600 py-2 text-sm font-medium text-white transition hover:bg-institucional-700 disabled:opacity-60"
-          >
+          <button type="submit" disabled={enviando} className="btn-primary w-full py-2.5">
             {enviando ? "Entrando..." : "Entrar"}
           </button>
         </form>

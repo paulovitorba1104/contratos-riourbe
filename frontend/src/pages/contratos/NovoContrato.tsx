@@ -16,9 +16,8 @@ import type {
 import { ROTULOS_FORMA_CONTRATACAO, ROTULOS_SISTEMA_PROCESSO, ROTULOS_TIPO_PROCESSO } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
-const campoClasse =
-  "w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none";
-const rotuloClasse = "mb-1 block text-sm font-medium text-institucional-800";
+const campoClasse = "field-input";
+const rotuloClasse = "field-label";
 
 export function NovoContrato() {
   const navegar = useNavigate();
@@ -165,16 +164,18 @@ export function NovoContrato() {
   }
 
   return (
-    <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="border-b border-institucional-100 bg-white px-6 py-4">
-        <Link to="/contratos" className="text-xs text-institucional-600 hover:underline">
-          ← Contratos
-        </Link>
-        <h1 className="text-lg font-semibold text-institucional-900">Novo contrato</h1>
+    <div className="page-shell">
+      <header className="page-header">
+        <div>
+          <Link to="/contratos" className="text-xs font-medium text-institucional-600 hover:underline">
+            ← Contratos
+          </Link>
+          <h1 className="page-title mt-0.5">Novo contrato</h1>
+        </div>
       </header>
 
       <main className="mx-auto max-w-2xl p-6">
-        <form onSubmit={aoEnviar} className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
+        <form onSubmit={aoEnviar} className="card space-y-5 p-6">
           <div>
             <label className={rotuloClasse} htmlFor="numero_contrato">
               Número do contrato
@@ -191,23 +192,22 @@ export function NovoContrato() {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <span className={rotuloClasse}>Número(s) de processo *</span>
-              <button
-                type="button"
-                onClick={adicionarProcesso}
-                className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
-              >
+              <button type="button" onClick={adicionarProcesso} className="btn-ghost btn-sm">
                 + Adicionar processo
               </button>
             </div>
-            <p className="mb-2 text-xs text-institucional-500">
+            <p className="mb-3 text-xs text-slate-500">
               Um contrato pode ter mais de um número (SICOP físico, Processo.Rio, SEI.Rio) e/ou
               processos apensos ao principal.
             </p>
             <div className="space-y-2">
               {processos.map((processo, indice) => (
-                <div key={indice} className="grid grid-cols-[2fr_1.3fr_1fr_auto] items-end gap-2">
+                <div
+                  key={indice}
+                  className="grid grid-cols-[2fr_1.3fr_1fr_auto] items-end gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-2.5"
+                >
                   <div>
-                    {indice === 0 && <label className="mb-1 block text-xs text-institucional-700">Número</label>}
+                    {indice === 0 && <label className="mb-1 block text-xs text-slate-500">Número</label>}
                     <input
                       id={indice === 0 ? "numero_processo_0" : undefined}
                       className={campoClasse}
@@ -218,7 +218,7 @@ export function NovoContrato() {
                     />
                   </div>
                   <div>
-                    {indice === 0 && <label className="mb-1 block text-xs text-institucional-700">Sistema</label>}
+                    {indice === 0 && <label className="mb-1 block text-xs text-slate-500">Sistema</label>}
                     <select
                       className={campoClasse}
                       value={processo.sistema_origem}
@@ -234,7 +234,7 @@ export function NovoContrato() {
                     </select>
                   </div>
                   <div>
-                    {indice === 0 && <label className="mb-1 block text-xs text-institucional-700">Tipo</label>}
+                    {indice === 0 && <label className="mb-1 block text-xs text-slate-500">Tipo</label>}
                     <select
                       className={campoClasse}
                       value={processo.tipo}
@@ -251,7 +251,7 @@ export function NovoContrato() {
                     type="button"
                     onClick={() => removerProcesso(indice)}
                     disabled={processos.length === 1}
-                    className="rounded border border-institucional-300 px-2 py-2 text-xs text-institucional-700 hover:bg-institucional-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="btn-secondary btn-sm"
                     title={processos.length === 1 ? "O contrato precisa ter ao menos um processo" : "Remover"}
                   >
                     Remover
@@ -310,14 +310,14 @@ export function NovoContrato() {
               <button
                 type="button"
                 onClick={() => setMostrarNovoFornecedor((v) => !v)}
-                className="whitespace-nowrap rounded border border-institucional-300 px-3 py-2 text-sm text-institucional-700 hover:bg-institucional-100"
+                className="btn-secondary"
               >
                 + Novo
               </button>
             </div>
 
             {mostrarNovoFornecedor && (
-              <div className="mt-2 space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+              <div className="mt-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                 <input
                   placeholder="Razão social"
                   className={campoClasse}
@@ -330,11 +330,7 @@ export function NovoContrato() {
                   value={novoFornecedorCnpj}
                   onChange={(e) => setNovoFornecedorCnpj(mascararCnpj(e.target.value))}
                 />
-                <button
-                  type="button"
-                  onClick={criarFornecedor}
-                  className="rounded bg-institucional-600 px-3 py-1.5 text-sm text-white hover:bg-institucional-700"
-                >
+                <button type="button" onClick={criarFornecedor} className="btn-primary btn-sm">
                   Cadastrar fornecedor
                 </button>
               </div>
@@ -390,8 +386,8 @@ export function NovoContrato() {
             </div>
           </div>
 
-          <div className="rounded border border-institucional-200 bg-institucional-50 p-4">
-            <p className="mb-3 text-sm font-semibold text-institucional-900">
+          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
+            <p className="mb-3 text-sm font-semibold text-slate-800">
               Vigência inicial (instrumento de Origem)
             </p>
             <div className="grid grid-cols-3 gap-4">
@@ -463,7 +459,7 @@ export function NovoContrato() {
                 />
               </div>
             </div>
-            <p className="mt-2 text-xs text-institucional-500">
+            <p className="mt-2 text-xs text-slate-500">
               Prazo inicial da vigência — as próximas prorrogações (feitas depois, na ficha do contrato)
               só são aceitas até completar 5 anos a partir da data de assinatura original.
             </p>
@@ -472,17 +468,13 @@ export function NovoContrato() {
           <div>
             <div className="flex items-center justify-between">
               <span className={rotuloClasse}>Fiscal(is) do contrato *</span>
-              <button
-                type="button"
-                onClick={() => setMostrarNovoFiscal((v) => !v)}
-                className="mb-1 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
-              >
+              <button type="button" onClick={() => setMostrarNovoFiscal((v) => !v)} className="btn-ghost btn-sm">
                 + Novo fiscal
               </button>
             </div>
 
             {mostrarNovoFiscal && (
-              <div className="mb-2 space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+              <div className="mb-2 space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                 <input
                   placeholder="Nome"
                   className={campoClasse}
@@ -501,30 +493,24 @@ export function NovoContrato() {
                   value={novoFiscalCpf}
                   onChange={(e) => setNovoFiscalCpf(mascararCpf(e.target.value))}
                 />
-                <button
-                  type="button"
-                  onClick={criarFiscal}
-                  className="rounded bg-institucional-600 px-3 py-1.5 text-sm text-white hover:bg-institucional-700"
-                >
+                <button type="button" onClick={criarFiscal} className="btn-primary btn-sm">
                   Cadastrar fiscal
                 </button>
               </div>
             )}
 
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-institucional-200 p-2">
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
               {fiscais.map((f) => (
-                <label key={f.id} className="flex items-center gap-2 text-sm text-institucional-800">
+                <label key={f.id} className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
                     checked={fiscaisSelecionados.includes(f.id)}
                     onChange={() => alternarFiscal(f.id)}
                   />
-                  {f.nome} <span className="text-xs text-institucional-500">({mascararMatricula(f.matricula)})</span>
+                  {f.nome} <span className="text-xs text-slate-500">({mascararMatricula(f.matricula)})</span>
                 </label>
               ))}
-              {fiscais.length === 0 && (
-                <p className="text-xs text-institucional-500">Nenhum fiscal cadastrado ainda.</p>
-              )}
+              {fiscais.length === 0 && <p className="text-xs text-slate-500">Nenhum fiscal cadastrado ainda.</p>}
             </div>
           </div>
 
@@ -543,11 +529,7 @@ export function NovoContrato() {
 
           {erro && <p className="text-sm text-red-600">{erro}</p>}
 
-          <button
-            type="submit"
-            disabled={enviando}
-            className="w-full rounded bg-institucional-600 py-2 text-sm font-medium text-white transition hover:bg-institucional-700 disabled:opacity-60"
-          >
+          <button type="submit" disabled={enviando} className="btn-primary w-full py-2.5">
             {enviando ? "Criando..." : "Criar contrato"}
           </button>
         </form>

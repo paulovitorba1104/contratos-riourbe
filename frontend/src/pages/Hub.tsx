@@ -18,27 +18,28 @@ export function Hub() {
   const { usuario } = useAuth();
 
   return (
-    <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="border-b border-institucional-100 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold text-institucional-900">Rio-Urbe — Gestão de Contratos</h1>
-        <p className="text-sm text-institucional-700">Olá, {usuario?.nome}</p>
+    <div className="page-shell">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Rio-Urbe — Gestão de Contratos</h1>
+          <p className="mt-0.5 text-sm text-slate-500">Olá, {usuario?.nome}</p>
+        </div>
       </header>
 
       <main className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
         {BLOCOS.map((bloco) => {
           const conteudo = (
             <>
-              <h2 className="mb-1 font-semibold text-institucional-900">{bloco.titulo}</h2>
-              <p className="text-sm text-institucional-700">{bloco.descricao}</p>
-              {!bloco.caminho && <p className="mt-2 text-xs text-institucional-400">Em breve</p>}
+              <h2 className="mb-1 font-semibold text-slate-900">{bloco.titulo}</h2>
+              <p className="text-sm text-slate-500">{bloco.descricao}</p>
+              {!bloco.caminho && <span className="pill mt-3 inline-block">Em breve</span>}
             </>
           );
 
-          const classe =
-            "rounded-lg border border-institucional-100 bg-white p-5 shadow-sm transition hover:shadow-md";
+          const classe = "card card-hover block p-5";
 
           return bloco.caminho ? (
-            <Link key={bloco.titulo} to={bloco.caminho} className={`block ${classe}`}>
+            <Link key={bloco.titulo} to={bloco.caminho} className={classe}>
               {conteudo}
             </Link>
           ) : (

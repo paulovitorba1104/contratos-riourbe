@@ -9,9 +9,9 @@ import { ROTULOS_FORMA_CONTRATACAO, ROTULOS_STATUS_CONTRATO } from "../../lib/ti
 const COLUNAS: StatusContrato[] = ["vigente", "suspenso", "encerrado"];
 
 const CORES_COLUNA: Record<StatusContrato, string> = {
-  vigente: "border-t-institucional-600",
-  suspenso: "border-t-amber-500",
-  encerrado: "border-t-slate-400",
+  vigente: "border-t-institucional-500",
+  suspenso: "border-t-amber-400",
+  encerrado: "border-t-slate-300",
 };
 
 function resumoProcesso(contrato: Contrato): string {
@@ -25,15 +25,15 @@ function CartaoContrato({ contrato }: { contrato: Contrato }) {
   return (
     <Link
       to={`/contratos/${contrato.id}`}
-      className="block rounded border border-institucional-100 bg-white p-3 text-sm shadow-sm transition hover:shadow-md"
+      className="card card-hover block p-3.5 text-sm"
     >
-      <p className="font-semibold text-institucional-900">{contrato.numero_contrato}</p>
-      <p className="mt-0.5 text-sm text-institucional-800">{contrato.tipo_servico}</p>
-      <p className="mt-1 text-xs text-institucional-700">{resumoProcesso(contrato)}</p>
-      <p className="mt-1 text-xs text-institucional-600">
+      <p className="font-semibold text-slate-900">{contrato.numero_contrato}</p>
+      <p className="mt-0.5 text-sm text-slate-600">{contrato.tipo_servico}</p>
+      <p className="mt-1 text-xs text-slate-500">{resumoProcesso(contrato)}</p>
+      <p className="mt-1 text-xs text-slate-400">
         {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
       </p>
-      <p className="mt-2 text-sm font-semibold text-institucional-800">
+      <p className="mt-2 text-sm font-semibold text-slate-800">
         R$ {Number(contrato.valor_inicial).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
       </p>
       {(contrato.alerta_vigencia || contrato.alerta_garantia) && (
@@ -64,37 +64,25 @@ export function ContratosKanban() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="flex items-center justify-between border-b border-institucional-100 bg-white px-6 py-4">
+    <div className="page-shell">
+      <header className="page-header">
         <div>
-          <Link to="/" className="text-xs text-institucional-600 hover:underline">
+          <Link to="/" className="text-xs font-medium text-institucional-600 hover:underline">
             ← Hub
           </Link>
-          <h1 className="text-lg font-semibold text-institucional-900">Contratos</h1>
+          <h1 className="page-title mt-0.5">Contratos</h1>
         </div>
-        <div className="flex gap-2">
-          <Link
-            to="/contratos/fiscais"
-            className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
-          >
+        <div className="flex flex-wrap gap-2">
+          <Link to="/contratos/fiscais" className="btn-secondary btn-sm">
             Fiscais
           </Link>
-          <Link
-            to="/contratos/fornecedores"
-            className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
-          >
+          <Link to="/contratos/fornecedores" className="btn-secondary btn-sm">
             Fornecedores
           </Link>
-          <Link
-            to="/contratos/atas"
-            className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
-          >
+          <Link to="/contratos/atas" className="btn-secondary btn-sm">
             Atas para adesão
           </Link>
-          <Link
-            to="/contratos/novo"
-            className="rounded bg-institucional-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-institucional-700"
-          >
+          <Link to="/contratos/novo" className="btn-primary btn-sm">
             + Novo contrato
           </Link>
         </div>
@@ -103,17 +91,17 @@ export function ContratosKanban() {
       <main className="mx-auto max-w-6xl p-6">
         {erro && <p className="mb-4 text-sm text-red-600">{erro}</p>}
 
-        {!contratos && !erro && <p className="text-sm text-institucional-700">Carregando...</p>}
+        {!contratos && !erro && <p className="text-sm text-slate-500">Carregando...</p>}
 
         {contratos && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {COLUNAS.map((coluna) => {
               const contratosDaColuna = contratos.filter((c) => c.status === coluna);
               return (
-                <div key={coluna} className={`rounded-lg border-t-4 bg-institucional-100/50 p-3 ${CORES_COLUNA[coluna]}`}>
-                  <h2 className="mb-3 flex items-center justify-between text-sm font-semibold text-institucional-900">
+                <div key={coluna} className={`rounded-xl border-t-4 bg-slate-100/60 p-3 ${CORES_COLUNA[coluna]}`}>
+                  <h2 className="mb-3 flex items-center justify-between text-sm font-semibold text-slate-800">
                     {ROTULOS_STATUS_CONTRATO[coluna]}
-                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-institucional-700">
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 shadow-sm">
                       {contratosDaColuna.length}
                     </span>
                   </h2>
@@ -122,7 +110,7 @@ export function ContratosKanban() {
                       <CartaoContrato key={contrato.id} contrato={contrato} />
                     ))}
                     {contratosDaColuna.length === 0 && (
-                      <p className="text-xs text-institucional-500">Nenhum contrato aqui.</p>
+                      <p className="text-xs text-slate-400">Nenhum contrato aqui.</p>
                     )}
                   </div>
                 </div>
