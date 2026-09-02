@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.contrato import Contrato, ContratoFiscal, StatusContrato
+from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import InstrumentoProcessual
 from app.models.modelo_ripm import ModeloRipm
@@ -17,6 +18,7 @@ from app.schemas.contrato import (
     ContratoDetalhado,
     ContratoSaida,
 )
+from app.schemas.fiscal import FiscalEncerrarVinculo, FiscalVincular, FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualCriar, InstrumentoSubStatusAtualizar
 from app.services import contratos as regras
 from app.services.auditoria import registrar_log
@@ -27,7 +29,10 @@ router = APIRouter(prefix="/contratos", tags=["contratos"])
 def _carregar_contrato(db: Session, contrato_id: uuid.UUID) -> Contrato:
     contrato = (
         db.query(Contrato)
-        .options(selectinload(Contrato.instrumentos), selectinload(Contrato.fiscais))
+        .options(
+            selectinload(Contrato.instrumentos),
+            selectinload(Contrato.fiscais).selectinload(ContratoFiscal.fiscal),
+        )
         .filter(Contrato.id == contrato_id)
         .first()
     )
@@ -41,7 +46,17 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
     vigencia_inicio, vigencia_fim = regras.vigencia_atual(contrato)
     return ContratoDetalhado(
         **ContratoSaida.model_validate(contrato).model_dump(),
-        fiscais_ids=[f.usuario_id for f in contrato.fiscais],
+        fiscais=[
+            FiscalVinculoSaida(
+                id=vinculo.id,
+                fiscal_id=vinculo.fiscal_id,
+                nome=vinculo.fiscal.nome,
+                matricula=vinculo.fiscal.matricula,
+                data_inicio=vinculo.data_inicio,
+                data_fim=vinculo.data_fim,
+            )
+            for vinculo in contrato.fiscais
+        ],
         valor_atualizado=regras.calcular_valor_atualizado(contrato),
         saldo_a_pagar=regras.calcular_saldo_a_pagar(contrato),
         vigencia_inicio=vigencia_inicio,
@@ -84,9 +99,7 @@ def criar_contrato(
     if db.get(Fornecedor, dados.fornecedor_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fornecedor não encontrado.")
 
-    fiscais_encontrados = (
-        db.query(Usuario.id).filter(Usuario.id.in_(dados.fiscais_ids)).all()
-    )
+    fiscais_encontrados = db.query(Fiscal.id).filter(Fiscal.id.in_(dados.fiscais_ids)).all()
     if len(fiscais_encontrados) != len(set(dados.fiscais_ids)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Um ou mais fiscais não encontrados.")
 
@@ -97,7 +110,11 @@ def criar_contrato(
     db.flush()
 
     for fiscal_id in set(dados.fiscais_ids):
-        db.add(ContratoFiscal(contrato_id=contrato.id, usuario_id=fiscal_id))
+        db.add(
+            ContratoFiscal(
+                contrato_id=contrato.id, fiscal_id=fiscal_id, data_inicio=contrato.data_assinatura_original
+            )
+        )
 
     registrar_log(
         db,
@@ -147,6 +164,74 @@ def atualizar_pagamento(
         acao="atualizar_pagamento_contrato",
         entidade="contrato",
         entidade_id=str(contrato.id),
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.post(
+    "/{contrato_id}/fiscais",
+    response_model=ContratoDetalhado,
+    status_code=status.HTTP_201_CREATED,
+)
+def adicionar_fiscal(
+    contrato_id: uuid.UUID,
+    dados: FiscalVincular,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Designa um fiscal para o contrato — o fiscal pode entrar e sair da
+    fiscalização ao longo do tempo (substituição), então isso é um novo
+    vínculo, não uma edição do vínculo anterior."""
+    contrato = _carregar_contrato(db, contrato_id)
+    if db.get(Fiscal, dados.fiscal_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal não encontrado.")
+
+    db.add(ContratoFiscal(contrato_id=contrato.id, fiscal_id=dados.fiscal_id, data_inicio=dados.data_inicio))
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="adicionar_fiscal_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato.id),
+        detalhes={"fiscal_id": str(dados.fiscal_id)},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.patch(
+    "/{contrato_id}/fiscais/{vinculo_id}/encerrar",
+    response_model=ContratoDetalhado,
+)
+def encerrar_vinculo_fiscal(
+    contrato_id: uuid.UUID,
+    vinculo_id: uuid.UUID,
+    dados: FiscalEncerrarVinculo,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    vinculo = (
+        db.query(ContratoFiscal)
+        .filter(ContratoFiscal.id == vinculo_id, ContratoFiscal.contrato_id == contrato_id)
+        .first()
+    )
+    if vinculo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vínculo de fiscal não encontrado.")
+    if dados.data_fim < vinculo.data_inicio:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A data de fim não pode ser anterior à data de início do vínculo.",
+        )
+
+    vinculo.data_fim = dados.data_fim
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="encerrar_vinculo_fiscal",
+        entidade="contrato",
+        entidade_id=str(contrato_id),
+        detalhes={"vinculo_id": str(vinculo_id)},
     )
     db.commit()
     return _para_detalhado(_carregar_contrato(db, contrato_id))

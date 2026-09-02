@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from "./lib/AuthContext";
 import { Atas } from "./pages/contratos/Atas";
 import { ContratoDetalhe } from "./pages/contratos/ContratoDetalhe";
 import { ContratosKanban } from "./pages/contratos/ContratosKanban";
+import { Fiscais } from "./pages/contratos/Fiscais";
+import { Fornecedores } from "./pages/contratos/Fornecedores";
 import { NovoContrato } from "./pages/contratos/NovoContrato";
 import { Hub } from "./pages/Hub";
 import { Login } from "./pages/Login";
@@ -54,6 +56,22 @@ function Rotas() {
         element={
           <RotaProtegida>
             <Atas />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/contratos/fiscais"
+        element={
+          <RotaProtegida>
+            <Fiscais />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/contratos/fornecedores"
+        element={
+          <RotaProtegida>
+            <Fornecedores />
           </RotaProtegida>
         }
       />

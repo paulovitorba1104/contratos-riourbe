@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { apiContratos, apiFornecedores, apiUsuariosBasico } from "../../lib/apiContratos";
+import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
-import type { Fornecedor, FormaContratacao, UsuarioBasico } from "../../lib/tiposContratos";
+import type { Fiscal, Fornecedor, FormaContratacao } from "../../lib/tiposContratos";
 import { ROTULOS_FORMA_CONTRATACAO } from "../../lib/tiposContratos";
 
 const campoClasse =
@@ -14,10 +14,15 @@ export function NovoContrato() {
   const navegar = useNavigate();
 
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
-  const [usuarios, setUsuarios] = useState<UsuarioBasico[]>([]);
   const [mostrarNovoFornecedor, setMostrarNovoFornecedor] = useState(false);
   const [novoFornecedorNome, setNovoFornecedorNome] = useState("");
   const [novoFornecedorCnpj, setNovoFornecedorCnpj] = useState("");
+
+  const [fiscais, setFiscais] = useState<Fiscal[]>([]);
+  const [mostrarNovoFiscal, setMostrarNovoFiscal] = useState(false);
+  const [novoFiscalNome, setNovoFiscalNome] = useState("");
+  const [novoFiscalMatricula, setNovoFiscalMatricula] = useState("");
+  const [novoFiscalCpf, setNovoFiscalCpf] = useState("");
 
   const [processoSei, setProcessoSei] = useState("");
   const [tipoServico, setTipoServico] = useState("");
@@ -34,7 +39,7 @@ export function NovoContrato() {
 
   useEffect(() => {
     apiFornecedores.listar().then(setFornecedores).catch(() => setErro("Não foi possível carregar fornecedores."));
-    apiUsuariosBasico.listar().then(setUsuarios).catch(() => setErro("Não foi possível carregar usuários."));
+    apiFiscais.listar().then(setFiscais).catch(() => setErro("Não foi possível carregar fiscais."));
   }, []);
 
   async function criarFornecedor() {
@@ -51,6 +56,25 @@ export function NovoContrato() {
       setNovoFornecedorCnpj("");
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : "Não foi possível cadastrar o fornecedor.");
+    }
+  }
+
+  async function criarFiscal() {
+    setErro(null);
+    try {
+      const fiscal = await apiFiscais.criar({
+        nome: novoFiscalNome,
+        matricula: novoFiscalMatricula,
+        cpf: novoFiscalCpf || null,
+      });
+      setFiscais((atual) => [...atual, fiscal]);
+      setFiscaisSelecionados((atual) => [...atual, fiscal.id]);
+      setMostrarNovoFiscal(false);
+      setNovoFiscalNome("");
+      setNovoFiscalMatricula("");
+      setNovoFiscalCpf("");
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível cadastrar o fiscal.");
     }
   }
 
@@ -248,19 +272,61 @@ export function NovoContrato() {
           </div>
 
           <div>
-            <span className={rotuloClasse}>Fiscal(is) do contrato *</span>
+            <div className="flex items-center justify-between">
+              <span className={rotuloClasse}>Fiscal(is) do contrato *</span>
+              <button
+                type="button"
+                onClick={() => setMostrarNovoFiscal((v) => !v)}
+                className="mb-1 rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+              >
+                + Novo fiscal
+              </button>
+            </div>
+
+            {mostrarNovoFiscal && (
+              <div className="mb-2 space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+                <input
+                  placeholder="Nome"
+                  className={campoClasse}
+                  value={novoFiscalNome}
+                  onChange={(e) => setNovoFiscalNome(e.target.value)}
+                />
+                <input
+                  placeholder="Matrícula"
+                  className={campoClasse}
+                  value={novoFiscalMatricula}
+                  onChange={(e) => setNovoFiscalMatricula(e.target.value)}
+                />
+                <input
+                  placeholder="CPF (opcional)"
+                  className={campoClasse}
+                  value={novoFiscalCpf}
+                  onChange={(e) => setNovoFiscalCpf(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={criarFiscal}
+                  className="rounded bg-institucional-600 px-3 py-1.5 text-sm text-white hover:bg-institucional-700"
+                >
+                  Cadastrar fiscal
+                </button>
+              </div>
+            )}
+
             <div className="max-h-40 space-y-1 overflow-y-auto rounded border border-institucional-200 p-2">
-              {usuarios.map((u) => (
-                <label key={u.id} className="flex items-center gap-2 text-sm text-institucional-800">
+              {fiscais.map((f) => (
+                <label key={f.id} className="flex items-center gap-2 text-sm text-institucional-800">
                   <input
                     type="checkbox"
-                    checked={fiscaisSelecionados.includes(u.id)}
-                    onChange={() => alternarFiscal(u.id)}
+                    checked={fiscaisSelecionados.includes(f.id)}
+                    onChange={() => alternarFiscal(f.id)}
                   />
-                  {u.nome}
+                  {f.nome} <span className="text-xs text-institucional-500">({f.matricula})</span>
                 </label>
               ))}
-              {usuarios.length === 0 && <p className="text-xs text-institucional-500">Nenhum usuário disponível.</p>}
+              {fiscais.length === 0 && (
+                <p className="text-xs text-institucional-500">Nenhum fiscal cadastrado ainda.</p>
+              )}
             </div>
           </div>
 

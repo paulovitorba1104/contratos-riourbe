@@ -51,6 +51,24 @@ export interface Fornecedor {
   id: string;
   razao_social: string;
   cnpj: string;
+  ativo: boolean;
+}
+
+export interface Fiscal {
+  id: string;
+  nome: string;
+  matricula: string;
+  cpf: string | null;
+  ativo: boolean;
+}
+
+export interface FiscalVinculo {
+  id: string;
+  fiscal_id: string;
+  nome: string;
+  matricula: string;
+  data_inicio: string;
+  data_fim: string | null;
 }
 
 export interface ModeloRipm {
@@ -69,11 +87,6 @@ export interface AtaRegistroPreco {
   data_validade: string;
   disponivel_para_adesao: boolean;
   observacoes: string | null;
-}
-
-export interface UsuarioBasico {
-  id: string;
-  nome: string;
 }
 
 export interface InstrumentoProcessual {
@@ -116,7 +129,7 @@ export interface Contrato {
 }
 
 export interface ContratoDetalhado extends Contrato {
-  fiscais_ids: string[];
+  fiscais: FiscalVinculo[];
   valor_atualizado: string;
   saldo_a_pagar: string;
   vigencia_inicio: string | null;

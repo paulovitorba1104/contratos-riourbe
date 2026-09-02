@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { ErroApi } from "../../lib/api";
-import { apiContratos, apiFornecedores, apiModelosRipm, apiUsuariosBasico } from "../../lib/apiContratos";
+import { apiContratos, apiFiscais, apiFornecedores, apiModelosRipm } from "../../lib/apiContratos";
 import type {
   ContratoDetalhado,
+  Fiscal,
   Fornecedor,
   FundamentacaoLei,
   ModeloRipm,
   NivelAlerta,
   SubStatusInstrumento,
   TipoInstrumento,
-  UsuarioBasico,
 } from "../../lib/tiposContratos";
 import {
   ROTULOS_FORMA_CONTRATACAO,
@@ -237,13 +237,84 @@ function NovoInstrumentoForm({
   );
 }
 
+function NovoVinculoFiscalForm({
+  contratoId,
+  fiscaisDisponiveis,
+  aoVincular,
+}: {
+  contratoId: string;
+  fiscaisDisponiveis: Fiscal[];
+  aoVincular: (c: ContratoDetalhado) => void;
+}) {
+  const [fiscalId, setFiscalId] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar() {
+    setErro(null);
+    if (!fiscalId || !dataInicio) {
+      setErro("Selecione o fiscal e a data de início.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      const contrato = await apiContratos.adicionarFiscal(contratoId, fiscalId, dataInicio);
+      aoVincular(contrato);
+      setFiscalId("");
+      setDataInicio("");
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível designar o fiscal.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded border border-institucional-200 bg-institucional-50 p-3">
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          id="novo_vinculo_fiscal_id"
+          className={campoClasse}
+          value={fiscalId}
+          onChange={(e) => setFiscalId(e.target.value)}
+        >
+          <option value="">Selecione o fiscal...</option>
+          {fiscaisDisponiveis.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.nome} ({f.matricula})
+            </option>
+          ))}
+        </select>
+        <input
+          id="novo_vinculo_data_inicio"
+          type="date"
+          className={campoClasse}
+          value={dataInicio}
+          onChange={(e) => setDataInicio(e.target.value)}
+        />
+      </div>
+      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      <button
+        type="button"
+        onClick={enviar}
+        disabled={enviando}
+        className="rounded bg-institucional-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-institucional-700 disabled:opacity-60"
+      >
+        {enviando ? "Designando..." : "Designar fiscal"}
+      </button>
+    </div>
+  );
+}
+
 export function ContratoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const [contrato, setContrato] = useState<ContratoDetalhado | null>(null);
   const [fornecedor, setFornecedor] = useState<Fornecedor | null>(null);
-  const [usuarios, setUsuarios] = useState<UsuarioBasico[]>([]);
+  const [fiscaisDisponiveis, setFiscaisDisponiveis] = useState<Fiscal[]>([]);
   const [modelos, setModelos] = useState<ModeloRipm[]>([]);
   const [mostrarFormInstrumento, setMostrarFormInstrumento] = useState(false);
+  const [mostrarFormFiscal, setMostrarFormFiscal] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const [valorPagoEdicao, setValorPagoEdicao] = useState("");
@@ -266,7 +337,7 @@ export function ContratoDetalhe() {
   useEffect(carregar, [id]);
 
   useEffect(() => {
-    apiUsuariosBasico.listar().then(setUsuarios).catch(() => {});
+    apiFiscais.listar().then(setFiscaisDisponiveis).catch(() => {});
     apiModelosRipm.listar().then(setModelos).catch(() => {});
   }, []);
 
@@ -312,8 +383,15 @@ export function ContratoDetalhe() {
     }
   }
 
-  function nomeFiscal(usuarioId: string): string {
-    return usuarios.find((u) => u.id === usuarioId)?.nome ?? usuarioId;
+  async function encerrarVinculo(vinculoId: string) {
+    if (!id) return;
+    const hoje = new Date().toISOString().slice(0, 10);
+    try {
+      const atualizado = await apiContratos.encerrarVinculoFiscal(id, vinculoId, hoje);
+      setContrato(atualizado);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível encerrar o vínculo do fiscal.");
+    }
   }
 
   if (erro && !contrato) {
@@ -433,11 +511,54 @@ export function ContratoDetalhe() {
         </section>
 
         <section className="rounded-lg bg-white p-5 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-institucional-900">Fiscal(is) do contrato</h2>
-          <ul className="text-sm text-institucional-700">
-            {contrato.fiscais_ids.map((fid) => (
-              <li key={fid}>{nomeFiscal(fid)}</li>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-institucional-900">Fiscal(is) do contrato</h2>
+            {contrato.status !== "encerrado" && (
+              <button
+                onClick={() => setMostrarFormFiscal((v) => !v)}
+                className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+              >
+                {mostrarFormFiscal ? "Cancelar" : "+ Designar fiscal"}
+              </button>
+            )}
+          </div>
+
+          {mostrarFormFiscal && (
+            <div className="mb-3">
+              <NovoVinculoFiscalForm
+                contratoId={contrato.id}
+                fiscaisDisponiveis={fiscaisDisponiveis}
+                aoVincular={(c) => {
+                  setContrato(c);
+                  setMostrarFormFiscal(false);
+                }}
+              />
+            </div>
+          )}
+
+          <ul className="space-y-2">
+            {contrato.fiscais.map((v) => (
+              <li key={v.id} className="flex items-center justify-between text-sm">
+                <div>
+                  <span className="font-medium text-institucional-900">{v.nome}</span>{" "}
+                  <span className="text-xs text-institucional-500">({v.matricula})</span>
+                  <p className="text-xs text-institucional-600">
+                    {v.data_inicio} até {v.data_fim ?? "hoje"}
+                  </p>
+                </div>
+                {v.data_fim === null && (
+                  <button
+                    onClick={() => encerrarVinculo(v.id)}
+                    className="rounded border border-institucional-300 px-2 py-1 text-xs text-institucional-700 hover:bg-institucional-100"
+                  >
+                    Encerrar vínculo
+                  </button>
+                )}
+              </li>
             ))}
+            {contrato.fiscais.length === 0 && (
+              <p className="text-sm text-institucional-500">Nenhum fiscal designado ainda.</p>
+            )}
           </ul>
         </section>
 

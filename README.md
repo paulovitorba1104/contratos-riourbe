@@ -204,6 +204,12 @@ Implementa a seção 4 do plano de desenvolvimento:
   em 6/3/1 mês (vigência) e 3/1 mês (garantia).
 - **Painel Kanban** por status macro, ficha do contrato com timeline de instrumentos, fiscal(is)
   obrigatório(s), fornecedores e atas de registro de preço disponíveis para adesão.
+- **Fiscais**: cadastro próprio (`core.fiscais`), independente de usuário do sistema —
+  identificado pela matrícula (obrigatória e única), CPF opcional. O vínculo com o contrato é
+  temporal (`data_inicio`/`data_fim`), permitindo substituição de fiscal ao longo da vida do
+  contrato sem perder o histórico de quem fiscalizou em cada período.
+- **Fornecedores**: cadastro próprio (`core.fornecedores`) com validação de CNPJ, mesma lógica
+  de cadastro dos fiscais (tela dedicada + criação inline ao criar um contrato).
 
 A tabela `contratos.modelos_ripm` reaproveita o padrão `modelos_checklist`/`conferencias` do
 sistema de Faturas, mas fica **vazia até a lista oficial dos 32 modelos RIPM da PGM-Rio ser

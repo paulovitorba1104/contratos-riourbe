@@ -3,13 +3,13 @@ import type {
   AtaRegistroPreco,
   Contrato,
   ContratoDetalhado,
+  Fiscal,
   Fornecedor,
   ModeloRipm,
   NovoContratoPayload,
   NovoInstrumentoPayload,
   StatusContrato,
   SubStatusInstrumento,
-  UsuarioBasico,
 } from "./tiposContratos";
 
 export const apiContratos = {
@@ -27,6 +27,16 @@ export const apiContratos = {
     requisicao<ContratoDetalhado>(`/contratos/${id}/pagamento`, {
       method: "PATCH",
       body: JSON.stringify({ valor_pago }),
+    }),
+  adicionarFiscal: (contratoId: string, fiscal_id: string, data_inicio: string) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/fiscais`, {
+      method: "POST",
+      body: JSON.stringify({ fiscal_id, data_inicio }),
+    }),
+  encerrarVinculoFiscal: (contratoId: string, vinculoId: string, data_fim: string) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/fiscais/${vinculoId}/encerrar`, {
+      method: "PATCH",
+      body: JSON.stringify({ data_fim }),
     }),
   criarInstrumento: (contratoId: string, dados: NovoInstrumentoPayload) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/instrumentos`, {
@@ -46,6 +56,12 @@ export const apiFornecedores = {
     requisicao<Fornecedor>("/fornecedores", { method: "POST", body: JSON.stringify(dados) }),
 };
 
+export const apiFiscais = {
+  listar: () => requisicao<Fiscal[]>("/fiscais"),
+  criar: (dados: { nome: string; matricula: string; cpf?: string | null }) =>
+    requisicao<Fiscal>("/fiscais", { method: "POST", body: JSON.stringify(dados) }),
+};
+
 export const apiModelosRipm = {
   listar: () => requisicao<ModeloRipm[]>("/modelos-ripm"),
 };
@@ -60,8 +76,4 @@ export const apiAtas = {
     data_validade: string;
     observacoes?: string | null;
   }) => requisicao<AtaRegistroPreco>("/atas-registro-preco", { method: "POST", body: JSON.stringify(dados) }),
-};
-
-export const apiUsuariosBasico = {
-  listar: () => requisicao<UsuarioBasico[]>("/usuarios/basico"),
 };

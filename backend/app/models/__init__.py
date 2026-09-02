@@ -1,5 +1,6 @@
 from app.models.ata_registro_preco import AtaRegistroPreco
 from app.models.contrato import Contrato, ContratoFiscal, FormaContratacao, StatusContrato
+from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import (
     FundamentacaoLei,
@@ -16,6 +17,7 @@ __all__ = [
     "PapelUsuario",
     "LogAuditoria",
     "Fornecedor",
+    "Fiscal",
     "Contrato",
     "ContratoFiscal",
     "FormaContratacao",

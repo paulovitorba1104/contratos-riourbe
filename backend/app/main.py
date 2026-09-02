@@ -7,7 +7,16 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
-from app.api.routes import atas_registro_preco, auth, contratos, fornecedores, health, modelos_ripm, usuarios
+from app.api.routes import (
+    atas_registro_preco,
+    auth,
+    contratos,
+    fiscais,
+    fornecedores,
+    health,
+    modelos_ripm,
+    usuarios,
+)
 from app.core.boot_guard import validar_configuracao_producao
 from app.core.config import get_settings
 from app.middleware.body_size_limit import LimiteTamanhoCorpoMiddleware
@@ -44,6 +53,7 @@ app.include_router(health.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(usuarios.router, prefix="/api")
 app.include_router(fornecedores.router, prefix="/api")
+app.include_router(fiscais.router, prefix="/api")
 app.include_router(modelos_ripm.router, prefix="/api")
 app.include_router(atas_registro_preco.router, prefix="/api")
 app.include_router(contratos.router, prefix="/api")
