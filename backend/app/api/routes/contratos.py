@@ -12,6 +12,7 @@ from app.models.instrumento_processual import InstrumentoProcessual
 from app.models.modelo_ripm import ModeloRipm
 from app.models.usuario import Usuario
 from app.schemas.contrato import (
+    ContratoAtualizar,
     ContratoAtualizarGarantia,
     ContratoAtualizarPagamento,
     ContratoCriar,
@@ -126,6 +127,37 @@ def criar_contrato(
     db.commit()
 
     return _para_detalhado(_carregar_contrato(db, contrato.id))
+
+
+@router.patch("/{contrato_id}", response_model=ContratoDetalhado)
+def atualizar_contrato(
+    contrato_id: uuid.UUID,
+    dados: ContratoAtualizar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Edição geral do contrato, incluindo valores — não muda o status
+    macro (só via instrumento processual) nem os fiscais (endpoints
+    próprios, seção do vínculo temporal)."""
+    contrato = _carregar_contrato(db, contrato_id)
+
+    dados_informados = dados.model_dump(exclude_unset=True)
+    if "fornecedor_id" in dados_informados and db.get(Fornecedor, dados_informados["fornecedor_id"]) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fornecedor não encontrado.")
+
+    for campo, valor in dados_informados.items():
+        setattr(contrato, campo, valor)
+
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="atualizar_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato.id),
+        detalhes={"campos_alterados": list(dados_informados.keys())},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
 
 
 @router.patch("/{contrato_id}/garantia", response_model=ContratoDetalhado)

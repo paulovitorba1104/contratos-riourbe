@@ -152,6 +152,26 @@ export interface NovoContratoPayload {
   fiscais_ids: string[];
 }
 
+export interface ContratoAtualizarPayload {
+  processo_sei?: string;
+  tipo_servico?: string;
+  objeto?: string;
+  fornecedor_id?: string;
+  forma_contratacao?: FormaContratacao;
+  data_assinatura_original?: string;
+  valor_inicial?: string;
+  valor_pago?: string;
+  nota_reserva?: string | null;
+  nota_empenho?: string | null;
+  pt?: string | null;
+  nd?: string | null;
+  fr?: string | null;
+  tipo_patrimonial?: string | null;
+  item_patrimonial?: string | null;
+  codigo_ccon?: string | null;
+  observacoes?: string | null;
+}
+
 export interface NovoInstrumentoPayload {
   tipo: TipoInstrumento;
   modelo_ripm_id: string;

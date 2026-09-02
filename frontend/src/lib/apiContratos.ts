@@ -2,6 +2,7 @@ import { requisicao } from "./api";
 import type {
   AtaRegistroPreco,
   Contrato,
+  ContratoAtualizarPayload,
   ContratoDetalhado,
   Fiscal,
   Fornecedor,
@@ -18,6 +19,8 @@ export const apiContratos = {
   obter: (id: string) => requisicao<ContratoDetalhado>(`/contratos/${id}`),
   criar: (dados: NovoContratoPayload) =>
     requisicao<ContratoDetalhado>("/contratos", { method: "POST", body: JSON.stringify(dados) }),
+  atualizar: (id: string, dados: ContratoAtualizarPayload) =>
+    requisicao<ContratoDetalhado>(`/contratos/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
   atualizarGarantia: (id: string, dados: { data_inicio_garantia: string | null; data_fim_garantia: string | null }) =>
     requisicao<ContratoDetalhado>(`/contratos/${id}/garantia`, {
       method: "PATCH",
@@ -54,12 +57,16 @@ export const apiFornecedores = {
   listar: () => requisicao<Fornecedor[]>("/fornecedores"),
   criar: (dados: { razao_social: string; cnpj: string }) =>
     requisicao<Fornecedor>("/fornecedores", { method: "POST", body: JSON.stringify(dados) }),
+  atualizar: (id: string, dados: { razao_social?: string; cnpj?: string; ativo?: boolean }) =>
+    requisicao<Fornecedor>(`/fornecedores/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
 };
 
 export const apiFiscais = {
-  listar: () => requisicao<Fiscal[]>("/fiscais"),
+  listar: (apenasAtivos = true) => requisicao<Fiscal[]>(`/fiscais?apenas_ativos=${apenasAtivos}`),
   criar: (dados: { nome: string; matricula: string; cpf?: string | null }) =>
     requisicao<Fiscal>("/fiscais", { method: "POST", body: JSON.stringify(dados) }),
+  atualizar: (id: string, dados: { nome?: string; matricula?: string; cpf?: string | null; ativo?: boolean }) =>
+    requisicao<Fiscal>(`/fiscais/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
 };
 
 export const apiModelosRipm = {

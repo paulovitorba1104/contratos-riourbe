@@ -17,6 +17,21 @@ class FornecedorCriar(BaseModel):
         return normalizar_cnpj(v)
 
 
+class FornecedorAtualizar(BaseModel):
+    razao_social: str | None = Field(None, min_length=2, max_length=255)
+    cnpj: str | None = None
+    ativo: bool | None = None
+
+    @field_validator("cnpj")
+    @classmethod
+    def _valida_cnpj_atualizar(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        if not cnpj_valido(v):
+            raise ValueError("CNPJ inválido.")
+        return normalizar_cnpj(v)
+
+
 class FornecedorSaida(BaseModel):
     id: uuid.UUID
     razao_social: str

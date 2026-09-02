@@ -208,8 +208,9 @@ Implementa a seção 4 do plano de desenvolvimento:
   identificado pela matrícula (obrigatória e única), CPF opcional. O vínculo com o contrato é
   temporal (`data_inicio`/`data_fim`), permitindo substituição de fiscal ao longo da vida do
   contrato sem perder o histórico de quem fiscalizou em cada período.
-- **Fornecedores**: cadastro próprio (`core.fornecedores`) com validação de CNPJ, mesma lógica
-  de cadastro dos fiscais (tela dedicada + criação inline ao criar um contrato).
+- **Fornecedores**: cadastro próprio (`core.fornecedores`) com validação de CNPJ (dígito
+  verificador e situação cadastral ativa na Receita Federal via BrasilAPI), mesma lógica de
+  cadastro dos fiscais (tela dedicada, com edição, + criação inline ao criar um contrato).
 
 A tabela `contratos.modelos_ripm` reaproveita o padrão `modelos_checklist`/`conferencias` do
 sistema de Faturas, mas fica **vazia até a lista oficial dos 32 modelos RIPM da PGM-Rio ser
@@ -225,6 +226,15 @@ final do hub com Almoxarifado/Fiscalização, entre outros listados no plano de 
 Específico da Fase 1: a lista oficial dos 32 modelos RIPM da PGM-Rio ainda não foi fornecida —
 o mecanismo de checklist está pronto, só falta o conteúdo. O relatório anual de Contratos
 (estrutura da "planilha de evidências") também está pendente e não foi implementado.
+
+**Radar CNPJ (planejado, não implementado)**: tela em Contratos com um botão que dispara uma
+varredura nos CNPJs de fornecedores já cadastrados, comparando a situação cadastral/dados
+atuais na Receita Federal com os dados salvos no sistema — sinalizando quando um fornecedor
+mudou algo (ex.: razão social, situação cadastral) sem avisar a Gerência de Contratos. A
+verificação de CNPJ ativo ao cadastrar/editar um fornecedor (seção "Fornecedores" acima) já usa
+a [BrasilAPI](https://brasilapi.com.br/api/cnpj/v1/{cnpj}) — gratuita, sem necessidade de
+chave/autenticação — e o Radar CNPJ reaproveitaria a mesma consulta (`app/core/cnpj_lookup.py`),
+rodando-a para todos os fornecedores ativos e comparando o resultado com o cadastro atual.
 
 ---
 

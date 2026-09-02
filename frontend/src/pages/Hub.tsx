@@ -15,21 +15,13 @@ const BLOCOS = [
 ];
 
 export function Hub() {
-  const { usuario, sair } = useAuth();
+  const { usuario } = useAuth();
 
   return (
     <div className="min-h-screen bg-institucional-50 pb-16">
-      <header className="flex items-center justify-between border-b border-institucional-100 bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-institucional-900">Rio-Urbe — Gestão de Contratos</h1>
-          <p className="text-sm text-institucional-700">Olá, {usuario?.nome}</p>
-        </div>
-        <button
-          onClick={sair}
-          className="rounded border border-institucional-300 px-3 py-1.5 text-sm text-institucional-700 hover:bg-institucional-100"
-        >
-          Sair
-        </button>
+      <header className="border-b border-institucional-100 bg-white px-6 py-4">
+        <h1 className="text-lg font-semibold text-institucional-900">Rio-Urbe — Gestão de Contratos</h1>
+        <p className="text-sm text-institucional-700">Olá, {usuario?.nome}</p>
       </header>
 
       <main className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
