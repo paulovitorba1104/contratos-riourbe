@@ -151,6 +151,15 @@ export interface ContratoDetalhado extends Contrato {
   instrumentos: InstrumentoProcessual[];
 }
 
+export interface InstrumentoOrigemPayload {
+  modelo_ripm_id: string;
+  fundamentacao_lei: FundamentacaoLei;
+  fundamentacao_artigo: string;
+  numero_documento_sei?: string | null;
+  data_inicio_vigencia: string;
+  data_fim_vigencia: string;
+}
+
 export interface NovoContratoPayload {
   numero_contrato: string;
   processo_sei: string;
@@ -161,6 +170,7 @@ export interface NovoContratoPayload {
   data_assinatura_original: string;
   valor_inicial: string;
   observacoes?: string | null;
+  instrumento_origem: InstrumentoOrigemPayload;
   fiscais_ids: string[];
 }
 
