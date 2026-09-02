@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
+import { mascararCnpj, mascararCpf, mascararMatricula } from "../../lib/mascaras";
 import type { Fiscal, Fornecedor, FormaContratacao } from "../../lib/tiposContratos";
 import { ROTULOS_FORMA_CONTRATACAO } from "../../lib/tiposContratos";
+import { useToast } from "../../lib/ToastContext";
 
 const campoClasse =
   "w-full rounded border border-institucional-200 px-3 py-2 text-sm focus:border-institucional-500 focus:outline-none";
@@ -12,6 +14,7 @@ const rotuloClasse = "mb-1 block text-sm font-medium text-institucional-800";
 
 export function NovoContrato() {
   const navegar = useNavigate();
+  const { mostrarToast } = useToast();
 
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [mostrarNovoFornecedor, setMostrarNovoFornecedor] = useState(false);
@@ -54,6 +57,7 @@ export function NovoContrato() {
       setMostrarNovoFornecedor(false);
       setNovoFornecedorNome("");
       setNovoFornecedorCnpj("");
+      mostrarToast("Fornecedor cadastrado com sucesso.");
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : "Não foi possível cadastrar o fornecedor.");
     }
@@ -73,6 +77,7 @@ export function NovoContrato() {
       setNovoFiscalNome("");
       setNovoFiscalMatricula("");
       setNovoFiscalCpf("");
+      mostrarToast("Fiscal cadastrado com sucesso.");
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : "Não foi possível cadastrar o fiscal.");
     }
@@ -110,6 +115,7 @@ export function NovoContrato() {
         observacoes: observacoes || null,
         fiscais_ids: fiscaisSelecionados,
       });
+      mostrarToast("Contrato criado com sucesso.");
       navegar(`/contratos/${contrato.id}`);
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : "Não foi possível criar o contrato.");
@@ -206,10 +212,10 @@ export function NovoContrato() {
                   onChange={(e) => setNovoFornecedorNome(e.target.value)}
                 />
                 <input
-                  placeholder="CNPJ"
+                  placeholder="00.000.000/0000-00"
                   className={campoClasse}
                   value={novoFornecedorCnpj}
-                  onChange={(e) => setNovoFornecedorCnpj(e.target.value)}
+                  onChange={(e) => setNovoFornecedorCnpj(mascararCnpj(e.target.value))}
                 />
                 <button
                   type="button"
@@ -292,16 +298,16 @@ export function NovoContrato() {
                   onChange={(e) => setNovoFiscalNome(e.target.value)}
                 />
                 <input
-                  placeholder="Matrícula"
+                  placeholder="Matrícula (00/000.000-0)"
                   className={campoClasse}
                   value={novoFiscalMatricula}
-                  onChange={(e) => setNovoFiscalMatricula(e.target.value)}
+                  onChange={(e) => setNovoFiscalMatricula(mascararMatricula(e.target.value))}
                 />
                 <input
-                  placeholder="CPF (opcional)"
+                  placeholder="CPF (opcional, 000.000.000-00)"
                   className={campoClasse}
                   value={novoFiscalCpf}
-                  onChange={(e) => setNovoFiscalCpf(e.target.value)}
+                  onChange={(e) => setNovoFiscalCpf(mascararCpf(e.target.value))}
                 />
                 <button
                   type="button"
@@ -321,7 +327,7 @@ export function NovoContrato() {
                     checked={fiscaisSelecionados.includes(f.id)}
                     onChange={() => alternarFiscal(f.id)}
                   />
-                  {f.nome} <span className="text-xs text-institucional-500">({f.matricula})</span>
+                  {f.nome} <span className="text-xs text-institucional-500">({mascararMatricula(f.matricula)})</span>
                 </label>
               ))}
               {fiscais.length === 0 && (

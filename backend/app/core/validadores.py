@@ -8,6 +8,15 @@ def normalizar_cnpj(cnpj: str) -> str:
     return re.sub(r"\D", "", cnpj)
 
 
+def normalizar_matricula(matricula: str) -> str:
+    return re.sub(r"\D", "", matricula)
+
+
+def matricula_valida(matricula: str) -> bool:
+    """Formato padrão da matrícula: 00/000.000-0 — 9 dígitos."""
+    return len(normalizar_matricula(matricula)) == 9
+
+
 def cnpj_valido(cnpj: str) -> bool:
     digitos = normalizar_cnpj(cnpj)
     if len(digitos) != 14 or digitos == digitos[0] * 14:

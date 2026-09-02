@@ -32,6 +32,31 @@ class ContratoCriar(BaseModel):
     fiscais_ids: list[uuid.UUID] = Field(..., min_length=1)
 
 
+class ContratoAtualizar(BaseModel):
+    """Edição geral do contrato — todos os campos opcionais (só atualiza o
+    que for enviado). Não inclui `status` (só muda via instrumento
+    processual, seção 4.3) nem `fiscais` (têm endpoints próprios, já que são
+    vínculos temporais, não um campo simples do contrato)."""
+
+    processo_sei: str | None = Field(None, max_length=50)
+    tipo_servico: str | None = Field(None, max_length=200)
+    objeto: str | None = Field(None, min_length=3)
+    fornecedor_id: uuid.UUID | None = None
+    forma_contratacao: FormaContratacao | None = None
+    data_assinatura_original: date | None = None
+    valor_inicial: Decimal | None = Field(None, gt=0)
+    valor_pago: Decimal | None = Field(None, ge=0)
+    nota_reserva: str | None = None
+    nota_empenho: str | None = None
+    pt: str | None = None
+    nd: str | None = None
+    fr: str | None = None
+    tipo_patrimonial: str | None = None
+    item_patrimonial: str | None = None
+    codigo_ccon: str | None = None
+    observacoes: str | None = None
+
+
 class ContratoAtualizarGarantia(BaseModel):
     data_inicio_garantia: date | None = None
     data_fim_garantia: date | None = None

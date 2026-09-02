@@ -17,6 +17,27 @@ class ErroApi extends Error {
   }
 }
 
+/** FastAPI manda `detail` como string (HTTPException) ou como lista de erros
+ * de validação do Pydantic ([{loc, msg, type}, ...]) — sem isso, um 422
+ * vira "[object Object]" na tela em vez da mensagem de verdade. */
+function extrairMensagemErro(corpo: unknown, padrao: string): string {
+  if (corpo && typeof corpo === "object" && "detail" in corpo) {
+    const detail = (corpo as { detail: unknown }).detail;
+    if (typeof detail === "string") {
+      return detail;
+    }
+    if (Array.isArray(detail)) {
+      const mensagens = detail
+        .map((item) => (item && typeof item === "object" && "msg" in item ? String(item.msg) : null))
+        .filter((m): m is string => Boolean(m));
+      if (mensagens.length > 0) {
+        return mensagens.join(" ");
+      }
+    }
+  }
+  return padrao;
+}
+
 export async function requisicao<T>(caminho: string, init?: RequestInit): Promise<T> {
   const resposta = await fetch(`/api${caminho}`, {
     credentials: "include",
@@ -28,7 +49,7 @@ export async function requisicao<T>(caminho: string, init?: RequestInit): Promis
     let mensagem = "Erro ao comunicar com o servidor.";
     try {
       const corpo = await resposta.json();
-      mensagem = corpo.detail ?? mensagem;
+      mensagem = extrairMensagemErro(corpo, mensagem);
     } catch {
       // corpo sem JSON — mantém mensagem genérica
     }
