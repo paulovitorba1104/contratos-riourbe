@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
-import { mascararCnpj, mascararCpf, mascararMatricula } from "../../lib/mascaras";
+import { mascararCnpj, mascararCpf, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type { Fiscal, Fornecedor, FormaContratacao } from "../../lib/tiposContratos";
 import { ROTULOS_FORMA_CONTRATACAO } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
@@ -27,6 +27,7 @@ export function NovoContrato() {
   const [novoFiscalMatricula, setNovoFiscalMatricula] = useState("");
   const [novoFiscalCpf, setNovoFiscalCpf] = useState("");
 
+  const [numeroContrato, setNumeroContrato] = useState("");
   const [processoSei, setProcessoSei] = useState("");
   const [tipoServico, setTipoServico] = useState("");
   const [objeto, setObjeto] = useState("");
@@ -105,13 +106,14 @@ export function NovoContrato() {
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
+        numero_contrato: numeroContrato,
         processo_sei: processoSei,
         tipo_servico: tipoServico,
         objeto,
         fornecedor_id: fornecedorId,
         forma_contratacao: formaContratacao,
         data_assinatura_original: dataAssinatura,
-        valor_inicial: valorInicial,
+        valor_inicial: moedaParaNumero(valorInicial),
         observacoes: observacoes || null,
         fiscais_ids: fiscaisSelecionados,
       });
@@ -135,6 +137,19 @@ export function NovoContrato() {
 
       <main className="mx-auto max-w-2xl p-6">
         <form onSubmit={aoEnviar} className="space-y-4 rounded-lg bg-white p-6 shadow-sm">
+          <div>
+            <label className={rotuloClasse} htmlFor="numero_contrato">
+              Número do contrato
+            </label>
+            <input
+              id="numero_contrato"
+              className={campoClasse}
+              value={numeroContrato}
+              onChange={(e) => setNumeroContrato(e.target.value)}
+              required
+            />
+          </div>
+
           <div>
             <label className={rotuloClasse} htmlFor="processo_sei">
               Processo SEI
@@ -266,12 +281,12 @@ export function NovoContrato() {
               </label>
               <input
                 id="valor_inicial"
-                type="number"
-                step="0.01"
-                min="0.01"
+                type="text"
+                inputMode="numeric"
+                placeholder="0,00"
                 className={campoClasse}
                 value={valorInicial}
-                onChange={(e) => setValorInicial(e.target.value)}
+                onChange={(e) => setValorInicial(mascararMoeda(e.target.value))}
                 required
               />
             </div>

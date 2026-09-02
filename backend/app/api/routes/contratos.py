@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models.contrato import Contrato, ContratoFiscal, StatusContrato
+from app.models.contrato import Contrato, ContratoFiscal, GarantiaContrato, StatusContrato
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import InstrumentoProcessual
@@ -13,11 +13,12 @@ from app.models.modelo_ripm import ModeloRipm
 from app.models.usuario import Usuario
 from app.schemas.contrato import (
     ContratoAtualizar,
-    ContratoAtualizarGarantia,
     ContratoAtualizarPagamento,
     ContratoCriar,
     ContratoDetalhado,
     ContratoSaida,
+    GarantiaCriar,
+    GarantiaSaida,
 )
 from app.schemas.fiscal import FiscalEncerrarVinculo, FiscalVincular, FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualCriar, InstrumentoSubStatusAtualizar
@@ -33,6 +34,7 @@ def _carregar_contrato(db: Session, contrato_id: uuid.UUID) -> Contrato:
         .options(
             selectinload(Contrato.instrumentos),
             selectinload(Contrato.fiscais).selectinload(ContratoFiscal.fiscal),
+            selectinload(Contrato.garantias).selectinload(GarantiaContrato.registrado_por),
         )
         .filter(Contrato.id == contrato_id)
         .first()
@@ -42,11 +44,24 @@ def _carregar_contrato(db: Session, contrato_id: uuid.UUID) -> Contrato:
     return contrato
 
 
-def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
+def _para_saida(contrato: Contrato) -> ContratoSaida:
     alertas = regras.calcular_alertas(contrato)
+    return ContratoSaida(
+        **{
+            campo: getattr(contrato, campo)
+            for campo in ContratoSaida.model_fields
+            if campo not in {"alerta_vigencia", "alerta_garantia"}
+        },
+        alerta_vigencia=alertas.alerta_vigencia,
+        alerta_garantia=alertas.alerta_garantia,
+    )
+
+
+def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
     vigencia_inicio, vigencia_fim = regras.vigencia_atual(contrato)
+    garantia_inicio, garantia_fim = regras.garantia_atual(contrato)
     return ContratoDetalhado(
-        **ContratoSaida.model_validate(contrato).model_dump(),
+        **_para_saida(contrato).model_dump(),
         fiscais=[
             FiscalVinculoSaida(
                 id=vinculo.id,
@@ -63,8 +78,19 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
         vigencia_inicio=vigencia_inicio,
         vigencia_fim=vigencia_fim,
         teto_vigencia=regras.teto_vigencia(contrato),
-        alerta_vigencia=alertas.alerta_vigencia,
-        alerta_garantia=alertas.alerta_garantia,
+        garantia_inicio=garantia_inicio,
+        garantia_fim=garantia_fim,
+        garantias=[
+            GarantiaSaida(
+                id=g.id,
+                data_inicio_garantia=g.data_inicio_garantia,
+                data_fim_garantia=g.data_fim_garantia,
+                observacao=g.observacao,
+                registrado_por_nome=g.registrado_por.nome,
+                registrado_em=g.registrado_em,
+            )
+            for g in contrato.garantias
+        ],
         instrumentos=list(contrato.instrumentos),
     )
 
@@ -74,11 +100,15 @@ def listar_contratos(
     status_filtro: StatusContrato | None = None,
     db: Session = Depends(get_db),
     _: Usuario = Depends(get_current_user),
-) -> list[Contrato]:
-    query = db.query(Contrato)
+) -> list[ContratoSaida]:
+    query = db.query(Contrato).options(
+        selectinload(Contrato.instrumentos),
+        selectinload(Contrato.garantias),
+    )
     if status_filtro is not None:
         query = query.filter(Contrato.status == status_filtro)
-    return query.order_by(Contrato.criado_em.desc()).all()
+    contratos = query.order_by(Contrato.criado_em.desc()).all()
+    return [_para_saida(c) for c in contratos]
 
 
 @router.get("/{contrato_id}", response_model=ContratoDetalhado)
@@ -160,20 +190,30 @@ def atualizar_contrato(
     return _para_detalhado(_carregar_contrato(db, contrato_id))
 
 
-@router.patch("/{contrato_id}/garantia", response_model=ContratoDetalhado)
-def atualizar_garantia(
+@router.post("/{contrato_id}/garantia", response_model=ContratoDetalhado, status_code=status.HTTP_201_CREATED)
+def registrar_garantia(
     contrato_id: uuid.UUID,
-    dados: ContratoAtualizarGarantia,
+    dados: GarantiaCriar,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),
 ) -> ContratoDetalhado:
+    """Registra uma nova entrada no histórico de garantia — nunca sobrescreve
+    a anterior, então fica auditável quem mudou o quê e quando (mesmo
+    princípio da vigência via instrumentos processuais)."""
     contrato = _carregar_contrato(db, contrato_id)
-    contrato.data_inicio_garantia = dados.data_inicio_garantia
-    contrato.data_fim_garantia = dados.data_fim_garantia
+    db.add(
+        GarantiaContrato(
+            contrato_id=contrato.id,
+            data_inicio_garantia=dados.data_inicio_garantia,
+            data_fim_garantia=dados.data_fim_garantia,
+            observacao=dados.observacao,
+            registrado_por_id=usuario.id,
+        )
+    )
     registrar_log(
         db,
         usuario_id=usuario.id,
-        acao="atualizar_garantia_contrato",
+        acao="registrar_garantia_contrato",
         entidade="contrato",
         entidade_id=str(contrato.id),
     )
@@ -261,6 +301,41 @@ def encerrar_vinculo_fiscal(
         db,
         usuario_id=usuario.id,
         acao="encerrar_vinculo_fiscal",
+        entidade="contrato",
+        entidade_id=str(contrato_id),
+        detalhes={"vinculo_id": str(vinculo_id)},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.delete(
+    "/{contrato_id}/fiscais/{vinculo_id}",
+    response_model=ContratoDetalhado,
+)
+def excluir_vinculo_fiscal(
+    contrato_id: uuid.UUID,
+    vinculo_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Remove o vínculo por completo — diferente de encerrar (seção acima):
+    é para quando o fiscal foi designado por engano nesse contrato, não para
+    o caso normal de substituição (que deve usar 'encerrar', preservando o
+    histórico de quem fiscalizou em cada período)."""
+    vinculo = (
+        db.query(ContratoFiscal)
+        .filter(ContratoFiscal.id == vinculo_id, ContratoFiscal.contrato_id == contrato_id)
+        .first()
+    )
+    if vinculo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vínculo de fiscal não encontrado.")
+
+    db.delete(vinculo)
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="excluir_vinculo_fiscal",
         entidade="contrato",
         entidade_id=str(contrato_id),
         detalhes={"vinculo_id": str(vinculo_id)},

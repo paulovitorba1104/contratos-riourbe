@@ -106,6 +106,7 @@ export interface InstrumentoProcessual {
 
 export interface Contrato {
   id: string;
+  numero_contrato: string;
   processo_sei: string;
   tipo_servico: string;
   objeto: string;
@@ -123,9 +124,18 @@ export interface Contrato {
   tipo_patrimonial: string | null;
   item_patrimonial: string | null;
   codigo_ccon: string | null;
+  observacoes: string | null;
+  alerta_vigencia: NivelAlerta | null;
+  alerta_garantia: NivelAlerta | null;
+}
+
+export interface GarantiaHistorico {
+  id: string;
   data_inicio_garantia: string | null;
   data_fim_garantia: string | null;
-  observacoes: string | null;
+  observacao: string | null;
+  registrado_por_nome: string;
+  registrado_em: string;
 }
 
 export interface ContratoDetalhado extends Contrato {
@@ -135,12 +145,14 @@ export interface ContratoDetalhado extends Contrato {
   vigencia_inicio: string | null;
   vigencia_fim: string | null;
   teto_vigencia: string;
-  alerta_vigencia: NivelAlerta | null;
-  alerta_garantia: NivelAlerta | null;
+  garantia_inicio: string | null;
+  garantia_fim: string | null;
+  garantias: GarantiaHistorico[];
   instrumentos: InstrumentoProcessual[];
 }
 
 export interface NovoContratoPayload {
+  numero_contrato: string;
   processo_sei: string;
   tipo_servico: string;
   objeto: string;
@@ -153,6 +165,7 @@ export interface NovoContratoPayload {
 }
 
 export interface ContratoAtualizarPayload {
+  numero_contrato?: string;
   processo_sei?: string;
   tipo_servico?: string;
   objeto?: string;

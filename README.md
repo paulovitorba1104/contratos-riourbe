@@ -192,22 +192,30 @@ Conforme a seção 13 do plano de desenvolvimento:
 
 Implementa a seção 4 do plano de desenvolvimento:
 
-- **Contrato**: nasce de 1 forma de contratação (Pregão Eletrônico, Dispensa ou Inexigibilidade);
-  status macro (`vigente` → `suspenso` → `encerrado`) só muda através de um instrumento de
-  suspensão ou rescisão/extinção — nunca editado diretamente.
+- **Contrato**: identificado por número do contrato + processo SEI; nasce de 1 forma de
+  contratação (Pregão Eletrônico, Dispensa ou Inexigibilidade); status macro
+  (`vigente` → `suspenso` → `encerrado`) só muda através de um instrumento de suspensão ou
+  rescisão/extinção — nunca editado diretamente.
 - **Instrumentos processuais**: origem + aditivos (prorrogação, acréscimo/supressão de valor,
   alteração qualitativa, reequilíbrio, apostilamento, suspensão, rescisão/extinção), cada um
   mapeado a um modelo RIPM e com fundamentação legal estruturada (lei + artigo).
 - **3 relógios de prazo**: vigência atual (derivada do instrumento de origem/prorrogação mais
   recente), teto rígido de 5 anos desde a assinatura original (bloqueia prorrogação que
-  ultrapasse — `TetoVigenciaExcedido`), e garantia contratual independente. Alertas calculados
-  em 6/3/1 mês (vigência) e 3/1 mês (garantia).
-- **Painel Kanban** por status macro, ficha do contrato com timeline de instrumentos, fiscal(is)
-  obrigatório(s), fornecedores e atas de registro de preço disponíveis para adesão.
+  ultrapasse — `TetoVigenciaExcedido`), e garantia contratual independente. A garantia é um
+  histórico de registros (`contratos.garantias_contrato`), nunca sobrescrito — cada alteração
+  (definição inicial ou correção) entra como uma linha nova com quem registrou e quando, e a
+  garantia "atual" é sempre a mais recente; a tela só mostra os dois campos de data quando o
+  usuário clica em "Registrar garantia". Alertas calculados em 6/3/1 mês (vigência) e 3/1 mês
+  (garantia) — visíveis tanto na ficha do contrato quanto nos cards do Kanban.
+- **Painel Kanban** por status macro, com número do contrato e alertas de vigência/garantia já
+  visíveis no card; ficha do contrato com timeline de instrumentos, fiscal(is) obrigatório(s),
+  fornecedores e atas de registro de preço disponíveis para adesão.
 - **Fiscais**: cadastro próprio (`core.fiscais`), independente de usuário do sistema —
   identificado pela matrícula (obrigatória e única), CPF opcional. O vínculo com o contrato é
   temporal (`data_inicio`/`data_fim`), permitindo substituição de fiscal ao longo da vida do
-  contrato sem perder o histórico de quem fiscalizou em cada período.
+  contrato sem perder o histórico de quem fiscalizou em cada período. "Encerrar vínculo" fecha o
+  período mantendo o histórico (substituição); "Excluir" remove o vínculo por completo, para
+  quando o fiscal foi designado por engano naquele contrato.
 - **Fornecedores**: cadastro próprio (`core.fornecedores`) com validação de CNPJ (dígito
   verificador e situação cadastral ativa na Receita Federal via BrasilAPI), mesma lógica de
   cadastro dos fiscais (tela dedicada, com edição, + criação inline ao criar um contrato).
@@ -235,6 +243,14 @@ verificação de CNPJ ativo ao cadastrar/editar um fornecedor (seção "Forneced
 a [BrasilAPI](https://brasilapi.com.br/api/cnpj/v1/{cnpj}) — gratuita, sem necessidade de
 chave/autenticação — e o Radar CNPJ reaproveitaria a mesma consulta (`app/core/cnpj_lookup.py`),
 rodando-a para todos os fornecedores ativos e comparando o resultado com o cadastro atual.
+
+**Financeiro automatizado via Faturamento (planejado, não implementado)**: hoje `valor_pago` é
+lançado manualmente na ficha do contrato (edição geral ou o atalho "Atualizar valor pago"). O
+plano é que essa parte pare de ser manual e passe a ser alimentada automaticamente pelo módulo
+de Faturamento (mesmo sistema já citado na seção de modelos RIPM) — cada fatura confirmada ali
+soma no valor pago do contrato correspondente, mantendo `valor_atualizado`/`saldo_a_pagar`
+sempre em dia sem depender de alguém lançar o valor à mão. Os endpoints manuais continuam
+existindo até essa integração ser construída.
 
 ---
 

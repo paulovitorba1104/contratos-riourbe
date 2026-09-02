@@ -1,9 +1,9 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
 
-from app.models.contrato import Contrato, FormaContratacao, StatusContrato
+from app.models.contrato import Contrato, FormaContratacao, GarantiaContrato, StatusContrato
 from app.models.instrumento_processual import (
     FundamentacaoLei,
     InstrumentoProcessual,
@@ -14,6 +14,7 @@ from app.services import contratos as regras
 
 def _contrato(**overrides) -> Contrato:
     padrao = dict(
+        numero_contrato="CT-1",
         processo_sei="SEI-1",
         tipo_servico="Serviço X",
         objeto="Objeto do contrato",
@@ -27,7 +28,17 @@ def _contrato(**overrides) -> Contrato:
     padrao.update(overrides)
     contrato = Contrato(**padrao)
     contrato.instrumentos = []
+    contrato.garantias = []
     return contrato
+
+
+def _garantia(**overrides) -> GarantiaContrato:
+    padrao = dict(
+        registrado_por_id="00000000-0000-0000-0000-000000000000",
+        registrado_em=datetime(2024, 1, 1),
+    )
+    padrao.update(overrides)
+    return GarantiaContrato(**padrao)
 
 
 def _instrumento(tipo: TipoInstrumento, **overrides) -> InstrumentoProcessual:
@@ -75,6 +86,37 @@ def test_vigencia_atual_usa_instrumento_mais_recente():
 def test_vigencia_atual_sem_instrumentos_retorna_none():
     contrato = _contrato()
     assert regras.vigencia_atual(contrato) == (None, None)
+
+
+def test_garantia_atual_usa_registro_mais_recente():
+    contrato = _contrato()
+    contrato.garantias = [
+        _garantia(
+            data_inicio_garantia=date(2024, 1, 1),
+            data_fim_garantia=date(2025, 1, 1),
+            registrado_em=datetime(2024, 1, 1),
+        ),
+        _garantia(
+            data_inicio_garantia=date(2024, 1, 1),
+            data_fim_garantia=date(2026, 1, 1),
+            registrado_em=datetime(2024, 6, 1),
+        ),
+    ]
+    inicio, fim = regras.garantia_atual(contrato)
+    assert inicio == date(2024, 1, 1)
+    assert fim == date(2026, 1, 1)
+
+
+def test_garantia_atual_sem_registros_retorna_none():
+    contrato = _contrato()
+    assert regras.garantia_atual(contrato) == (None, None)
+
+
+def test_calcular_alertas_garantia_usa_registro_mais_recente():
+    contrato = _contrato()
+    contrato.garantias = [_garantia(data_fim_garantia=date(2026, 2, 1), registrado_em=datetime(2024, 1, 1))]
+    alertas = regras.calcular_alertas(contrato, hoje=date(2026, 1, 5))
+    assert alertas.alerta_garantia == "1_meses"
 
 
 def test_teto_vigencia_e_cinco_anos_apos_assinatura():

@@ -12,6 +12,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.fiscal import Fiscal
     from app.models.instrumento_processual import InstrumentoProcessual
+    from app.models.usuario import Usuario
 
 
 class FormaContratacao(str, enum.Enum):
@@ -44,6 +45,7 @@ class Contrato(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
 
     # Identificação
+    numero_contrato: Mapped[str] = mapped_column(String(50), nullable=False)
     processo_sei: Mapped[str] = mapped_column(String(50), nullable=False)
     tipo_servico: Mapped[str] = mapped_column(String(200), nullable=False)
     objeto: Mapped[str] = mapped_column(Text, nullable=False)
@@ -82,10 +84,6 @@ class Contrato(Base):
     item_patrimonial: Mapped[str | None] = mapped_column(String(100), nullable=True)
     codigo_ccon: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
-    # Relógio 3: garantia contratual — independente da vigência
-    data_inicio_garantia: Mapped[date | None] = mapped_column(Date, nullable=True)
-    data_fim_garantia: Mapped[date | None] = mapped_column(Date, nullable=True)
-
     observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -98,6 +96,13 @@ class Contrato(Base):
     )
     fiscais: Mapped[list["ContratoFiscal"]] = relationship(
         back_populates="contrato", cascade="all, delete-orphan"
+    )
+    # Relógio 3: garantia contratual — independente da vigência. Cada
+    # alteração gera um novo registro (nunca sobrescreve o anterior), então
+    # fica auditável quem mudou o quê e quando — o mesmo princípio já usado
+    # para vigência via instrumentos processuais.
+    garantias: Mapped[list["GarantiaContrato"]] = relationship(
+        back_populates="contrato", order_by="GarantiaContrato.registrado_em", cascade="all, delete-orphan"
     )
 
 
@@ -127,3 +132,28 @@ class ContratoFiscal(Base):
 
     contrato: Mapped["Contrato"] = relationship(back_populates="fiscais")
     fiscal: Mapped["Fiscal"] = relationship()
+
+
+class GarantiaContrato(Base):
+    """Registro histórico de garantia contratual (Relógio 3). Cada alteração
+    (definição inicial ou correção) cria uma nova linha em vez de sobrescrever
+    a anterior — a garantia "atual" é sempre a mais recentemente registrada,
+    igual ao princípio de vigência via instrumentos processuais, mas aqui sem
+    RIPM/fundamentação legal por não ser um instrumento processual formal."""
+
+    __tablename__ = "garantias_contrato"
+    __table_args__ = {"schema": "contratos"}
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    contrato_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contratos.contratos.id", ondelete="CASCADE"), nullable=False
+    )
+    data_inicio_garantia: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_fim_garantia: Mapped[date | None] = mapped_column(Date, nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    registrado_por_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.usuarios.id"), nullable=False)
+    registrado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    contrato: Mapped["Contrato"] = relationship(back_populates="garantias")
+    registrado_por: Mapped["Usuario"] = relationship()

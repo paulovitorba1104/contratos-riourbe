@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { BadgeAlerta } from "../../components/BadgeAlerta";
 import { apiContratos } from "../../lib/apiContratos";
 import type { Contrato, StatusContrato } from "../../lib/tiposContratos";
 import { ROTULOS_FORMA_CONTRATACAO, ROTULOS_STATUS_CONTRATO } from "../../lib/tiposContratos";
@@ -19,7 +20,8 @@ function CartaoContrato({ contrato }: { contrato: Contrato }) {
       to={`/contratos/${contrato.id}`}
       className="block rounded border border-institucional-100 bg-white p-3 text-sm shadow-sm transition hover:shadow-md"
     >
-      <p className="font-medium text-institucional-900">{contrato.tipo_servico}</p>
+      <p className="font-semibold text-institucional-900">{contrato.numero_contrato}</p>
+      <p className="mt-0.5 text-sm text-institucional-800">{contrato.tipo_servico}</p>
       <p className="mt-1 text-xs text-institucional-700">{contrato.processo_sei}</p>
       <p className="mt-1 text-xs text-institucional-600">
         {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
@@ -27,6 +29,18 @@ function CartaoContrato({ contrato }: { contrato: Contrato }) {
       <p className="mt-2 text-sm font-semibold text-institucional-800">
         R$ {Number(contrato.valor_inicial).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
       </p>
+      {(contrato.alerta_vigencia || contrato.alerta_garantia) && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {contrato.alerta_vigencia && (
+            <BadgeAlerta alerta={contrato.alerta_vigencia} rotuloOk="Vigência em dia" />
+          )}
+          {contrato.alerta_garantia && (
+            <span title="Garantia">
+              <BadgeAlerta alerta={contrato.alerta_garantia} rotuloOk="Garantia em dia" />
+            </span>
+          )}
+        </div>
+      )}
     </Link>
   );
 }

@@ -32,3 +32,43 @@ export function mascararCnpj(valor: string): string {
   else if (d.length > 2) resultado = `${d.slice(0, 2)}.${d.slice(2)}`;
   return resultado;
 }
+
+function formatarDigitosComoMoeda(digitos: string, negativo: boolean): string {
+  if (digitos === "") return "";
+  const semZerosExtras = digitos.replace(/^0+(?=\d)/, "");
+  const comZeros = semZerosExtras.padStart(3, "0");
+  const centavos = comZeros.slice(-2);
+  const inteiroBruto = comZeros.slice(0, -2) || "0";
+  const inteiroFormatado = inteiroBruto.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const sinal = negativo && Number(`${inteiroBruto}.${centavos}`) !== 0 ? "-" : "";
+  return `${sinal}${inteiroFormatado},${centavos}`;
+}
+
+/**
+ * Máscara de moeda estilo "calculadora": os dígitos digitados entram pela
+ * direita como centavos e o milhar/milhão se formata sozinho (ex.: digitar
+ * "1500000" vira "15.000,00") — evita a ambiguidade de "." x "," que quebra
+ * um <input type="number"> ao lançar valores grandes.
+ */
+export function mascararMoeda(valor: string, permitirNegativo = false): string {
+  const negativo = permitirNegativo && valor.trim().startsWith("-");
+  const digitos = valor.replace(/\D/g, "");
+  return formatarDigitosComoMoeda(digitos, negativo);
+}
+
+/** Formata um valor decimal vindo da API (ex.: "15000.00") para exibição inicial no campo mascarado. */
+export function formatarMoedaInicial(valorDecimal: string | number): string {
+  const numero = Number(valorDecimal);
+  if (Number.isNaN(numero)) return "";
+  const digitos = Math.round(Math.abs(numero) * 100).toString();
+  return formatarDigitosComoMoeda(digitos, numero < 0);
+}
+
+/** Converte o valor mascarado (ex.: "-15.000,00") de volta para string decimal ("-15000.00") para a API. */
+export function moedaParaNumero(valorFormatado: string): string {
+  if (valorFormatado.trim() === "") return "0.00";
+  const negativo = valorFormatado.trim().startsWith("-");
+  const limpo = valorFormatado.replace(/[^\d,]/g, "").replace(",", ".");
+  const numero = limpo === "" || limpo === "." ? "0.00" : limpo;
+  return negativo ? `-${numero}` : numero;
+}

@@ -21,9 +21,12 @@ export const apiContratos = {
     requisicao<ContratoDetalhado>("/contratos", { method: "POST", body: JSON.stringify(dados) }),
   atualizar: (id: string, dados: ContratoAtualizarPayload) =>
     requisicao<ContratoDetalhado>(`/contratos/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
-  atualizarGarantia: (id: string, dados: { data_inicio_garantia: string | null; data_fim_garantia: string | null }) =>
+  registrarGarantia: (
+    id: string,
+    dados: { data_inicio_garantia: string | null; data_fim_garantia: string | null; observacao?: string | null },
+  ) =>
     requisicao<ContratoDetalhado>(`/contratos/${id}/garantia`, {
-      method: "PATCH",
+      method: "POST",
       body: JSON.stringify(dados),
     }),
   atualizarPagamento: (id: string, valor_pago: string) =>
@@ -41,6 +44,8 @@ export const apiContratos = {
       method: "PATCH",
       body: JSON.stringify({ data_fim }),
     }),
+  excluirVinculoFiscal: (contratoId: string, vinculoId: string) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/fiscais/${vinculoId}`, { method: "DELETE" }),
   criarInstrumento: (contratoId: string, dados: NovoInstrumentoPayload) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/instrumentos`, {
       method: "POST",
