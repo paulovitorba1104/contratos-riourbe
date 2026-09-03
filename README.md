@@ -47,6 +47,22 @@ atas de registro de preço.
 
 4. Documentação interativa da API: `http://localhost:8000/docs`.
 
+### Acessando de outros computadores da mesma rede
+
+As portas do `backend` (`8000`) e do `frontend` (`5173`) já ficam expostas para toda a rede
+local (não só `127.0.0.1`) — só o `db` (`5432`) continua restrito ao próprio computador, por
+segurança. Para outra pessoa no mesmo Wi-Fi/cabo acessar:
+
+1. No computador que está rodando o `docker compose up`, descubra o IP local (Windows:
+   `ipconfig` e olhe o "Endereço IPv4" da rede em uso; Linux/Mac: `ip a` ou `ifconfig`).
+2. Nos outros computadores, acesse `http://<esse-IP>:5173` no navegador.
+
+As chamadas da API feitas pelo navegador (`/api/...`) passam pelo proxy do Vite
+(`frontend/vite.config.ts`) até o backend — por isso não é preciso mexer em `CORS_ORIGINS` nem
+em cookies para isso funcionar. Vale o alerta de segurança de sempre: isso deixa o sistema
+acessível para qualquer um na mesma rede, então só faz sentido numa rede confiável (ex.: rede
+interna do escritório) — nunca exponha essas portas diretamente para a internet.
+
 ## Desenvolvimento local sem Docker (backend)
 
 Requer Python 3.12+ e um PostgreSQL acessível em `127.0.0.1:5432` (ex. via

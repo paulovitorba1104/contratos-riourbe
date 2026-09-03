@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: riourbe
       POSTGRES_PASSWORD: riourbe
       POSTGRES_DB: riourbe
+    # Só localhost — o banco nunca precisa ficar acessível na rede, mesmo
+    # quando backend/frontend abaixo são abertos para outros PCs acessarem.
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -23,8 +25,10 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql+psycopg://riourbe:riourbe@db:5432/riourbe
+    # Sem "127.0.0.1:" na frente — fica acessível também por outros PCs da
+    # mesma rede local, não só pelo próprio computador.
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -40,8 +44,11 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_URL: http://backend:8000
+    # Idem — acessível por outros PCs da rede, não só localhost. As
+    # chamadas /api do navegador passam pelo proxy do Vite (vite.config.ts)
+    # até o backend, então não precisa mexer em CORS nem em cookie.
     ports:
-      - "127.0.0.1:5173:5173"
+      - "5173:5173"
     depends_on:
       - backend
     volumes:
