@@ -35,6 +35,15 @@ function formatarMoeda(valor: string): string {
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function CampoInfo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
+  return (
+    <div>
+      <p className="text-xs text-slate-500">{rotulo}</p>
+      <p className={valor ? "font-medium text-slate-900" : "text-slate-400"}>{valor || "—"}</p>
+    </div>
+  );
+}
+
 function processoResumo(processos: Processo[]): string {
   const principal = processos.find((p) => p.tipo === "principal") ?? processos[0];
   if (!principal) return "sem processo";
@@ -1189,6 +1198,27 @@ export function ContratoDetalhe() {
             >
               Atualizar valor pago
             </button>
+          </div>
+        </section>
+
+        <section className="card p-5">
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Dados administrativos</h2>
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <CampoInfo rotulo="Data de assinatura original" valor={contrato.data_assinatura_original} />
+            <CampoInfo rotulo="Nota de reserva" valor={contrato.nota_reserva} />
+            <CampoInfo rotulo="Nota de empenho" valor={contrato.nota_empenho} />
+            <CampoInfo rotulo="PT" valor={contrato.pt} />
+            <CampoInfo rotulo="ND" valor={contrato.nd} />
+            <CampoInfo rotulo="FR" valor={contrato.fr} />
+            <CampoInfo rotulo="Tipo patrimonial" valor={contrato.tipo_patrimonial} />
+            <CampoInfo rotulo="Item patrimonial" valor={contrato.item_patrimonial} />
+            <CampoInfo rotulo="Código CCON" valor={contrato.codigo_ccon} />
+          </div>
+          <div className="mt-3 border-t border-slate-200 pt-3">
+            <p className="text-xs text-slate-500">Observações</p>
+            <p className={contrato.observacoes ? "text-sm text-slate-700" : "text-sm text-slate-400"}>
+              {contrato.observacoes || "Nenhuma observação registrada."}
+            </p>
           </div>
         </section>
 
