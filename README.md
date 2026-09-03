@@ -285,6 +285,14 @@ ser excluído — o banco recusa por chave estrangeira e a API devolve 409. O hi
 (seção acima) e o log de auditoria nunca são excluíveis — são registros de auditoria por
 definição.
 
+**Verificação automática de completude/conformidade (planejado, não implementado)**: treinar a
+ferramenta para identificar sozinha quando falta algo em um contrato ou quando algum item
+obrigatório não foi cumprido (ex.: fundamentação legal incompleta, instrumento sem documento SEI,
+prazo/fiscal/garantia pendente, dado que a lei ou a modalidade de contratação exige e não foi
+preenchido) — hoje a checagem é toda manual, feita por quem está com o processo. A ideia não é
+específica do módulo Contratos: deve ser levada para todas as modalidades/módulos do sistema
+(Licitação, Faturas, Diárias/Passagens/Compras etc.) conforme forem sendo construídos.
+
 ---
 
 Since 2026 — Desenvolvido por Paulo Vitor Barbosa Araújo
