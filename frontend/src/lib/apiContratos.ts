@@ -6,6 +6,7 @@ import type {
   ContratoDetalhado,
   Fiscal,
   Fornecedor,
+  LogAuditoria,
   ModeloRipm,
   NovoContratoPayload,
   NovoInstrumentoPayload,
@@ -72,6 +73,7 @@ export const apiContratos = {
     }),
   excluirProcesso: (contratoId: string, processoId: string) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/processos/${processoId}`, { method: "DELETE" }),
+  auditoria: (contratoId: string) => requisicao<LogAuditoria[]>(`/contratos/${contratoId}/auditoria`),
 };
 
 export const apiFornecedores = {

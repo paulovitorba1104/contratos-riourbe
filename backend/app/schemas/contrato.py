@@ -140,6 +140,16 @@ class GarantiaSaida(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LogAuditoriaSaida(BaseModel):
+    id: uuid.UUID
+    acao: str
+    usuario_nome: str | None
+    detalhes: dict | None
+    criado_em: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ContratoAtualizarPagamento(BaseModel):
     valor_pago: Decimal = Field(..., ge=0)
 

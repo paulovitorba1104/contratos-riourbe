@@ -58,6 +58,23 @@ export const ROTULOS_TIPO_PROCESSO: Record<TipoProcesso, string> = {
   apenso: "Apenso",
 };
 
+export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
+  criar_contrato: "Contrato criado",
+  atualizar_contrato: "Dados do contrato atualizados",
+  excluir_contrato: "Contrato excluído",
+  adicionar_processo_contrato: "Processo adicionado",
+  atualizar_processo_contrato: "Processo atualizado",
+  excluir_processo_contrato: "Processo excluído",
+  registrar_garantia_contrato: "Garantia registrada",
+  atualizar_pagamento_contrato: "Valor pago atualizado",
+  adicionar_fiscal_contrato: "Fiscal designado",
+  encerrar_vinculo_fiscal: "Vínculo de fiscal encerrado",
+  excluir_vinculo_fiscal: "Fiscal removido",
+  criar_instrumento_processual: "Instrumento registrado",
+  atualizar_sub_status_instrumento: "Sub-status do instrumento atualizado",
+  excluir_instrumento_processual: "Instrumento excluído",
+};
+
 export const TIPOS_QUE_DEFINEM_VIGENCIA: TipoInstrumento[] = ["origem", "prorrogacao"];
 
 export interface Fornecedor {
@@ -148,6 +165,14 @@ export interface Contrato {
   processos: Processo[];
   alerta_vigencia: NivelAlerta | null;
   alerta_garantia: NivelAlerta | null;
+}
+
+export interface LogAuditoria {
+  id: string;
+  acao: string;
+  usuario_nome: string | null;
+  detalhes: Record<string, unknown> | null;
+  criado_em: string;
 }
 
 export interface GarantiaHistorico {
