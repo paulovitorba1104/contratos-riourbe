@@ -9,6 +9,7 @@ from app.models.contrato import Contrato, ContratoFiscal, GarantiaContrato, Proc
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import InstrumentoProcessual, TipoInstrumento
+from app.models.log_auditoria import LogAuditoria
 from app.models.modelo_ripm import ModeloRipm
 from app.models.usuario import Usuario
 from app.schemas.contrato import (
@@ -19,6 +20,7 @@ from app.schemas.contrato import (
     ContratoSaida,
     GarantiaCriar,
     GarantiaSaida,
+    LogAuditoriaSaida,
     ProcessoAtualizar,
     ProcessoCriar,
 )
@@ -591,3 +593,38 @@ def excluir_instrumento(
     db.delete(instrumento)
     db.commit()
     return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.get("/{contrato_id}/auditoria", response_model=list[LogAuditoriaSaida])
+def listar_auditoria_contrato(
+    contrato_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+) -> list[LogAuditoriaSaida]:
+    contrato = _carregar_contrato(db, contrato_id)
+    ids_instrumentos = [str(i.id) for i in contrato.instrumentos]
+
+    filtro_entidades = (LogAuditoria.entidade == "contrato") & (LogAuditoria.entidade_id == str(contrato_id))
+    if ids_instrumentos:
+        filtro_entidades = filtro_entidades | (
+            (LogAuditoria.entidade == "instrumento_processual") & (LogAuditoria.entidade_id.in_(ids_instrumentos))
+        )
+
+    logs = (
+        db.query(LogAuditoria)
+        .options(selectinload(LogAuditoria.usuario))
+        .filter(filtro_entidades)
+        .order_by(LogAuditoria.criado_em.desc())
+        .limit(200)
+        .all()
+    )
+    return [
+        LogAuditoriaSaida(
+            id=log.id,
+            acao=log.acao,
+            usuario_nome=log.usuario.nome if log.usuario else None,
+            detalhes=log.detalhes,
+            criado_em=log.criado_em,
+        )
+        for log in logs
+    ]

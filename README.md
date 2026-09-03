@@ -215,8 +215,12 @@ Implementa a seção 4 do plano de desenvolvimento:
   usuário clica em "Registrar garantia". Alertas calculados em 6/3/1 mês (vigência) e 3/1 mês
   (garantia) — visíveis tanto na ficha do contrato quanto nos cards do Kanban.
 - **Painel Kanban** por status macro, com número do contrato e alertas de vigência/garantia já
-  visíveis no card; ficha do contrato com timeline de instrumentos, fiscal(is) obrigatório(s),
-  fornecedores e atas de registro de preço disponíveis para adesão.
+  visíveis no card, busca (número, processo, tipo de serviço ou objeto) e filtro por forma de
+  contratação, e um resumo no topo com a contagem de contratos vencidos/vencendo e com garantia
+  vencida; ficha do contrato com timeline visual de instrumentos, dados administrativos/
+  patrimoniais (nota de reserva/empenho, PT/ND/FR, patrimônio), histórico de alterações
+  (auditoria — quem fez o quê e quando), fiscal(is) obrigatório(s), fornecedores e atas de
+  registro de preço disponíveis para adesão.
 - **Fiscais**: cadastro próprio (`core.fiscais`), independente de usuário do sistema —
   identificado pela matrícula (obrigatória e única), CPF opcional. O vínculo com o contrato é
   temporal (`data_inicio`/`data_fim`), permitindo substituição de fiscal ao longo da vida do

@@ -12,6 +12,7 @@ import type {
   FormaContratacao,
   Fornecedor,
   FundamentacaoLei,
+  LogAuditoria,
   Processo,
   SistemaProcesso,
   SubStatusInstrumento,
@@ -19,6 +20,7 @@ import type {
   TipoProcesso,
 } from "../../lib/tiposContratos";
 import {
+  ROTULOS_ACAO_AUDITORIA,
   ROTULOS_FORMA_CONTRATACAO,
   ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_STATUS_CONTRATO,
@@ -795,6 +797,8 @@ export function ContratoDetalhe() {
   const [mostrarHistoricoGarantia, setMostrarHistoricoGarantia] = useState(false);
   const [mostrarFormNovoProcesso, setMostrarFormNovoProcesso] = useState(false);
   const [processoEmEdicaoId, setProcessoEmEdicaoId] = useState<string | null>(null);
+  const [mostrarAuditoria, setMostrarAuditoria] = useState(false);
+  const [auditoria, setAuditoria] = useState<LogAuditoria[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const { mostrarToast } = useToast();
 
@@ -910,6 +914,22 @@ export function ContratoDetalhe() {
       const mensagem = e instanceof ErroApi ? e.message : "Não foi possível excluir o processo.";
       setErro(mensagem);
       mostrarToast(mensagem, "erro");
+    }
+  }
+
+  async function alternarAuditoria() {
+    if (mostrarAuditoria) {
+      setMostrarAuditoria(false);
+      return;
+    }
+    setMostrarAuditoria(true);
+    if (!auditoria && id) {
+      try {
+        const logs = await apiContratos.auditoria(id);
+        setAuditoria(logs);
+      } catch {
+        mostrarToast("Não foi possível carregar o histórico de alterações.", "erro");
+      }
     }
   }
 
@@ -1312,52 +1332,85 @@ export function ContratoDetalhe() {
             </div>
           )}
 
-          <div className="space-y-2">
+          <div>
             {contrato.instrumentos.length === 0 && (
               <p className="text-sm text-slate-500">Nenhum instrumento registrado ainda.</p>
             )}
-            {contrato.instrumentos.map((i) => (
-              <div key={i.id} className="rounded-lg border border-slate-200 p-3 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium text-slate-900">{ROTULOS_TIPO_INSTRUMENTO[i.tipo]}</p>
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20"
-                      value={i.sub_status}
-                      onChange={(e) => alterarSubStatus(i.id, e.target.value as SubStatusInstrumento)}
-                    >
-                      {Object.entries(ROTULOS_SUB_STATUS).map(([valor, rotulo]) => (
-                        <option key={valor} value={valor}>
-                          {rotulo}
-                        </option>
-                      ))}
-                    </select>
-                    {ehAdministrador && (
-                      <button
-                        onClick={() => excluirInstrumento(i.id, ROTULOS_TIPO_INSTRUMENTO[i.tipo])}
-                        className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
-                        title="Exclusão definitiva — restrita a administrador"
+            {contrato.instrumentos.map((i, indice) => (
+              <div key={i.id} className="relative flex gap-3 pb-4 last:pb-0">
+                {indice !== contrato.instrumentos.length - 1 && (
+                  <span className="absolute left-[5px] top-4 h-full w-px bg-slate-200" aria-hidden="true" />
+                )}
+                <span
+                  className="relative z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-institucional-500 bg-white"
+                  aria-hidden="true"
+                />
+                <div className="flex-1 rounded-lg border border-slate-200 p-3 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-slate-900">{ROTULOS_TIPO_INSTRUMENTO[i.tipo]}</p>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20"
+                        value={i.sub_status}
+                        onChange={(e) => alterarSubStatus(i.id, e.target.value as SubStatusInstrumento)}
                       >
-                        Excluir
-                      </button>
-                    )}
+                        {Object.entries(ROTULOS_SUB_STATUS).map(([valor, rotulo]) => (
+                          <option key={valor} value={valor}>
+                            {rotulo}
+                          </option>
+                        ))}
+                      </select>
+                      {ehAdministrador && (
+                        <button
+                          onClick={() => excluirInstrumento(i.id, ROTULOS_TIPO_INSTRUMENTO[i.tipo])}
+                          className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
+                          title="Exclusão definitiva — restrita a administrador"
+                        >
+                          Excluir
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <p className="text-xs text-slate-500">
-                  {i.fundamentacao_lei === "lei_13303_16" ? "Lei 13.303/16" : "Lei 14.133/21"}, {i.fundamentacao_artigo}
-                </p>
-                {i.data_inicio_vigencia && i.data_fim_vigencia && (
                   <p className="text-xs text-slate-500">
-                    Vigência: {i.data_inicio_vigencia} até {i.data_fim_vigencia}
+                    {i.fundamentacao_lei === "lei_13303_16" ? "Lei 13.303/16" : "Lei 14.133/21"}, {i.fundamentacao_artigo}
                   </p>
-                )}
-                {i.valor_delta && (
-                  <p className="text-xs text-slate-500">Valor: {formatarMoeda(i.valor_delta)}</p>
-                )}
-                {i.observacoes && <p className="mt-1 text-xs text-slate-500">{i.observacoes}</p>}
+                  {i.data_inicio_vigencia && i.data_fim_vigencia && (
+                    <p className="text-xs text-slate-500">
+                      Vigência: {i.data_inicio_vigencia} até {i.data_fim_vigencia}
+                    </p>
+                  )}
+                  {i.valor_delta && (
+                    <p className="text-xs text-slate-500">Valor: {formatarMoeda(i.valor_delta)}</p>
+                  )}
+                  {i.observacoes && <p className="mt-1 text-xs text-slate-500">{i.observacoes}</p>}
+                </div>
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="card p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Histórico de alterações</h2>
+            <button onClick={alternarAuditoria} className="btn-secondary btn-sm">
+              {mostrarAuditoria ? "Ocultar" : "Ver histórico"}
+            </button>
+          </div>
+
+          {mostrarAuditoria && (
+            <ul className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+              {auditoria === null && <p className="text-sm text-slate-500">Carregando...</p>}
+              {auditoria?.length === 0 && (
+                <p className="text-sm text-slate-500">Nenhuma alteração registrada ainda.</p>
+              )}
+              {auditoria?.map((log) => (
+                <li key={log.id} className="text-xs text-slate-500">
+                  <span className="font-medium text-slate-700">{ROTULOS_ACAO_AUDITORIA[log.acao] ?? log.acao}</span>{" "}
+                  — por {log.usuario_nome ?? "usuário removido"} em {new Date(log.criado_em).toLocaleString("pt-BR")}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </div>

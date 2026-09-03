@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { BadgeAlerta } from "../../components/BadgeAlerta";
 import { apiContratos } from "../../lib/apiContratos";
-import type { Contrato, StatusContrato } from "../../lib/tiposContratos";
+import type { Contrato, FormaContratacao, StatusContrato } from "../../lib/tiposContratos";
 import { ROTULOS_FORMA_CONTRATACAO, ROTULOS_STATUS_CONTRATO } from "../../lib/tiposContratos";
 
 const COLUNAS: StatusContrato[] = ["vigente", "suspenso", "encerrado"];
@@ -19,6 +19,43 @@ function resumoProcesso(contrato: Contrato): string {
   if (!principal) return "sem processo";
   const apensos = contrato.processos.length - 1;
   return `${principal.numero_processo}${apensos > 0 ? ` +${apensos} apenso${apensos > 1 ? "s" : ""}` : ""}`;
+}
+
+function correspondeBusca(contrato: Contrato, termo: string): boolean {
+  const alvo = termo.trim().toLowerCase();
+  if (!alvo) return true;
+  return (
+    contrato.numero_contrato.toLowerCase().includes(alvo) ||
+    contrato.tipo_servico.toLowerCase().includes(alvo) ||
+    contrato.objeto.toLowerCase().includes(alvo) ||
+    contrato.processos.some((p) => p.numero_processo.toLowerCase().includes(alvo))
+  );
+}
+
+function ResumoAlertas({ contratos }: { contratos: Contrato[] }) {
+  const vencidos = contratos.filter((c) => c.alerta_vigencia === "vencido").length;
+  const ateUmMes = contratos.filter((c) => c.alerta_vigencia === "1_meses").length;
+  const ateTresMeses = contratos.filter((c) => c.alerta_vigencia === "3_meses").length;
+  const garantiaVencida = contratos.filter((c) => c.alerta_garantia === "vencido").length;
+
+  const chips = [
+    vencidos > 0 && { texto: `${vencidos} vigência vencida`, cor: "bg-red-100 text-red-800" },
+    ateUmMes > 0 && { texto: `${ateUmMes} vencendo em até 1 mês`, cor: "bg-orange-100 text-orange-800" },
+    ateTresMeses > 0 && { texto: `${ateTresMeses} vencendo em até 3 meses`, cor: "bg-amber-100 text-amber-800" },
+    garantiaVencida > 0 && { texto: `${garantiaVencida} garantia vencida`, cor: "bg-red-100 text-red-800" },
+  ].filter((chip): chip is { texto: string; cor: string } => Boolean(chip));
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="mb-4 flex flex-wrap gap-2">
+      {chips.map((chip) => (
+        <span key={chip.texto} className={`rounded-full px-3 py-1 text-xs font-medium ${chip.cor}`}>
+          {chip.texto}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function CartaoContrato({ contrato }: { contrato: Contrato }) {
@@ -55,6 +92,8 @@ function CartaoContrato({ contrato }: { contrato: Contrato }) {
 export function ContratosKanban() {
   const [contratos, setContratos] = useState<Contrato[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+  const [filtroForma, setFiltroForma] = useState<FormaContratacao | "">("");
 
   useEffect(() => {
     apiContratos
@@ -62,6 +101,15 @@ export function ContratosKanban() {
       .then(setContratos)
       .catch(() => setErro("Não foi possível carregar os contratos."));
   }, []);
+
+  const contratosFiltrados = useMemo(() => {
+    if (!contratos) return null;
+    return contratos.filter(
+      (c) => correspondeBusca(c, busca) && (!filtroForma || c.forma_contratacao === filtroForma),
+    );
+  }, [contratos, busca, filtroForma]);
+
+  const filtrosAtivos = busca.trim() !== "" || filtroForma !== "";
 
   return (
     <div className="page-shell">
@@ -94,29 +142,68 @@ export function ContratosKanban() {
         {!contratos && !erro && <p className="text-sm text-slate-500">Carregando...</p>}
 
         {contratos && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {COLUNAS.map((coluna) => {
-              const contratosDaColuna = contratos.filter((c) => c.status === coluna);
-              return (
-                <div key={coluna} className={`rounded-xl border-t-4 bg-slate-100/60 p-3 ${CORES_COLUNA[coluna]}`}>
-                  <h2 className="mb-3 flex items-center justify-between text-sm font-semibold text-slate-800">
-                    {ROTULOS_STATUS_CONTRATO[coluna]}
-                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 shadow-sm">
-                      {contratosDaColuna.length}
-                    </span>
-                  </h2>
-                  <div className="space-y-2">
-                    {contratosDaColuna.map((contrato) => (
-                      <CartaoContrato key={contrato.id} contrato={contrato} />
-                    ))}
-                    {contratosDaColuna.length === 0 && (
-                      <p className="text-xs text-slate-400">Nenhum contrato aqui.</p>
-                    )}
+          <>
+            <ResumoAlertas contratos={contratos} />
+
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                placeholder="Buscar por número, processo, tipo de serviço ou objeto..."
+                className="field-input max-w-sm"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+              <select
+                className="field-select w-auto"
+                value={filtroForma}
+                onChange={(e) => setFiltroForma(e.target.value as FormaContratacao | "")}
+              >
+                <option value="">Todas as formas de contratação</option>
+                {Object.entries(ROTULOS_FORMA_CONTRATACAO).map(([valor, rotulo]) => (
+                  <option key={valor} value={valor}>
+                    {rotulo}
+                  </option>
+                ))}
+              </select>
+              {filtrosAtivos && (
+                <button
+                  onClick={() => {
+                    setBusca("");
+                    setFiltroForma("");
+                  }}
+                  className="btn-ghost btn-sm"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {COLUNAS.map((coluna) => {
+                const contratosDaColuna = (contratosFiltrados ?? []).filter((c) => c.status === coluna);
+                return (
+                  <div key={coluna} className={`rounded-xl border-t-4 bg-slate-100/60 p-3 ${CORES_COLUNA[coluna]}`}>
+                    <h2 className="mb-3 flex items-center justify-between text-sm font-semibold text-slate-800">
+                      {ROTULOS_STATUS_CONTRATO[coluna]}
+                      <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 shadow-sm">
+                        {contratosDaColuna.length}
+                      </span>
+                    </h2>
+                    <div className="space-y-2">
+                      {contratosDaColuna.map((contrato) => (
+                        <CartaoContrato key={contrato.id} contrato={contrato} />
+                      ))}
+                      {contratosDaColuna.length === 0 && (
+                        <p className="text-xs text-slate-400">
+                          {filtrosAtivos ? "Nenhum contrato corresponde aos filtros." : "Nenhum contrato aqui."}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </main>
     </div>
