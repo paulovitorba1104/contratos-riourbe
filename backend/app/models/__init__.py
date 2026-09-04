@@ -1,5 +1,22 @@
 from app.models.ata_registro_preco import AtaRegistroPreco
 from app.models.contrato import Contrato, ContratoFiscal, FormaContratacao, StatusContrato
+from app.models.faturamento import (
+    ConferenciaFatura,
+    EventoFatura,
+    Fatura,
+    GlosaFatura,
+    ItemConferencia,
+    ItemModeloChecklist,
+    MedicaoContrato,
+    ModeloChecklist,
+    RegraTributaria,
+    RetencaoFatura,
+    SituacaoItemConferencia,
+    StatusFatura,
+    StatusMedicao,
+    TipoEventoFatura,
+    Tributo,
+)
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import (
@@ -28,4 +45,20 @@ __all__ = [
     "FundamentacaoLei",
     "ModeloRipm",
     "AtaRegistroPreco",
+    # Faturamento
+    "MedicaoContrato",
+    "StatusMedicao",
+    "Fatura",
+    "StatusFatura",
+    "EventoFatura",
+    "TipoEventoFatura",
+    "GlosaFatura",
+    "RegraTributaria",
+    "RetencaoFatura",
+    "Tributo",
+    "ModeloChecklist",
+    "ItemModeloChecklist",
+    "ConferenciaFatura",
+    "ItemConferencia",
+    "SituacaoItemConferencia",
 ]

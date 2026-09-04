@@ -11,6 +11,8 @@ from app.api.routes import (
     atas_registro_preco,
     auth,
     contratos,
+    faturamento_config,
+    faturas,
     fiscais,
     fornecedores,
     health,
@@ -57,6 +59,10 @@ app.include_router(fiscais.router, prefix="/api")
 app.include_router(modelos_ripm.router, prefix="/api")
 app.include_router(atas_registro_preco.router, prefix="/api")
 app.include_router(contratos.router, prefix="/api")
+app.include_router(faturas.router, prefix="/api")
+app.include_router(faturamento_config.router_medicoes, prefix="/api")
+app.include_router(faturamento_config.router_regras, prefix="/api")
+app.include_router(faturamento_config.router_modelos, prefix="/api")
 
 # Em produção (imagem Railway), o build do frontend é copiado para app/static
 # no momento do build da imagem — ver Dockerfile na raiz do repositório. Um

@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -86,6 +86,10 @@ class Contrato(Base):
     # Financeiro
     valor_inicial: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False)
     valor_pago: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False, default=0)
+    # Obras e serviços continuados medem o período executado antes de o
+    # fornecedor emitir a nota; compra pontual não. Quando marcado, o módulo
+    # de Faturamento só aceita fatura vinculada a uma medição aprovada.
+    exige_medicao: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     nota_reserva: Mapped[str | None] = mapped_column(String(50), nullable=True)
     nota_empenho: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
