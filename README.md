@@ -357,6 +357,25 @@ preenchido) — hoje a checagem é toda manual, feita por quem está com o proce
 específica do módulo Contratos: deve ser levada para todas as modalidades/módulos do sistema
 (Licitação, Faturas, Diárias/Passagens/Compras etc.) conforme forem sendo construídos.
 
+**Consulta de jurisprudência do TCM-RJ e do TCU (agendado, a pesquisar)**: buscar uma API que
+permita consultar jurisprudência dos dois tribunais de contas sobre licitações e contratos, para
+o sistema poder trazer os precedentes relevantes ao lado do caso concreto — hoje essa pesquisa é
+feita manualmente, fora do sistema.
+
+O primeiro passo é levantamento, não implementação: descobrir o que cada tribunal expõe.
+
+- **TCU** — verificar o portal de dados abertos e a Pesquisa Integrada: se há endpoint público de
+  acórdãos e jurisprudência selecionada, qual o formato de resposta, se exige credencial e quais
+  os limites de uso.
+- **TCM-RJ** — verificar se existe API ou só consulta pelo site. Não havendo API, avaliar as
+  alternativas (raspagem responsável dentro dos termos de uso, base própria alimentada por
+  importação periódica, ou nenhuma integração automática).
+
+Definido o que existe, decidir o encaixe no sistema: onde a consulta aparece (provavelmente na
+análise processual do contrato e na Licitação), se os resultados ficam em cache local para não
+depender do tribunal estar no ar, e como citar a fonte e a data da consulta — jurisprudência muda,
+e um parecer precisa registrar em que precedente se apoiou e quando.
+
 ---
 
 Since 2026 — Desenvolvido por Paulo Vitor Barbosa Araújo
