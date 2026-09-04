@@ -7,10 +7,14 @@ Monólito modular: **um backend (FastAPI), um frontend (React)**, com **schemas 
 PostgreSQL por domínio** (`core`, `contratos`, `faturas`, `licitacao`, `compras`,
 `almoxarifado`, `fiscalizacao`, `tarefas`).
 
-Este repositório já passou pela **Fase 0** (infraestrutura base, autenticação/segurança) e está
-com o **Módulo Contratos (Fase 1)** em desenvolvimento: entidade Contrato, instrumentos
-processuais (aditivos), os 3 relógios de prazo, painel Kanban, fornecedores, modelos RIPM e
-atas de registro de preço.
+Este repositório já passou pela **Fase 0** (infraestrutura base, autenticação/segurança) e tem
+dois módulos construídos:
+
+- **Contratos (Fase 1)** — entidade Contrato, instrumentos processuais (aditivos), os 3 relógios
+  de prazo, painel Kanban, fiscais, fornecedores, modelos RIPM e atas de registro de preço.
+- **Faturamento (Fase 2)** — controle de faturas ligado ao contrato: medição, conferência
+  documental por checklist, conferência tributária com alíquotas configuráveis, atesto, glosas e
+  painel anual. É ele que alimenta o valor pago do contrato.
 
 ## Stack
 
@@ -255,6 +259,48 @@ se cada item da instrução processual foi cumprido) — não é documento jurí
 próprio instrumento (origem, apostilamento etc.), então vincular um modelo RIPM ao registrar um
 instrumento é **opcional**, nunca obrigatório.
 
+## Módulo Faturamento (Fase 2)
+
+Fecha o ciclo do contrato: é um **controle de faturas** — acompanha e registra o andamento da
+nota dentro do processo. A liquidação em si é ato de outro setor, fora deste sistema, então não
+existe etapa de liquidação no fluxo; a data é apenas registrada, como já era feito na planilha
+de controle.
+
+- **Fluxo por evento registrado**, nunca por edição de status (mesmo princípio do status macro
+  do contrato): recebida → conferência → atesto → paga, com **devolvida** e **cancelada** como
+  saídas de exceção. Uma nota devolvida pode ser reapresentada como fatura nova apontando para a
+  anterior, preservando o rastro.
+- **Medição** (`faturas.medicoes`): boletim do período em obras e serviços continuados. O
+  contrato marca `exige_medicao`; quando marcado, a fatura só é aceita vinculada a uma medição
+  aprovada e ainda não usada por outra nota.
+- **Conferência documental**: modelos de checklist configuráveis (`faturas.modelos_checklist`,
+  mesmo padrão dos modelos RIPM), preenchidos item a item por fatura como conforme, não conforme
+  ou não se aplica. Item marcado como obrigatório trava o atesto enquanto estiver não conforme.
+- **Conferência tributária**: para cada tributo, o sistema calcula o **valor esperado** pela
+  regra vigente na data de emissão da nota e compara com o **valor informado** na NF, apontando
+  divergência. As alíquotas ficam em `faturas.regras_tributarias` — cadastro com alíquota, base
+  de cálculo, base legal e vigência, editável pela tela e **entregue vazio**: mudança de
+  legislação vira mudança de cadastro, não nova versão do sistema. Nota antiga continua sendo
+  conferida pela regra que valia na época dela. Avançar com divergência exige justificativa
+  registrada.
+- **Glosas** (`faturas.glosas`): abatimento por serviço não prestado, cada uma uma linha nova
+  nunca sobrescrita, como o histórico de garantia.
+- **Regras que o sistema recusa quebrar**: fatura não ultrapassa o saldo do contrato (valor
+  atualizado, com aditivos já contabilizados); só o fiscal com vínculo vigente atesta (ou
+  administrador); contrato encerrado não recebe fatura nova.
+- **Painel anual**: matriz contrato × mês reproduzindo a aba anual da planilha de controle, mas
+  mostrando em que etapa está a fatura de cada competência em vez de só um "X".
+- Cada fatura tem o **seu próprio número de processo** (ex.: `006700.000249/2026-51`), que não é
+  o processo do contrato, e registra as datas de acompanhamento: recebimento, emissão,
+  vencimento, envio à GCO, liquidação e pagamento.
+
+**Integração com Contratos**: o `valor_pago` do contrato deixa de ser digitado e passa a ser
+consequência das faturas pagas — soma do valor bruto menos glosas (retenção tributária não
+reduz execução contratual). A ficha do contrato ganha a seção "Faturas" com a lista daquele
+contrato. Os endpoints manuais de pagamento continuam existindo para contratos históricos, cujas
+faturas nunca passaram pelo sistema.
+
+
 ## Pendências (ver seção 16 do plano)
 
 Itens abaixo **não são bloqueio para a Fase 0**, mas precisam de decisão antes das fases que
@@ -274,13 +320,15 @@ a [BrasilAPI](https://brasilapi.com.br/api/cnpj/v1/{cnpj}) — gratuita, sem nec
 chave/autenticação — e o Radar CNPJ reaproveitaria a mesma consulta (`app/core/cnpj_lookup.py`),
 rodando-a para todos os fornecedores ativos e comparando o resultado com o cadastro atual.
 
-**Financeiro automatizado via Faturamento (planejado, não implementado)**: hoje `valor_pago` é
-lançado manualmente na ficha do contrato (edição geral ou o atalho "Atualizar valor pago"). O
-plano é que essa parte pare de ser manual e passe a ser alimentada automaticamente pelo módulo
-de Faturamento (mesmo sistema já citado na seção de modelos RIPM) — cada fatura confirmada ali
-soma no valor pago do contrato correspondente, mantendo `valor_atualizado`/`saldo_a_pagar`
-sempre em dia sem depender de alguém lançar o valor à mão. Os endpoints manuais continuam
-existindo até essa integração ser construída.
+**Financeiro automatizado via Faturamento (implementado na Fase 2)**: o `valor_pago` do contrato
+é alimentado pelas faturas pagas do módulo de Faturamento, mantendo `valor_atualizado` e
+`saldo_a_pagar` em dia sem depender de lançamento manual. O atalho "Atualizar valor pago"
+continua existindo para os contratos históricos, cujas faturas nunca passaram pelo sistema.
+
+**Alíquotas da conferência tributária (a preencher)**: `faturas.regras_tributarias` é entregue
+vazia — enquanto não houver regra cadastrada para um tributo, a conferência daquele imposto não
+tem como calcular o esperado e a tela avisa. Cadastrar em Faturas → Configuração as alíquotas,
+bases de cálculo e fundamentações que a Rio-Urbe aplica.
 
 **RIPM em PDF (planejado, não implementado)**: hoje o RIPM é só um cadastro de referência
 (`contratos.modelos_ripm`, opcionalmente vinculado a um instrumento). A ideia é o RIPM virar um

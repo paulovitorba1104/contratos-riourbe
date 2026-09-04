@@ -9,7 +9,11 @@ const BLOCOS = [
     caminho: "/contratos",
   },
   { titulo: "Licitação", descricao: "Pesquisa de preços, ETP, TR e matriz de risco", caminho: null },
-  { titulo: "Faturas", descricao: "Atesto, liquidação e conferência de notas fiscais", caminho: null },
+  {
+    titulo: "Faturas",
+    descricao: "Controle de faturas: conferência documental e tributária, atesto e pagamento",
+    caminho: "/faturas",
+  },
   { titulo: "Diárias, Passagens e Compras", descricao: "Fundo fixo e suprimento de fundos", caminho: null },
   { titulo: "Planejador de Tarefas", descricao: "Quadros Kanban de tarefas do setor", caminho: null },
 ];
