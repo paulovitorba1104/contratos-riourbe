@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { BadgeAlerta } from "../../components/BadgeAlerta";
 import { ErroApi } from "../../lib/api";
 import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
+import { apiFaturas } from "../../lib/apiFaturas";
 import { useAuth } from "../../lib/AuthContext";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type {
@@ -29,6 +30,8 @@ import {
   ROTULOS_TIPO_PROCESSO,
   TIPOS_QUE_DEFINEM_VIGENCIA,
 } from "../../lib/tiposContratos";
+import type { Fatura } from "../../lib/tiposFaturas";
+import { ROTULOS_STATUS_FATURA } from "../../lib/tiposFaturas";
 import { useToast } from "../../lib/ToastContext";
 
 const campoClasse = "field-input py-1.5";
@@ -781,6 +784,73 @@ function EditarContratoForm({
   );
 }
 
+/** A ponte visível entre Contratos e Faturamento: as faturas daquele contrato,
+ * em que etapa cada uma está e quanto já foi pago. */
+function FaturasDoContrato({ contratoId }: { contratoId: string }) {
+  const [faturas, setFaturas] = useState<Fatura[] | null>(null);
+
+  useEffect(() => {
+    apiFaturas
+      .listar({ contrato_id: contratoId })
+      .then(setFaturas)
+      .catch(() => setFaturas([]));
+  }, [contratoId]);
+
+  const emAndamento = (faturas ?? []).filter(
+    (f) => !["paga", "devolvida", "cancelada"].includes(f.status),
+  ).length;
+
+  return (
+    <section className="card p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-900">
+          Faturas {faturas ? `(${faturas.length})` : ""}
+          {emAndamento > 0 && (
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+              {emAndamento} em andamento
+            </span>
+          )}
+        </h2>
+        <Link to={`/faturas/nova?contrato=${contratoId}`} className="btn-secondary btn-sm">
+          + Nova fatura
+        </Link>
+      </div>
+
+      {faturas === null && <p className="text-sm text-slate-500">Carregando...</p>}
+      {faturas?.length === 0 && (
+        <p className="text-sm text-slate-500">Nenhuma fatura registrada para este contrato.</p>
+      )}
+
+      <ul className="space-y-2">
+        {(faturas ?? []).map((f) => (
+          <li key={f.id} className="flex items-center justify-between gap-3 text-sm">
+            <div>
+              <Link to={`/faturas/${f.id}`} className="font-medium text-slate-900 hover:underline">
+                NF {f.numero_nota_fiscal}
+              </Link>
+              <span className="ml-2 text-xs text-slate-500">{f.competencia}</span>
+              {f.numero_processo_sei && (
+                <p className="text-xs text-slate-400">{f.numero_processo_sei}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="tabular-nums text-slate-700">
+                {Number(f.valor_bruto).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+              </span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                {ROTULOS_STATUS_FATURA[f.status]}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function ContratoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navegar = useNavigate();
@@ -1388,6 +1458,8 @@ export function ContratoDetalhe() {
             ))}
           </div>
         </section>
+
+        <FaturasDoContrato contratoId={contrato.id} />
 
         <section className="card p-5">
           <div className="flex items-center justify-between">

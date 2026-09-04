@@ -10,6 +10,12 @@ import { ContratosKanban } from "./pages/contratos/ContratosKanban";
 import { Fiscais } from "./pages/contratos/Fiscais";
 import { Fornecedores } from "./pages/contratos/Fornecedores";
 import { NovoContrato } from "./pages/contratos/NovoContrato";
+import { ConfiguracaoFaturamento } from "./pages/faturas/ConfiguracaoFaturamento";
+import { FaturaDetalhe } from "./pages/faturas/FaturaDetalhe";
+import { FaturasKanban } from "./pages/faturas/FaturasKanban";
+import { Medicoes } from "./pages/faturas/Medicoes";
+import { NovaFatura } from "./pages/faturas/NovaFatura";
+import { PainelAnual } from "./pages/faturas/PainelAnual";
 import { Hub } from "./pages/Hub";
 import { Login } from "./pages/Login";
 
@@ -87,6 +93,54 @@ function Rotas() {
         element={
           <RotaProtegida>
             <ContratoDetalhe />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/faturas"
+        element={
+          <RotaProtegida>
+            <FaturasKanban />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/faturas/nova"
+        element={
+          <RotaProtegida>
+            <NovaFatura />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/faturas/painel-anual"
+        element={
+          <RotaProtegida>
+            <PainelAnual />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/faturas/medicoes"
+        element={
+          <RotaProtegida>
+            <Medicoes />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/faturas/configuracao"
+        element={
+          <RotaProtegida>
+            <ConfiguracaoFaturamento />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/faturas/:id"
+        element={
+          <RotaProtegida>
+            <FaturaDetalhe />
           </RotaProtegida>
         }
       />
