@@ -5,7 +5,7 @@ dentro) para ficar fácil de testar isoladamente.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
@@ -69,6 +69,45 @@ def vigencia_atual(contrato: Contrato) -> tuple[date | None, date | None]:
 def teto_vigencia(contrato: Contrato) -> date:
     """Relógio 2: data-limite absoluta — 5 anos desde a assinatura original."""
     return contrato.data_assinatura_original + relativedelta(years=5)
+
+
+def calcular_fim_vigencia(data_inicio: date, meses: int) -> date:
+    """Data final de um prazo em meses, contando o dia de início como primeiro
+    dia de vigência: 13/06/2022 + 24 meses = 12/06/2024 — a véspera do mesmo
+    dia, que é como o prazo é escrito nos contratos ("de 13/06 a 12/06").
+
+    Usa `relativedelta` justamente para o mês variável não virar erro de um dia:
+    31/01 + 1 mês cai em 28/02 (ou 29/02 em ano bissexto), não em 03/03.
+    """
+    return data_inicio + relativedelta(months=meses) - timedelta(days=1)
+
+
+@dataclass
+class TempoRestante:
+    """Contagem regressiva até uma data-limite. Quando já passou, os mesmos
+    campos contam o tempo decorrido desde o vencimento."""
+
+    vencido: bool
+    dias_totais: int
+    meses: int
+    dias: int
+
+
+def tempo_restante(data_limite: date | None, hoje: date | None = None) -> TempoRestante | None:
+    if data_limite is None:
+        return None
+    hoje = hoje or date.today()
+
+    vencido = hoje > data_limite
+    inicio, fim = (data_limite, hoje) if vencido else (hoje, data_limite)
+    delta = relativedelta(fim, inicio)
+
+    return TempoRestante(
+        vencido=vencido,
+        dias_totais=abs((data_limite - hoje).days),
+        meses=delta.years * 12 + delta.months,
+        dias=delta.days,
+    )
 
 
 def validar_teto_cinco_anos(contrato: Contrato, nova_data_fim_vigencia: date) -> None:

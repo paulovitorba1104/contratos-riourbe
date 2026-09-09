@@ -226,6 +226,17 @@ Implementa a seção 4 do plano de desenvolvimento:
   vigência (início/fim), RIPM e fundamentação; as prorrogações seguintes são registradas depois,
   na ficha do contrato, e só são aceitas até completar o teto de 5 anos contado da assinatura
   original (ex.: 2 anos na contratação inicial + 2 anos + 1 ano de prorrogações = 5 anos).
+- **Contador de datas**: no cadastro do contrato (e no formulário de novo instrumento) basta
+  informar o início da vigência e o prazo em meses — o sistema devolve o fim da vigência sozinho.
+  A contagem inclui o dia de início como primeiro dia de vigência, do jeito que o prazo é escrito
+  no contrato: 13/06/2022 por 24 meses termina em **12/06/2024**, a véspera do mesmo dia. O
+  cálculo mora no backend (`GET /api/contratos/calcular-vigencia`), usando `relativedelta`, para
+  a tela não errar mês de 30/31 dias nem fevereiro (31/01 + 1 mês é 28/02, não 03/03) e para não
+  divergir do que é validado ao salvar. O teto de 5 anos continua valendo e é avisado **enquanto
+  se digita**: um prazo que ultrapasse o limite mostra a data-limite antes de o usuário tentar
+  salvar. A data de fim continua editável, para prazo que não feche em meses redondos. Na ficha
+  do contrato, a "Vigência atual" mostra a contagem regressiva legível ("Faltam 8 meses e 12
+  dias" / "Vencido há 3 dias").
 - **3 relógios de prazo**: vigência atual (derivada do instrumento de origem/prorrogação mais
   recente), teto rígido de 5 anos desde a assinatura original (bloqueia prorrogação que
   ultrapasse — `TetoVigenciaExcedido`), e garantia contratual independente. A garantia é um

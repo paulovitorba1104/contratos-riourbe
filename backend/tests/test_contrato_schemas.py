@@ -83,3 +83,18 @@ def test_contrato_criar_aceita_mais_de_um_processo_apenso():
     assert len(contrato.processos) == 2
     assert contrato.processos[1].sistema_origem == "sicop"
     assert contrato.processos[1].tipo == "apenso"
+
+
+def test_tempo_restante_do_servico_vira_schema():
+    """O serviço devolve um dataclass e a ficha do contrato o serializa — sem
+    `from_attributes` isso quebra o GET do contrato inteiro, não só o campo."""
+    from datetime import date
+
+    from app.schemas.contrato import TempoRestanteSaida
+    from app.services.contratos import tempo_restante
+
+    calculado = tempo_restante(date(2026, 6, 12), hoje=date(2026, 3, 1))
+    saida = TempoRestanteSaida.model_validate(calculado)
+
+    assert saida.vencido is False
+    assert (saida.meses, saida.dias) == (3, 11)

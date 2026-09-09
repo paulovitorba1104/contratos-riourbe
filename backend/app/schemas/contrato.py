@@ -140,6 +140,30 @@ class GarantiaSaida(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TempoRestanteSaida(BaseModel):
+    """Contagem regressiva da vigência — quando `vencido`, conta o tempo
+    decorrido desde o vencimento."""
+
+    vencido: bool
+    dias_totais: int
+    meses: int
+    dias: int
+
+    # O serviço devolve um dataclass; sem isto o Pydantic recusa o objeto.
+    model_config = {"from_attributes": True}
+
+
+class CalculoVigenciaSaida(BaseModel):
+    """Resposta do contador de datas: informado o início e o prazo em meses,
+    devolve o fim da vigência e se isso estoura o teto de 5 anos."""
+
+    data_inicio: date
+    meses: int
+    data_fim: date
+    teto_cinco_anos: date | None = None
+    excede_teto: bool = False
+
+
 class LogAuditoriaSaida(BaseModel):
     id: uuid.UUID
     acao: str
@@ -191,6 +215,9 @@ class ContratoDetalhado(ContratoSaida):
     vigencia_inicio: date | None
     vigencia_fim: date | None
     teto_vigencia: date
+    # Contagem regressiva até o fim da vigência atual (ou o tempo decorrido,
+    # se já venceu). Nula enquanto não houver instrumento de origem.
+    tempo_restante_vigencia: TempoRestanteSaida | None = None
     garantia_inicio: date | None
     garantia_fim: date | None
     garantias: list[GarantiaSaida]

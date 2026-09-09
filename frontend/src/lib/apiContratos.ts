@@ -1,6 +1,7 @@
 import { requisicao } from "./api";
 import type {
   AtaRegistroPreco,
+  CalculoVigencia,
   Contrato,
   ContratoAtualizarPayload,
   ContratoDetalhado,
@@ -74,6 +75,13 @@ export const apiContratos = {
   excluirProcesso: (contratoId: string, processoId: string) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/processos/${processoId}`, { method: "DELETE" }),
   auditoria: (contratoId: string) => requisicao<LogAuditoria[]>(`/contratos/${contratoId}/auditoria`),
+  /** Contador de datas: início + prazo em meses = fim da vigência. O cálculo
+   * fica no backend para não divergir do que é validado ao salvar. */
+  calcularVigencia: (dataInicio: string, meses: number, dataAssinatura?: string) =>
+    requisicao<CalculoVigencia>(
+      `/contratos/calcular-vigencia?data_inicio=${dataInicio}&meses=${meses}` +
+        (dataAssinatura ? `&data_assinatura=${dataAssinatura}` : ""),
+    ),
 };
 
 export const apiFornecedores = {
