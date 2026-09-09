@@ -17,6 +17,7 @@ import type {
   Processo,
   SistemaProcesso,
   SubStatusInstrumento,
+  TempoRestante,
   TipoInstrumento,
   TipoProcesso,
 } from "../../lib/tiposContratos";
@@ -38,6 +39,17 @@ const campoClasse = "field-input py-1.5";
 
 function formatarMoeda(valor: string): string {
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/** Contagem regressiva legível: "faltam 8 meses e 12 dias" / "vencido há 3 dias". */
+function textoTempoRestante(tempo: TempoRestante): string {
+  const partes: string[] = [];
+  if (tempo.meses > 0) partes.push(`${tempo.meses} ${tempo.meses === 1 ? "mês" : "meses"}`);
+  if (tempo.dias > 0) partes.push(`${tempo.dias} ${tempo.dias === 1 ? "dia" : "dias"}`);
+  if (partes.length === 0) return tempo.vencido ? "Vence hoje" : "Vence hoje";
+
+  const quanto = partes.join(" e ");
+  return tempo.vencido ? `Vencido há ${quanto}` : `Faltam ${quanto}`;
 }
 
 function CampoInfo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
@@ -64,9 +76,11 @@ const CORES_STATUS: Record<string, string> = {
 
 function NovoInstrumentoForm({
   contratoId,
+  dataAssinatura,
   aoCriar,
 }: {
   contratoId: string;
+  dataAssinatura: string;
   aoCriar: (c: ContratoDetalhado) => void;
 }) {
   const [tipo, setTipo] = useState<TipoInstrumento>("apostilamento");
@@ -77,11 +91,45 @@ function NovoInstrumentoForm({
   const [dataFimVigencia, setDataFimVigencia] = useState("");
   const [valorDelta, setValorDelta] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [prazoMeses, setPrazoMeses] = useState("");
+  const [avisoTeto, setAvisoTeto] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   const exigeVigencia = TIPOS_QUE_DEFINEM_VIGENCIA.includes(tipo);
   const exigeValor = tipo === "acrescimo_valor" || tipo === "supressao_valor";
+
+  /** Mesmo contador do cadastro: início + prazo em meses = fim da vigência,
+   * com o aviso do teto de 5 anos aparecendo enquanto se digita. É na
+   * prorrogação que o teto costuma morder. */
+  useEffect(() => {
+    const meses = Number(prazoMeses);
+    if (!exigeVigencia || !dataInicioVigencia || !Number.isInteger(meses) || meses < 1 || meses > 120) {
+      setAvisoTeto(null);
+      return;
+    }
+
+    let cancelado = false;
+    apiContratos
+      .calcularVigencia(dataInicioVigencia, meses, dataAssinatura)
+      .then((calculo) => {
+        if (cancelado) return;
+        setDataFimVigencia(calculo.data_fim);
+        setAvisoTeto(
+          calculo.excede_teto
+            ? `Essa prorrogação levaria a vigência até ${calculo.data_fim}, ultrapassando o teto de ` +
+              `5 anos da Lei 13.303/16 (limite: ${calculo.teto_cinco_anos}).`
+            : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelado) setAvisoTeto(null);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [dataInicioVigencia, prazoMeses, dataAssinatura, exigeVigencia]);
 
   async function enviar() {
     setErro(null);
@@ -102,6 +150,7 @@ function NovoInstrumentoForm({
       setNumeroDocumentoSei("");
       setDataInicioVigencia("");
       setDataFimVigencia("");
+      setPrazoMeses("");
       setValorDelta("");
       setObservacoes("");
     } catch (e) {
@@ -152,32 +201,50 @@ function NovoInstrumentoForm({
       </div>
 
       {exigeVigencia && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="instrumento_data_inicio">
-              Início da vigência
-            </label>
-            <input
-              id="instrumento_data_inicio"
-              type="date"
-              className={campoClasse}
-              value={dataInicioVigencia}
-              onChange={(e) => setDataInicioVigencia(e.target.value)}
-            />
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="instrumento_data_inicio">
+                Início da vigência
+              </label>
+              <input
+                id="instrumento_data_inicio"
+                type="date"
+                className={campoClasse}
+                value={dataInicioVigencia}
+                onChange={(e) => setDataInicioVigencia(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="instrumento_prazo_meses">
+                Prazo (meses)
+              </label>
+              <input
+                id="instrumento_prazo_meses"
+                type="number"
+                min={1}
+                max={120}
+                className={campoClasse}
+                value={prazoMeses}
+                onChange={(e) => setPrazoMeses(e.target.value)}
+                placeholder="ex.: 12"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="instrumento_data_fim">
+                Fim da vigência
+              </label>
+              <input
+                id="instrumento_data_fim"
+                type="date"
+                className={campoClasse}
+                value={dataFimVigencia}
+                onChange={(e) => setDataFimVigencia(e.target.value)}
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="instrumento_data_fim">
-              Fim da vigência
-            </label>
-            <input
-              id="instrumento_data_fim"
-              type="date"
-              className={campoClasse}
-              value={dataFimVigencia}
-              onChange={(e) => setDataFimVigencia(e.target.value)}
-            />
-          </div>
-        </div>
+          {avisoTeto && <p className="text-xs font-medium text-red-600">{avisoTeto}</p>}
+        </>
       )}
 
       {exigeValor && (
@@ -1182,6 +1249,15 @@ export function ContratoDetalhe() {
             ) : (
               <p className="text-sm text-slate-500">Sem instrumento de origem registrado ainda.</p>
             )}
+            {contrato.tempo_restante_vigencia && (
+              <p
+                className={`mt-1 text-sm font-medium ${
+                  contrato.tempo_restante_vigencia.vencido ? "text-red-600" : "text-slate-800"
+                }`}
+              >
+                {textoTempoRestante(contrato.tempo_restante_vigencia)}
+              </p>
+            )}
             <p className="mt-1 text-xs text-slate-500">Teto (5 anos): {contrato.teto_vigencia}</p>
             <div className="mt-2">
               <BadgeAlerta alerta={contrato.alerta_vigencia} />
@@ -1393,6 +1469,7 @@ export function ContratoDetalhe() {
             <div className="mb-4">
               <NovoInstrumentoForm
                 contratoId={contrato.id}
+                dataAssinatura={contrato.data_assinatura_original}
                 aoCriar={(c) => {
                   setContrato(c);
                   setMostrarFormInstrumento(false);

@@ -52,6 +52,9 @@ export function NovoContrato() {
   const [numeroDocumentoSei, setNumeroDocumentoSei] = useState("");
   const [dataInicioVigencia, setDataInicioVigencia] = useState("");
   const [dataFimVigencia, setDataFimVigencia] = useState("");
+  const [prazoMeses, setPrazoMeses] = useState("");
+  const [calculandoVigencia, setCalculandoVigencia] = useState(false);
+  const [avisoTeto, setAvisoTeto] = useState<string | null>(null);
 
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -60,6 +63,42 @@ export function NovoContrato() {
     apiFornecedores.listar().then(setFornecedores).catch(() => setErro("Não foi possível carregar fornecedores."));
     apiFiscais.listar().then(setFiscais).catch(() => setErro("Não foi possível carregar fiscais."));
   }, []);
+
+  /** Contador de datas: início + prazo em meses = fim da vigência. O cálculo
+   * roda no backend para não divergir do que é validado ao salvar (mês de 30/31
+   * dias, fevereiro, ano bissexto) e já avisa se o prazo estoura os 5 anos. */
+  useEffect(() => {
+    const meses = Number(prazoMeses);
+    if (!dataInicioVigencia || !Number.isInteger(meses) || meses < 1 || meses > 120) {
+      setAvisoTeto(null);
+      return;
+    }
+
+    let cancelado = false;
+    setCalculandoVigencia(true);
+    apiContratos
+      .calcularVigencia(dataInicioVigencia, meses, dataAssinatura || undefined)
+      .then((calculo) => {
+        if (cancelado) return;
+        setDataFimVigencia(calculo.data_fim);
+        setAvisoTeto(
+          calculo.excede_teto
+            ? `Esse prazo leva a vigência até ${calculo.data_fim}, ultrapassando o teto de 5 anos ` +
+              `da Lei 13.303/16 (limite: ${calculo.teto_cinco_anos}).`
+            : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelado) setAvisoTeto(null);
+      })
+      .finally(() => {
+        if (!cancelado) setCalculandoVigencia(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [dataInicioVigencia, prazoMeses, dataAssinatura]);
 
   async function criarFornecedor() {
     setErro(null);
@@ -431,7 +470,7 @@ export function NovoContrato() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-4 grid grid-cols-3 gap-4">
               <div>
                 <label className={rotuloClasse} htmlFor="data_inicio_vigencia">
                   Início da vigência
@@ -443,6 +482,21 @@ export function NovoContrato() {
                   value={dataInicioVigencia}
                   onChange={(e) => setDataInicioVigencia(e.target.value)}
                   required
+                />
+              </div>
+              <div>
+                <label className={rotuloClasse} htmlFor="prazo_meses">
+                  Prazo (meses)
+                </label>
+                <input
+                  id="prazo_meses"
+                  type="number"
+                  min={1}
+                  max={120}
+                  className={campoClasse}
+                  value={prazoMeses}
+                  onChange={(e) => setPrazoMeses(e.target.value)}
+                  placeholder="ex.: 24"
                 />
               </div>
               <div>
@@ -459,9 +513,18 @@ export function NovoContrato() {
                 />
               </div>
             </div>
+
+            {calculandoVigencia && (
+              <p className="mt-2 text-xs text-slate-500">Calculando o fim da vigência...</p>
+            )}
+            {avisoTeto && <p className="mt-2 text-xs font-medium text-red-600">{avisoTeto}</p>}
+
             <p className="mt-2 text-xs text-slate-500">
-              Prazo inicial da vigência — as próximas prorrogações (feitas depois, na ficha do contrato)
-              só são aceitas até completar 5 anos a partir da data de assinatura original.
+              Informe o prazo em meses e o fim da vigência é calculado sozinho — 13/06/2022 por 24
+              meses termina em 12/06/2024, contando o dia de início como primeiro dia. A data
+              continua editável, para o caso de um prazo que não feche em meses redondos. As
+              próximas prorrogações (feitas depois, na ficha do contrato) só são aceitas até
+              completar 5 anos a partir da data de assinatura original.
             </p>
           </div>
 

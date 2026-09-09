@@ -175,6 +175,21 @@ export interface LogAuditoria {
   criado_em: string;
 }
 
+export interface TempoRestante {
+  vencido: boolean;
+  dias_totais: number;
+  meses: number;
+  dias: number;
+}
+
+export interface CalculoVigencia {
+  data_inicio: string;
+  meses: number;
+  data_fim: string;
+  teto_cinco_anos: string | null;
+  excede_teto: boolean;
+}
+
 export interface GarantiaHistorico {
   id: string;
   data_inicio_garantia: string | null;
@@ -191,6 +206,7 @@ export interface ContratoDetalhado extends Contrato {
   vigencia_inicio: string | null;
   vigencia_fim: string | null;
   teto_vigencia: string;
+  tempo_restante_vigencia: TempoRestante | null;
   garantia_inicio: string | null;
   garantia_fim: string | null;
   garantias: GarantiaHistorico[];

@@ -1,6 +1,8 @@
 import uuid
+from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from dateutil.relativedelta import relativedelta
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import exigir_administrador, get_current_user
@@ -13,6 +15,7 @@ from app.models.log_auditoria import LogAuditoria
 from app.models.modelo_ripm import ModeloRipm
 from app.models.usuario import Usuario
 from app.schemas.contrato import (
+    CalculoVigenciaSaida,
     ContratoAtualizar,
     ContratoAtualizarPagamento,
     ContratoCriar,
@@ -83,6 +86,7 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
         vigencia_inicio=vigencia_inicio,
         vigencia_fim=vigencia_fim,
         teto_vigencia=regras.teto_vigencia(contrato),
+        tempo_restante_vigencia=regras.tempo_restante(vigencia_fim),
         garantia_inicio=garantia_inicio,
         garantia_fim=garantia_fim,
         garantias=[
@@ -115,6 +119,38 @@ def listar_contratos(
         query = query.filter(Contrato.status == status_filtro)
     contratos = query.order_by(Contrato.criado_em.desc()).all()
     return [_para_saida(c) for c in contratos]
+
+
+@router.get("/calcular-vigencia", response_model=CalculoVigenciaSaida)
+def calcular_vigencia(
+    data_inicio: date,
+    meses: int = Query(..., ge=1, le=120),
+    data_assinatura: date | None = None,
+    _: Usuario = Depends(get_current_user),
+) -> CalculoVigenciaSaida:
+    """Contador de datas: informado o início e o prazo em meses, devolve o fim
+    da vigência. O cálculo mora no backend para a tela não errar mês de 30/31
+    dias nem fevereiro — 31/01 + 1 mês é 28/02, não 03/03.
+
+    Passando também a data de assinatura, devolve o teto de 5 anos e avisa se o
+    prazo informado o ultrapassa, para o aviso aparecer enquanto a pessoa
+    digita em vez de só ao salvar.
+    """
+    data_fim = regras.calcular_fim_vigencia(data_inicio, meses)
+
+    teto = None
+    excede = False
+    if data_assinatura is not None:
+        teto = data_assinatura + relativedelta(years=5)
+        excede = data_fim > teto
+
+    return CalculoVigenciaSaida(
+        data_inicio=data_inicio,
+        meses=meses,
+        data_fim=data_fim,
+        teto_cinco_anos=teto,
+        excede_teto=excede,
+    )
 
 
 @router.get("/{contrato_id}", response_model=ContratoDetalhado)

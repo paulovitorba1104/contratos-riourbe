@@ -180,3 +180,60 @@ def test_aplicar_efeitos_status_bloqueia_contrato_encerrado():
     contrato = _contrato(status=StatusContrato.ENCERRADO)
     with pytest.raises(regras.ContratoEncerradoError):
         regras.aplicar_efeitos_status(contrato, TipoInstrumento.APOSTILAMENTO)
+
+
+# --------------------------------------------------------------------------
+# Contador de datas: prazo em meses → fim da vigência
+# --------------------------------------------------------------------------
+def test_fim_de_vigencia_e_a_vespera_do_mesmo_dia():
+    """13/06/2022 + 24 meses = 12/06/2024 — o dia de início conta como
+    primeiro dia de vigência, então o prazo fecha na véspera."""
+    assert regras.calcular_fim_vigencia(date(2022, 6, 13), 24) == date(2024, 6, 12)
+
+
+def test_prazo_de_doze_meses():
+    assert regras.calcular_fim_vigencia(date(2026, 1, 1), 12) == date(2026, 12, 31)
+
+
+def test_mes_mais_curto_nao_vira_erro_de_dia():
+    """31/01 + 1 mês cai no último dia de fevereiro, não estoura para março."""
+    assert regras.calcular_fim_vigencia(date(2026, 1, 31), 1) == date(2026, 2, 27)
+
+
+def test_ano_bissexto():
+    assert regras.calcular_fim_vigencia(date(2024, 1, 31), 1) == date(2024, 2, 28)
+
+
+def test_inicio_em_dia_29_de_fevereiro():
+    assert regras.calcular_fim_vigencia(date(2024, 2, 29), 12) == date(2025, 2, 27)
+
+
+# --------------------------------------------------------------------------
+# Contagem regressiva
+# --------------------------------------------------------------------------
+def test_tempo_restante_decompoe_em_meses_e_dias():
+    restante = regras.tempo_restante(date(2026, 6, 12), hoje=date(2026, 3, 1))
+    assert restante is not None
+    assert restante.vencido is False
+    assert (restante.meses, restante.dias) == (3, 11)
+    assert restante.dias_totais == 103
+
+
+def test_tempo_restante_marca_vencido_e_conta_o_decorrido():
+    restante = regras.tempo_restante(date(2026, 1, 10), hoje=date(2026, 3, 1))
+    assert restante is not None
+    assert restante.vencido is True
+    assert (restante.meses, restante.dias) == (1, 19)
+
+
+def test_tempo_restante_sem_vigencia_definida():
+    assert regras.tempo_restante(None) is None
+
+
+def test_teto_de_cinco_anos_barra_prazo_longo_no_cadastro():
+    """A regra dos 5 anos continua valendo: um prazo em meses que a ultrapasse
+    é recusado do mesmo jeito que uma data digitada à mão."""
+    contrato = _contrato(data_assinatura_original=date(2026, 1, 10))
+    fim = regras.calcular_fim_vigencia(date(2026, 1, 10), 72)
+    with pytest.raises(regras.TetoVigenciaExcedido):
+        regras.validar_teto_cinco_anos(contrato, fim)
