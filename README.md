@@ -341,6 +341,26 @@ vazia — enquanto não houver regra cadastrada para um tributo, a conferência 
 tem como calcular o esperado e a tela avisa. Cadastrar em Faturas → Configuração as alíquotas,
 bases de cálculo e fundamentações que a Rio-Urbe aplica.
 
+**Aviso por e-mail ao fiscal quando a fatura entra (registrado, a implementar)**: toda vez
+que uma fatura for gerada/registrada no sistema, o fiscal do contrato recebe um e-mail dizendo
+que precisa atestar aquela fatura. Hoje o atesto já existe como evento (`TipoEventoFatura.ATESTO`)
+e o vínculo temporal contrato↔fiscal já diz quem é o responsável na data — o que falta é o aviso
+sair sozinho, em vez de alguém precisar avisar o fiscal por fora do sistema.
+
+Pré-requisitos e pontos a decidir quando for implementar:
+
+- **O cadastro de fiscal não tem e-mail hoje** (`core.fiscais`: nome, matrícula, CPF, ativo).
+  Precisa de campo de e-mail antes de qualquer envio — e de uma decisão sobre o que fazer quando
+  o fiscal cadastrado não tiver e-mail preenchido.
+- **Envio transacional**: usar o mesmo provedor já previsto nas pendências gerais (Brevo), para
+  não haver dois caminhos de e-mail no sistema.
+- **Quem recebe**: o(s) fiscal(is) com vínculo aberto no contrato na data da fatura — um contrato
+  pode ter mais de um fiscal, e o vínculo é temporal (quem fiscalizava naquele período).
+- **Reenvio/cobrança**: definir se o aviso é único (na entrada da fatura) ou se há lembrete
+  enquanto a fatura seguir sem atesto, e a partir de quantos dias.
+- **Registro do envio**: o e-mail enviado deve ficar registrado (quando, para quem), para o
+  processo poder comprovar que o fiscal foi comunicado.
+
 **RIPM em PDF (planejado, não implementado)**: hoje o RIPM é só um cadastro de referência
 (`contratos.modelos_ripm`, opcionalmente vinculado a um instrumento). A ideia é o RIPM virar um
 formulário preenchível dentro do sistema — a pessoa preenche a instrução processual passo a
