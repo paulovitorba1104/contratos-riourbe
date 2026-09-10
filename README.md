@@ -368,6 +368,32 @@ preenchido) — hoje a checagem é toda manual, feita por quem está com o proce
 específica do módulo Contratos: deve ser levada para todas as modalidades/módulos do sistema
 (Licitação, Faturas, Diárias/Passagens/Compras etc.) conforme forem sendo construídos.
 
+**Módulo Fiscalização — fiscalização contratual completa e automatizada (registrado, a
+detalhar)**: ideia anotada para quando o módulo Fiscalização for construído. Hoje esse
+acompanhamento é todo manual e vive fora do sistema. O que o módulo precisa cobrir:
+
+- **Acompanhamento das empresas contratadas**: verificar se estão pagando corretamente e se a
+  documentação está em dia — regularidade que precisa ser conferida de forma recorrente, não só
+  na contratação.
+- **Obrigações do contrato, dos dois lados**: hoje é preciso ler o contrato para saber quais são
+  as obrigações da contratada e quais são as da Rio-Urbe. O módulo precisa ter essas obrigações
+  registradas e acompanháveis, em vez de depender de alguém reler o contrato a cada vez.
+- **Sinalização de descumprimento**: o sistema deve avisar sempre que uma empresa estiver
+  descumprindo regra contratual — o alerta é o produto principal do módulo, não um extra.
+- **Automatização**: a premissa é que tudo isso seja automatizado ao máximo; checagem manual é
+  exatamente o que o módulo existe para substituir.
+
+Conecta diretamente com a "verificação automática de completude/conformidade" registrada acima —
+é a mesma ideia aplicada à execução do contrato (a empresa está cumprindo?), enquanto aquela
+olha a formação do processo (falta algum item?).
+
+**Pendente de insumo**: um **manual de fiscalização** será fornecido quando o assunto for
+retomado. Ele é a base para o desenho do módulo — a modelagem (que obrigações existem, com que
+periodicidade são checadas, quais documentos comprovam cada uma, o que caracteriza descumprimento
+e qual a providência) deve sair dele, não de suposição. Também fica para essa conversa definir o
+que exatamente entra em "pagando certinho" (encargos trabalhistas e previdenciários da mão de
+obra alocada, regularidade fiscal, ou ambos).
+
 **Consulta de jurisprudência do TCM-RJ e do TCU (agendado, a pesquisar)**: buscar uma API que
 permita consultar jurisprudência dos dois tribunais de contas sobre licitações e contratos, para
 o sistema poder trazer os precedentes relevantes ao lado do caso concreto — hoje essa pesquisa é
