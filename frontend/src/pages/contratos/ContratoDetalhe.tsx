@@ -3,11 +3,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { BadgeAlerta } from "../../components/BadgeAlerta";
 import { ErroApi } from "../../lib/api";
-import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
+import { apiAnexos, apiContratos, apiFiscais, apiFornecedores, urlAnexo } from "../../lib/apiContratos";
 import { apiFaturas } from "../../lib/apiFaturas";
 import { useAuth } from "../../lib/AuthContext";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type {
+  AnexoInstrumento,
+  CalculoReajuste,
   ContratoDetalhado,
   ExcecaoTetoVigencia,
   Fiscal,
@@ -21,6 +23,7 @@ import type {
   TempoRestante,
   TipoInstrumento,
   TipoProcesso,
+  TipoReajuste,
 } from "../../lib/tiposContratos";
 import {
   ROTULOS_ACAO_AUDITORIA,
@@ -31,6 +34,7 @@ import {
   ROTULOS_SUB_STATUS,
   ROTULOS_TIPO_INSTRUMENTO,
   ROTULOS_TIPO_PROCESSO,
+  ROTULOS_TIPO_REAJUSTE,
   TIPOS_QUE_DEFINEM_VIGENCIA,
 } from "../../lib/tiposContratos";
 import type { Fatura } from "../../lib/tiposFaturas";
@@ -100,8 +104,22 @@ function NovoInstrumentoForm({
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  // Apostilamento de reajuste: calculadora embutida (substitui a calculadora
+  // do cidadão) — os campos abaixo só valem quando o apostilamento é de
+  // reajuste, não um apostilamento qualquer (ex.: mudança de fiscal).
+  const [ehReajuste, setEhReajuste] = useState(false);
+  const [reajusteIndiceNome, setReajusteIndiceNome] = useState("");
+  const [reajusteValorMensalAntigo, setReajusteValorMensalAntigo] = useState("");
+  const [reajusteIndiceBase, setReajusteIndiceBase] = useState("");
+  const [reajusteIndiceAtual, setReajusteIndiceAtual] = useState("");
+  const [reajusteDataInicio, setReajusteDataInicio] = useState("");
+  const [reajusteDataFim, setReajusteDataFim] = useState("");
+  const [previaReajuste, setPreviaReajuste] = useState<CalculoReajuste | null>(null);
+  const [erroPreviaReajuste, setErroPreviaReajuste] = useState<string | null>(null);
+
   const exigeVigencia = TIPOS_QUE_DEFINEM_VIGENCIA.includes(tipo);
-  const exigeValor = tipo === "acrescimo_valor" || tipo === "supressao_valor";
+  const exigeValor = tipo === "acrescimo_valor" || tipo === "supressao_valor" || tipo === "apostilamento";
+  const podeSerReajuste = tipo === "apostilamento";
 
   /** Mesmo contador do cadastro: início + prazo em meses = fim da vigência,
    * com o aviso do teto de 5 anos aparecendo enquanto se digita. É na
@@ -135,6 +153,60 @@ function NovoInstrumentoForm({
     };
   }, [dataInicioVigencia, prazoMeses, dataAssinatura, exigeVigencia, excecaoTetoVigencia]);
 
+  // Desliga o modo reajuste se o tipo do instrumento mudar para algo que
+  // não é apostilamento — os campos de reajuste só fazem sentido ali.
+  useEffect(() => {
+    if (!podeSerReajuste) setEhReajuste(false);
+  }, [podeSerReajuste]);
+
+  /** Prévia ao vivo da calculadora de reajuste — mesmo cálculo que o backend
+   * vai fazer de verdade ao salvar, só que sem persistir nada ainda. */
+  useEffect(() => {
+    if (
+      !ehReajuste ||
+      !reajusteValorMensalAntigo ||
+      !reajusteIndiceAtual ||
+      !reajusteIndiceBase ||
+      !reajusteDataInicio ||
+      !reajusteDataFim
+    ) {
+      setPreviaReajuste(null);
+      setErroPreviaReajuste(null);
+      return;
+    }
+
+    let cancelado = false;
+    apiContratos
+      .calcularReajuste(
+        moedaParaNumero(reajusteValorMensalAntigo),
+        reajusteIndiceAtual,
+        reajusteIndiceBase,
+        reajusteDataInicio,
+        reajusteDataFim,
+      )
+      .then((calculo) => {
+        if (cancelado) return;
+        setPreviaReajuste(calculo);
+        setErroPreviaReajuste(null);
+      })
+      .catch((e) => {
+        if (cancelado) return;
+        setPreviaReajuste(null);
+        setErroPreviaReajuste(e instanceof ErroApi ? e.message : "Não foi possível calcular o reajuste.");
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    ehReajuste,
+    reajusteValorMensalAntigo,
+    reajusteIndiceAtual,
+    reajusteIndiceBase,
+    reajusteDataInicio,
+    reajusteDataFim,
+  ]);
+
   async function enviar() {
     setErro(null);
     setEnviando(true);
@@ -146,8 +218,20 @@ function NovoInstrumentoForm({
         numero_documento_sei: numeroDocumentoSei || null,
         data_inicio_vigencia: exigeVigencia ? dataInicioVigencia : null,
         data_fim_vigencia: exigeVigencia ? dataFimVigencia : null,
-        valor_delta: exigeValor ? moedaParaNumero(valorDelta) : null,
+        // No modo reajuste o valor é calculado e persistido pelo backend a
+        // partir dos campos de reajuste — nunca envia valor_delta aqui.
+        valor_delta: exigeValor && !ehReajuste ? moedaParaNumero(valorDelta) : null,
         observacoes: observacoes || null,
+        ...(ehReajuste
+          ? {
+              reajuste_indice_nome: reajusteIndiceNome,
+              reajuste_indice_atual: reajusteIndiceAtual,
+              reajuste_indice_base: reajusteIndiceBase,
+              reajuste_valor_mensal_antigo: moedaParaNumero(reajusteValorMensalAntigo),
+              reajuste_data_inicio: reajusteDataInicio,
+              reajuste_data_fim: reajusteDataFim,
+            }
+          : {}),
       });
       aoCriar(contrato);
       setFundamentacaoArtigo("");
@@ -157,6 +241,14 @@ function NovoInstrumentoForm({
       setPrazoMeses("");
       setValorDelta("");
       setObservacoes("");
+      setEhReajuste(false);
+      setReajusteIndiceNome("");
+      setReajusteValorMensalAntigo("");
+      setReajusteIndiceBase("");
+      setReajusteIndiceAtual("");
+      setReajusteDataInicio("");
+      setReajusteDataFim("");
+      setPreviaReajuste(null);
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : "Não foi possível criar o instrumento.");
     } finally {
@@ -257,7 +349,19 @@ function NovoInstrumentoForm({
         </>
       )}
 
-      {exigeValor && (
+      {podeSerReajuste && (
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            id="eh_reajuste"
+            type="checkbox"
+            checked={ehReajuste}
+            onChange={(e) => setEhReajuste(e.target.checked)}
+          />
+          Este apostilamento é de reajuste — calcular pelo índice
+        </label>
+      )}
+
+      {exigeValor && !ehReajuste && (
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">
             {tipo === "acrescimo_valor" ? "Valor do acréscimo" : "Valor da supressão (digite - na frente)"}
@@ -270,6 +374,152 @@ function NovoInstrumentoForm({
             onChange={(e) => setValorDelta(mascararMoeda(e.target.value, true))}
             placeholder="0,00"
           />
+        </div>
+      )}
+
+      {ehReajuste && (
+        <div className="space-y-3 rounded-lg border border-institucional-200 bg-institucional-50/40 p-3">
+          <p className="text-xs text-slate-600">
+            Calculadora de reajuste — mesma conta da calculadora do cidadão, feita aqui dentro. O
+            valor do apostilamento (a diferença a pagar) é calculado e salvo automaticamente.
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_indice_nome">
+                Índice
+              </label>
+              <input
+                id="reajuste_indice_nome"
+                className={campoClasse}
+                value={reajusteIndiceNome}
+                onChange={(e) => setReajusteIndiceNome(e.target.value)}
+                placeholder="ex.: IPCA-E"
+              />
+            </div>
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-slate-600"
+                htmlFor="reajuste_valor_mensal_antigo"
+              >
+                Valor mensal atual
+              </label>
+              <input
+                id="reajuste_valor_mensal_antigo"
+                type="text"
+                inputMode="numeric"
+                className={campoClasse}
+                value={reajusteValorMensalAntigo}
+                onChange={(e) => setReajusteValorMensalAntigo(mascararMoeda(e.target.value))}
+                placeholder="0,00"
+              />
+            </div>
+            <div />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_indice_base">
+                Índice na data-base
+              </label>
+              <input
+                id="reajuste_indice_base"
+                type="text"
+                inputMode="decimal"
+                className={campoClasse}
+                value={reajusteIndiceBase}
+                onChange={(e) => setReajusteIndiceBase(e.target.value)}
+                placeholder="ex.: 6500.00"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_indice_atual">
+                Índice atual
+              </label>
+              <input
+                id="reajuste_indice_atual"
+                type="text"
+                inputMode="decimal"
+                className={campoClasse}
+                value={reajusteIndiceAtual}
+                onChange={(e) => setReajusteIndiceAtual(e.target.value)}
+                placeholder="ex.: 7169.26"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_data_inicio">
+                Marco do reajuste (início)
+              </label>
+              <input
+                id="reajuste_data_inicio"
+                type="date"
+                className={campoClasse}
+                value={reajusteDataInicio}
+                onChange={(e) => setReajusteDataInicio(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_data_fim">
+                Até (próximo marco ou fim da vigência)
+              </label>
+              <input
+                id="reajuste_data_fim"
+                type="date"
+                className={campoClasse}
+                value={reajusteDataFim}
+                onChange={(e) => setReajusteDataFim(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {erroPreviaReajuste && <p className="text-xs text-red-600">{erroPreviaReajuste}</p>}
+
+          {previaReajuste && (
+            <div className="space-y-2 rounded-md border border-institucional-200 bg-white p-2">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <p className="text-slate-500">Valor mensal novo</p>
+                  <p className="font-medium text-slate-900">{formatarMoeda(previaReajuste.valor_mensal_novo)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Variação</p>
+                  <p className="font-medium text-slate-900">
+                    {(Number(previaReajuste.percentual_variacao) * 100).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 4,
+                    })}
+                    %
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Total do apostilamento</p>
+                  <p className="font-medium text-institucional-700">
+                    {formatarMoeda(previaReajuste.valor_total_apostilamento)}
+                  </p>
+                </div>
+              </div>
+              <div className="max-h-40 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-slate-500">
+                      <th className="py-0.5 pr-2">Competência</th>
+                      <th className="py-0.5 pr-2">Antigo</th>
+                      <th className="py-0.5 pr-2">Reajustado</th>
+                      <th className="py-0.5">Diferença</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previaReajuste.linhas.map((l) => (
+                      <tr key={l.competencia} className="text-slate-700">
+                        <td className="py-0.5 pr-2">{l.competencia}</td>
+                        <td className="py-0.5 pr-2">{formatarMoeda(l.valor_antigo)}</td>
+                        <td className="py-0.5 pr-2">{formatarMoeda(l.valor_reajustado)}</td>
+                        <td className="py-0.5">{formatarMoeda(l.diferenca)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -288,6 +538,107 @@ function NovoInstrumentoForm({
       >
         {enviando ? "Registrando..." : "Registrar instrumento"}
       </button>
+    </div>
+  );
+}
+
+function formatarTamanhoArquivo(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Anexos de um instrumento processual — visualização rápida de contrato,
+ * termo aditivo etc. direto na ficha, sem depender de nada externo (uso
+ * local, sem preocupação de "pesar o servidor"). */
+function AnexosDoInstrumento({
+  contratoId,
+  instrumentoId,
+  anexos,
+  ehAdministrador,
+  aoAtualizar,
+  aoRecarregar,
+}: {
+  contratoId: string;
+  instrumentoId: string;
+  anexos: AnexoInstrumento[];
+  ehAdministrador: boolean;
+  aoAtualizar: (c: ContratoDetalhado) => void;
+  aoRecarregar: () => void;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function enviarArquivo(arquivo: File | undefined) {
+    if (!arquivo) return;
+    setErro(null);
+    setEnviando(true);
+    try {
+      const contrato = await apiContratos.anexarArquivo(contratoId, instrumentoId, arquivo);
+      aoAtualizar(contrato);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível anexar o arquivo.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function excluir(anexoId: string, nomeArquivo: string) {
+    if (!window.confirm(`Excluir o anexo "${nomeArquivo}"? Esta ação não pode ser desfeita.`)) return;
+    setErro(null);
+    try {
+      await apiAnexos.excluir(anexoId);
+      aoRecarregar();
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível excluir o anexo.");
+    }
+  }
+
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2">
+      {anexos.length > 0 && (
+        <ul className="space-y-1">
+          {anexos.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-2 text-xs">
+              <a
+                href={urlAnexo(a.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate text-institucional-600 hover:underline"
+                title={a.nome_arquivo}
+              >
+                {a.nome_arquivo}
+              </a>
+              <div className="flex shrink-0 items-center gap-2 text-slate-400">
+                <span>{formatarTamanhoArquivo(a.tamanho_bytes)}</span>
+                {ehAdministrador && (
+                  <button
+                    onClick={() => excluir(a.id, a.nome_arquivo)}
+                    className="text-red-600 hover:underline"
+                    title="Exclusão definitiva — restrita a administrador"
+                  >
+                    Excluir
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <label className="mt-1 inline-block cursor-pointer text-xs text-institucional-600 hover:underline">
+        {enviando ? "Enviando..." : "+ Anexar arquivo"}
+        <input
+          type="file"
+          className="hidden"
+          disabled={enviando}
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+          onChange={(e) => {
+            void enviarArquivo(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+      </label>
+      {erro && <p className="text-xs text-red-600">{erro}</p>}
     </div>
   );
 }
@@ -677,6 +1028,14 @@ function EditarContratoForm({
     contrato.setor_responsavel_faturamento ?? "",
   );
 
+  // Cláusula de reajuste — semeada do que o contrato já tem registrado.
+  const [temClausulaReajuste, setTemClausulaReajuste] = useState(contrato.tipo_reajuste !== null);
+  const [tipoReajuste, setTipoReajuste] = useState<TipoReajuste>(contrato.tipo_reajuste ?? "automatico");
+  const [periodicidadeReajusteMeses, setPeriodicidadeReajusteMeses] = useState(
+    contrato.periodicidade_reajuste_meses ? String(contrato.periodicidade_reajuste_meses) : "24",
+  );
+  const [indiceReajustePadrao, setIndiceReajustePadrao] = useState(contrato.indice_reajuste_padrao ?? "");
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -688,6 +1047,10 @@ function EditarContratoForm({
     }
     if (!faturamentoPelaGct && !setorResponsavelFaturamento.trim()) {
       setErro("Informe o setor responsável pelo faturamento quando ele não é feito pela Gerência de Contratos.");
+      return;
+    }
+    if (temClausulaReajuste && !periodicidadeReajusteMeses.trim()) {
+      setErro("Informe a periodicidade do reajuste (em meses).");
       return;
     }
     setEnviando(true);
@@ -714,6 +1077,9 @@ function EditarContratoForm({
         excecao_teto_documento_sei: temExcecaoTeto ? excecaoDocumentoSei : null,
         faturamento_gerido_pela_gct: faturamentoPelaGct,
         setor_responsavel_faturamento: faturamentoPelaGct ? null : setorResponsavelFaturamento,
+        tipo_reajuste: temClausulaReajuste ? tipoReajuste : null,
+        periodicidade_reajuste_meses: temClausulaReajuste ? Number(periodicidadeReajusteMeses) : null,
+        indice_reajuste_padrao: temClausulaReajuste ? indiceReajustePadrao || null : null,
       });
       aoSalvar(atualizado);
     } catch (e) {
@@ -887,6 +1253,73 @@ function EditarContratoForm({
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
         />
+      </div>
+
+      <div className="border-t border-slate-200 pt-3">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            id="tem_clausula_reajuste"
+            type="checkbox"
+            checked={temClausulaReajuste}
+            onChange={(e) => setTemClausulaReajuste(e.target.checked)}
+          />
+          Este contrato tem cláusula de reajuste
+        </label>
+        <p className="mt-1 text-xs text-slate-500">
+          Controla o alerta de próximo marco de reajuste na ficha — o cálculo em si é feito ao
+          registrar o apostilamento de reajuste, na seção de instrumentos.
+        </p>
+
+        {temClausulaReajuste && (
+          <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="tipo_reajuste">
+                Tipo
+              </label>
+              <select
+                id="tipo_reajuste"
+                className={campoClasse}
+                value={tipoReajuste}
+                onChange={(e) => setTipoReajuste(e.target.value as TipoReajuste)}
+              >
+                {Object.entries(ROTULOS_TIPO_REAJUSTE).map(([valor, rotulo]) => (
+                  <option key={valor} value={valor}>
+                    {rotulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-slate-600"
+                htmlFor="periodicidade_reajuste_meses"
+              >
+                Periodicidade (meses)
+              </label>
+              <input
+                id="periodicidade_reajuste_meses"
+                type="number"
+                min={1}
+                max={120}
+                className={campoClasse}
+                value={periodicidadeReajusteMeses}
+                onChange={(e) => setPeriodicidadeReajusteMeses(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="indice_reajuste_padrao">
+                Índice padrão
+              </label>
+              <input
+                id="indice_reajuste_padrao"
+                className={campoClasse}
+                value={indiceReajustePadrao}
+                onChange={(e) => setIndiceReajustePadrao(e.target.value)}
+                placeholder="ex.: IPCA-E"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-slate-200 pt-3">
@@ -1393,7 +1826,7 @@ export function ContratoDetalhe() {
           </ul>
         </section>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="card p-5">
             <h2 className="mb-2 text-sm font-semibold text-slate-900">Vigência atual</h2>
             {contrato.vigencia_inicio && contrato.vigencia_fim ? (
@@ -1494,6 +1927,29 @@ export function ContratoDetalhe() {
                 )}
               </>
             )}
+          </div>
+
+          <div className="card p-5">
+            <h2 className="mb-2 text-sm font-semibold text-slate-900">Reajuste</h2>
+            {contrato.tipo_reajuste ? (
+              <>
+                <p className="text-sm text-slate-600">{ROTULOS_TIPO_REAJUSTE[contrato.tipo_reajuste]}</p>
+                <p className="text-xs text-slate-500">
+                  A cada {contrato.periodicidade_reajuste_meses} meses
+                  {contrato.indice_reajuste_padrao ? ` — índice ${contrato.indice_reajuste_padrao}` : ""}
+                </p>
+                {contrato.proximo_marco_reajuste && (
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    Próximo marco: {contrato.proximo_marco_reajuste}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-slate-500">Sem cláusula de reajuste cadastrada.</p>
+            )}
+            <div className="mt-2">
+              <BadgeAlerta alerta={contrato.alerta_reajuste} rotuloOk="Sem reajuste pendente" />
+            </div>
           </div>
         </section>
 
@@ -1709,7 +2165,23 @@ export function ContratoDetalhe() {
                   {i.valor_delta && (
                     <p className="text-xs text-slate-500">Valor: {formatarMoeda(i.valor_delta)}</p>
                   )}
+                  {i.reajuste_data_inicio && (
+                    <p className="text-xs text-slate-500">
+                      Reajuste{i.reajuste_indice_nome ? ` (${i.reajuste_indice_nome})` : ""}:{" "}
+                      {i.reajuste_valor_mensal_antigo && formatarMoeda(i.reajuste_valor_mensal_antigo)} →{" "}
+                      {i.reajuste_valor_mensal_novo && formatarMoeda(i.reajuste_valor_mensal_novo)}, de{" "}
+                      {i.reajuste_data_inicio} até {i.reajuste_data_fim}
+                    </p>
+                  )}
                   {i.observacoes && <p className="mt-1 text-xs text-slate-500">{i.observacoes}</p>}
+                  <AnexosDoInstrumento
+                    contratoId={contrato.id}
+                    instrumentoId={i.id}
+                    anexos={i.anexos}
+                    ehAdministrador={ehAdministrador}
+                    aoAtualizar={setContrato}
+                    aoRecarregar={carregar}
+                  />
                 </div>
               </div>
             ))}

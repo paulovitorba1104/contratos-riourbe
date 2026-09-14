@@ -18,7 +18,11 @@ from app.models.instrumento_processual import (
     TipoInstrumento,
 )
 
-TIPOS_DE_VALOR = {TipoInstrumento.ACRESCIMO_VALOR, TipoInstrumento.SUPRESSAO_VALOR}
+# Tipos cujo valor_delta soma ao valor atualizado do contrato. Apostilamento
+# entra aqui porque também pode carregar valor (o caso mais comum é o
+# reajuste — art. 71 é mecânico, não precisa de aditivo negociado, mas o
+# valor total do contrato aumenta do mesmo jeito).
+TIPOS_DE_VALOR = {TipoInstrumento.ACRESCIMO_VALOR, TipoInstrumento.SUPRESSAO_VALOR, TipoInstrumento.APOSTILAMENTO}
 
 LIMITES_ALERTA_VIGENCIA_MESES = (1, 3, 6)
 LIMITES_ALERTA_GARANTIA_MESES = (1, 3)
@@ -65,6 +69,25 @@ def vigencia_atual(contrato: Contrato) -> tuple[date | None, date | None]:
         return None, None
     mais_recente = max(candidatos, key=lambda i: i.data_fim_vigencia)
     return mais_recente.data_inicio_vigencia, mais_recente.data_fim_vigencia
+
+
+def proximo_marco_reajuste(contrato: Contrato) -> date | None:
+    """Próxima data em que o contrato completa a periodicidade de reajuste
+    (ex.: 24 meses) — nulo quando o contrato não tem cláusula de reajuste
+    (`tipo_reajuste` ou `periodicidade_reajuste_meses` ausentes).
+
+    Conta a partir do reajuste mais recente já registrado (o instrumento de
+    apostilamento com `reajuste_data_inicio` mais recente); sem nenhum
+    ainda, conta a partir da assinatura original."""
+    if contrato.tipo_reajuste is None or contrato.periodicidade_reajuste_meses is None:
+        return None
+    marcos_anteriores = [
+        i.reajuste_data_inicio
+        for i in contrato.instrumentos
+        if i.tipo == TipoInstrumento.APOSTILAMENTO and i.reajuste_data_inicio is not None
+    ]
+    marco_base = max(marcos_anteriores, default=contrato.data_assinatura_original)
+    return marco_base + relativedelta(months=contrato.periodicidade_reajuste_meses)
 
 
 def teto_vigencia(contrato: Contrato) -> date | None:
@@ -147,17 +170,24 @@ class AlertasContrato:
     alerta_vigencia: str | None
     garantia_fim: date | None
     alerta_garantia: str | None
+    proximo_marco_reajuste: date | None
+    alerta_reajuste: str | None
 
 
 def calcular_alertas(contrato: Contrato, hoje: date | None = None) -> AlertasContrato:
     hoje = hoje or hoje_brasilia()
     _, vigencia_fim = vigencia_atual(contrato)
     _, garantia_fim = garantia_atual(contrato)
+    marco_reajuste = proximo_marco_reajuste(contrato)
     return AlertasContrato(
         vigencia_fim=vigencia_fim,
         alerta_vigencia=_nivel_alerta(vigencia_fim, hoje, LIMITES_ALERTA_VIGENCIA_MESES),
         garantia_fim=garantia_fim,
         alerta_garantia=_nivel_alerta(garantia_fim, hoje, LIMITES_ALERTA_GARANTIA_MESES),
+        proximo_marco_reajuste=marco_reajuste,
+        # "Vencido" aqui não é um problema (diferente de vigência/garantia) —
+        # é exatamente o sinal de que o reajuste já pode ser calculado.
+        alerta_reajuste=_nivel_alerta(marco_reajuste, hoje, LIMITES_ALERTA_VIGENCIA_MESES),
     )
 
 

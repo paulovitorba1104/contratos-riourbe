@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     brevo_remetente_email: str | None = None
 
     max_body_size_bytes: int = 1 * 1024 * 1024  # 1 MiB
+    # Limite maior só para upload de anexo (contrato/aditivo escaneado) — o
+    # limite geral acima continua valendo para toda a API.
+    max_upload_size_bytes: int = 25 * 1024 * 1024  # 25 MiB
 
     @property
     def is_producao(self) -> bool:

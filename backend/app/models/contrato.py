@@ -38,6 +38,18 @@ class ExcecaoTetoVigencia(str, enum.Enum):
     ART_71_II = "art_71_ii"  # prazo maior é prática rotineira de mercado (ex.: locação de imóvel)
 
 
+class TipoReajuste(str, enum.Enum):
+    """Nem todo contrato reajusta do mesmo jeito: alguns têm cláusula que
+    obriga o reajuste (a Rio-Urbe aplica assim que o prazo se completa,
+    independente de pedido); outros só reajustam se a contratada pedir —
+    sem pedido, o preço simplesmente fica parado, mesmo com o índice
+    variando. Nulo = contrato sem cláusula de reajuste (ex.: compra pontual,
+    licença de software sem previsão de correção)."""
+
+    AUTOMATICO = "automatico"
+    MEDIANTE_SOLICITACAO = "mediante_solicitacao"
+
+
 class SistemaProcesso(str, enum.Enum):
     """Sistema onde o número do processo foi aberto — a Prefeitura já passou
     por 3 sistemas de processo administrativo."""
@@ -136,6 +148,19 @@ class Contrato(Base):
     exige_medicao: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     nota_reserva: Mapped[str | None] = mapped_column(String(50), nullable=True)
     nota_empenho: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # Reajuste — nulo quando o contrato não tem cláusula de reajuste.
+    tipo_reajuste: Mapped[TipoReajuste | None] = mapped_column(
+        Enum(TipoReajuste, name="tipo_reajuste", schema="contratos", values_callable=_valores_enum),
+        nullable=True,
+    )
+    # Cada contrato define seu próprio intervalo na cláusula — 24 meses é
+    # comum, mas não é universal, por isso não é uma constante do sistema.
+    periodicidade_reajuste_meses: Mapped[int | None] = mapped_column(nullable=True)
+    # Sugestão pré-preenchida na calculadora de reajuste (seção 4.6) — o
+    # índice de fato usado em cada reajuste fica registrado no instrumento
+    # (pode divergir daqui se a cláusula previr substituição de índice).
+    indice_reajuste_padrao: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Orçamentário/contábil
     pt: Mapped[str | None] = mapped_column(String(50), nullable=True)

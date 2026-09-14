@@ -1,6 +1,7 @@
-import { requisicao } from "./api";
+import { requisicao, requisicaoComArquivo } from "./api";
 import type {
   AtaRegistroPreco,
+  CalculoReajuste,
   CalculoVigencia,
   Contrato,
   ContratoAtualizarPayload,
@@ -95,6 +96,40 @@ export const apiContratos = {
         (dataAssinatura ? `&data_assinatura=${dataAssinatura}` : "") +
         (excecaoTeto ? `&excecao_teto_vigencia=${excecaoTeto}` : ""),
     ),
+  /** Calculadora de reajuste/apostilamento — substitui a calculadora do
+   * cidadão para a parte de conta. `dataInicio` é o marco do reajuste (ex.:
+   * aniversário da vigência); `dataFim` é o próximo marco ou o fim da
+   * vigência do contrato, o que vier primeiro. */
+  calcularReajuste: (
+    valorMensalAntigo: string,
+    indiceAtual: string,
+    indiceBase: string,
+    dataInicio: string,
+    dataFim: string,
+  ) =>
+    requisicao<CalculoReajuste>(
+      `/contratos/calcular-reajuste?valor_mensal_antigo=${valorMensalAntigo}` +
+        `&indice_atual=${indiceAtual}&indice_base=${indiceBase}` +
+        `&data_inicio=${dataInicio}&data_fim=${dataFim}`,
+    ),
+  anexarArquivo: (contratoId: string, instrumentoId: string, arquivo: File) => {
+    const formData = new FormData();
+    formData.append("arquivo", arquivo);
+    return requisicaoComArquivo<ContratoDetalhado>(
+      `/contratos/${contratoId}/instrumentos/${instrumentoId}/anexos`,
+      formData,
+    );
+  },
+};
+
+/** URL de download/visualização de um anexo — usar direto num link (a
+ * sessão vai junto via cookie, não precisa de token na URL). */
+export function urlAnexo(anexoId: string): string {
+  return `/api/anexos/${anexoId}`;
+}
+
+export const apiAnexos = {
+  excluir: (anexoId: string) => requisicao<void>(`/anexos/${anexoId}`, { method: "DELETE" }),
 };
 
 export const apiFornecedores = {

@@ -16,6 +16,7 @@ export type NivelAlerta = "1_meses" | "3_meses" | "6_meses" | "vencido";
 export type SistemaProcesso = "sicop" | "processo_rio" | "sei_rio";
 export type TipoProcesso = "principal" | "apenso";
 export type ExcecaoTetoVigencia = "art_71_i" | "art_71_ii";
+export type TipoReajuste = "automatico" | "mediante_solicitacao";
 
 export const ROTULOS_FORMA_CONTRATACAO: Record<FormaContratacao, string> = {
   pregao_eletronico: "Pregão Eletrônico",
@@ -64,6 +65,11 @@ export const ROTULOS_EXCECAO_TETO: Record<ExcecaoTetoVigencia, string> = {
   art_71_ii: "Art. 71, II — prazo maior é prática rotineira de mercado",
 };
 
+export const ROTULOS_TIPO_REAJUSTE: Record<TipoReajuste, string> = {
+  automatico: "Obrigatório — reajusta assim que completa o prazo, sem precisar de pedido",
+  mediante_solicitacao: "Só se a contratada pedir",
+};
+
 export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
   criar_contrato: "Contrato criado",
   atualizar_contrato: "Dados do contrato atualizados",
@@ -79,6 +85,8 @@ export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
   criar_instrumento_processual: "Instrumento registrado",
   atualizar_sub_status_instrumento: "Sub-status do instrumento atualizado",
   excluir_instrumento_processual: "Instrumento excluído",
+  anexar_arquivo_instrumento: "Arquivo anexado",
+  excluir_anexo_instrumento: "Anexo excluído",
 };
 
 export const TIPOS_QUE_DEFINEM_VIGENCIA: TipoInstrumento[] = ["origem", "prorrogacao"];
@@ -125,6 +133,15 @@ export interface AtaRegistroPreco {
   observacoes: string | null;
 }
 
+export interface AnexoInstrumento {
+  id: string;
+  nome_arquivo: string;
+  tipo_mime: string;
+  tamanho_bytes: number;
+  enviado_por_nome: string;
+  enviado_em: string;
+}
+
 export interface InstrumentoProcessual {
   id: string;
   contrato_id: string;
@@ -137,7 +154,16 @@ export interface InstrumentoProcessual {
   data_inicio_vigencia: string | null;
   data_fim_vigencia: string | null;
   valor_delta: string | null;
+  // Preenchidos só quando o apostilamento é de reajuste.
+  reajuste_indice_nome: string | null;
+  reajuste_indice_atual: string | null;
+  reajuste_indice_base: string | null;
+  reajuste_valor_mensal_antigo: string | null;
+  reajuste_valor_mensal_novo: string | null;
+  reajuste_data_inicio: string | null;
+  reajuste_data_fim: string | null;
   observacoes: string | null;
+  anexos: AnexoInstrumento[];
 }
 
 export interface Processo {
@@ -171,6 +197,7 @@ export interface Contrato {
   processos: Processo[];
   alerta_vigencia: NivelAlerta | null;
   alerta_garantia: NivelAlerta | null;
+  alerta_reajuste: NivelAlerta | null;
   // Nem todo contrato é faturado pela GCT (benefícios são faturados pelo RH,
   // jurídicos pela AJU, por exemplo). Falso bloqueia fatura no módulo de
   // Faturamento — a GCT só gerencia prazo e renovação desse contrato.
@@ -199,6 +226,21 @@ export interface CalculoVigencia {
   data_fim: string;
   teto_cinco_anos: string | null;
   excede_teto: boolean;
+}
+
+export interface LinhaReajuste {
+  competencia: string;
+  valor_antigo: string;
+  valor_reajustado: string;
+  diferenca: string;
+}
+
+export interface CalculoReajuste {
+  valor_mensal_antigo: string;
+  valor_mensal_novo: string;
+  percentual_variacao: string;
+  linhas: LinhaReajuste[];
+  valor_total_apostilamento: string;
 }
 
 export interface GarantiaHistorico {
@@ -231,6 +273,11 @@ export interface ContratoDetalhado extends Contrato {
   garantia_inicio: string | null;
   garantia_fim: string | null;
   garantias: GarantiaHistorico[];
+  // Reajuste — nulo quando o contrato não tem cláusula de reajuste.
+  tipo_reajuste: TipoReajuste | null;
+  periodicidade_reajuste_meses: number | null;
+  indice_reajuste_padrao: string | null;
+  proximo_marco_reajuste: string | null;
   instrumentos: InstrumentoProcessual[];
 }
 
@@ -269,6 +316,10 @@ export interface NovoContratoPayload {
   // Contrato antigo entrando no sistema agora: total já pago lançado de uma
   // vez, sem fatura por fatura. Fica 0 (padrão do backend) em contrato novo.
   valor_pago_anterior_sistema?: string;
+  // Reajuste — nulo quando o contrato não tem cláusula de reajuste.
+  tipo_reajuste?: TipoReajuste | null;
+  periodicidade_reajuste_meses?: number | null;
+  indice_reajuste_padrao?: string | null;
 }
 
 export interface ContratoAtualizarPayload {
@@ -295,6 +346,9 @@ export interface ContratoAtualizarPayload {
   excecao_teto_documento_sei?: string | null;
   faturamento_gerido_pela_gct?: boolean;
   setor_responsavel_faturamento?: string | null;
+  tipo_reajuste?: TipoReajuste | null;
+  periodicidade_reajuste_meses?: number | null;
+  indice_reajuste_padrao?: string | null;
 }
 
 export interface NovoInstrumentoPayload {
@@ -306,5 +360,13 @@ export interface NovoInstrumentoPayload {
   data_inicio_vigencia?: string | null;
   data_fim_vigencia?: string | null;
   valor_delta?: string | null;
+  // Reajuste (só para tipo="apostilamento") — os 6 vêm juntos ou nenhum; o
+  // backend calcula reajuste_valor_mensal_novo e valor_delta sozinho.
+  reajuste_indice_nome?: string | null;
+  reajuste_indice_atual?: string | null;
+  reajuste_indice_base?: string | null;
+  reajuste_valor_mensal_antigo?: string | null;
+  reajuste_data_inicio?: string | null;
+  reajuste_data_fim?: string | null;
   observacoes?: string | null;
 }

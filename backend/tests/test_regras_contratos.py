@@ -3,7 +3,14 @@ from decimal import Decimal
 
 import pytest
 
-from app.models.contrato import Contrato, ExcecaoTetoVigencia, FormaContratacao, GarantiaContrato, StatusContrato
+from app.models.contrato import (
+    Contrato,
+    ExcecaoTetoVigencia,
+    FormaContratacao,
+    GarantiaContrato,
+    StatusContrato,
+    TipoReajuste,
+)
 from app.models.instrumento_processual import (
     FundamentacaoLei,
     InstrumentoProcessual,
@@ -64,6 +71,24 @@ def test_valor_atualizado_soma_acrescimos_e_supressoes():
         _instrumento(TipoInstrumento.SUPRESSAO_VALOR, valor_delta=Decimal("-5000.00")),
     ]
     assert regras.calcular_valor_atualizado(contrato) == Decimal("105000.00")
+
+
+def test_valor_atualizado_soma_apostilamento_de_reajuste():
+    """Reajuste é mecânico (apostilamento, sem precisar de aditivo negociado),
+    mas ainda assim aumenta o total comprometido do contrato."""
+    contrato = _contrato(valor_inicial=Decimal("100000.00"))
+    contrato.instrumentos = [
+        _instrumento(TipoInstrumento.APOSTILAMENTO, valor_delta=Decimal("12198.17")),
+    ]
+    assert regras.calcular_valor_atualizado(contrato) == Decimal("112198.17")
+
+
+def test_valor_atualizado_ignora_apostilamento_sem_valor_delta():
+    contrato = _contrato(valor_inicial=Decimal("100000.00"))
+    contrato.instrumentos = [
+        _instrumento(TipoInstrumento.APOSTILAMENTO, valor_delta=None),
+    ]
+    assert regras.calcular_valor_atualizado(contrato) == Decimal("100000.00")
 
 
 def test_saldo_a_pagar_desconta_valor_pago():
@@ -271,3 +296,46 @@ def test_sem_excecao_o_teto_de_cinco_anos_continua_valendo():
     assert regras.teto_vigencia(contrato) == date(2029, 1, 10)
     with pytest.raises(regras.TetoVigenciaExcedido):
         regras.validar_teto_cinco_anos(contrato, date(2029, 1, 11))
+
+
+# --------------------------------------------------------------------------
+# Reajuste — próximo marco e alerta
+# --------------------------------------------------------------------------
+def test_sem_clausula_de_reajuste_nao_ha_marco():
+    contrato = _contrato(tipo_reajuste=None, periodicidade_reajuste_meses=None)
+    assert regras.proximo_marco_reajuste(contrato) is None
+
+
+def test_primeiro_marco_conta_da_assinatura_original():
+    contrato = _contrato(
+        data_assinatura_original=date(2024, 6, 14),
+        tipo_reajuste=TipoReajuste.AUTOMATICO,
+        periodicidade_reajuste_meses=24,
+    )
+    assert regras.proximo_marco_reajuste(contrato) == date(2026, 6, 14)
+
+
+def test_marco_seguinte_conta_do_ultimo_reajuste_ja_registrado():
+    """Depois de um reajuste já registrado, o próximo marco conta a partir
+    dele — não mais da assinatura original."""
+    contrato = _contrato(
+        data_assinatura_original=date(2022, 6, 14),
+        tipo_reajuste=TipoReajuste.AUTOMATICO,
+        periodicidade_reajuste_meses=24,
+    )
+    contrato.instrumentos = [
+        _instrumento(TipoInstrumento.APOSTILAMENTO, reajuste_data_inicio=date(2026, 6, 14)),
+    ]
+    assert regras.proximo_marco_reajuste(contrato) == date(2028, 6, 14)
+
+
+def test_alerta_de_reajuste_usa_as_mesmas_janelas_de_vigencia():
+    contrato = _contrato(
+        data_assinatura_original=date(2024, 1, 10),
+        tipo_reajuste=TipoReajuste.MEDIANTE_SOLICITACAO,
+        periodicidade_reajuste_meses=24,
+    )
+    contrato.instrumentos = []
+    alertas = regras.calcular_alertas(contrato, hoje=date(2026, 1, 5))  # 5 dias antes do marco
+    assert alertas.proximo_marco_reajuste == date(2026, 1, 10)
+    assert alertas.alerta_reajuste == "1_meses"

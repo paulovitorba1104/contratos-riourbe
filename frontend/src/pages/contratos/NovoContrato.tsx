@@ -13,12 +13,14 @@ import type {
   ProcessoPayload,
   SistemaProcesso,
   TipoProcesso,
+  TipoReajuste,
 } from "../../lib/tiposContratos";
 import {
   ROTULOS_EXCECAO_TETO,
   ROTULOS_FORMA_CONTRATACAO,
   ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_TIPO_PROCESSO,
+  ROTULOS_TIPO_REAJUSTE,
 } from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
@@ -81,6 +83,13 @@ export function NovoContrato() {
   // lançado de uma vez — não vale a pena lançar fatura por fatura do
   // histórico. Fica 0,00 (padrão) em contrato genuinamente novo.
   const [valorPagoAnteriorSistema, setValorPagoAnteriorSistema] = useState("");
+
+  // Reajuste — nulo (padrão) quando o contrato não tem cláusula de
+  // reajuste (ex.: compra pontual, licença sem previsão de correção).
+  const [temClausulaReajuste, setTemClausulaReajuste] = useState(false);
+  const [tipoReajuste, setTipoReajuste] = useState<TipoReajuste>("automatico");
+  const [periodicidadeReajusteMeses, setPeriodicidadeReajusteMeses] = useState("24");
+  const [indiceReajustePadrao, setIndiceReajustePadrao] = useState("IPCA-E");
 
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -211,6 +220,10 @@ export function NovoContrato() {
       setErro("Informe o setor responsável pelo faturamento quando ele não é feito pela Gerência de Contratos.");
       return;
     }
+    if (temClausulaReajuste && !periodicidadeReajusteMeses.trim()) {
+      setErro("Informe a periodicidade do reajuste (em meses).");
+      return;
+    }
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
@@ -241,6 +254,13 @@ export function NovoContrato() {
               excecao_teto_vigencia: excecaoTeto,
               excecao_teto_justificativa: excecaoJustificativa,
               excecao_teto_documento_sei: excecaoDocumentoSei,
+            }
+          : {}),
+        ...(temClausulaReajuste
+          ? {
+              tipo_reajuste: tipoReajuste,
+              periodicidade_reajuste_meses: Number(periodicidadeReajusteMeses),
+              indice_reajuste_padrao: indiceReajustePadrao || null,
             }
           : {}),
       });
@@ -525,6 +545,70 @@ export function NovoContrato() {
               hoje, de uma vez — não é preciso lançar fatura por fatura do histórico. A partir de
               agora, registre as próximas faturas pelo módulo de Faturamento normalmente.
             </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                id="tem_clausula_reajuste"
+                type="checkbox"
+                checked={temClausulaReajuste}
+                onChange={(e) => setTemClausulaReajuste(e.target.checked)}
+              />
+              Este contrato tem cláusula de reajuste
+            </label>
+            <p className="mt-1 text-xs text-slate-500">
+              Desmarque para contrato sem previsão de reajuste (ex.: compra pontual, licença de
+              software sem correção).
+            </p>
+            {temClausulaReajuste && (
+              <div className="mt-2 grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-3">
+                <div>
+                  <label className={rotuloClasse} htmlFor="tipo_reajuste">
+                    Tipo de reajuste
+                  </label>
+                  <select
+                    id="tipo_reajuste"
+                    className={campoClasse}
+                    value={tipoReajuste}
+                    onChange={(e) => setTipoReajuste(e.target.value as TipoReajuste)}
+                  >
+                    {Object.entries(ROTULOS_TIPO_REAJUSTE).map(([valor, rotulo]) => (
+                      <option key={valor} value={valor}>
+                        {rotulo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={rotuloClasse} htmlFor="periodicidade_reajuste_meses">
+                    Periodicidade (meses)
+                  </label>
+                  <input
+                    id="periodicidade_reajuste_meses"
+                    type="number"
+                    min={1}
+                    max={120}
+                    className={campoClasse}
+                    value={periodicidadeReajusteMeses}
+                    onChange={(e) => setPeriodicidadeReajusteMeses(e.target.value)}
+                    placeholder="ex.: 24"
+                  />
+                </div>
+                <div>
+                  <label className={rotuloClasse} htmlFor="indice_reajuste_padrao">
+                    Índice padrão
+                  </label>
+                  <input
+                    id="indice_reajuste_padrao"
+                    className={campoClasse}
+                    value={indiceReajustePadrao}
+                    onChange={(e) => setIndiceReajustePadrao(e.target.value)}
+                    placeholder="ex.: IPCA-E"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
