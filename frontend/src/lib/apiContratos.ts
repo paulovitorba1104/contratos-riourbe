@@ -5,6 +5,7 @@ import type {
   Contrato,
   ContratoAtualizarPayload,
   ContratoDetalhado,
+  ExcecaoTetoVigencia,
   Fiscal,
   Fornecedor,
   LogAuditoria,
@@ -76,11 +77,19 @@ export const apiContratos = {
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/processos/${processoId}`, { method: "DELETE" }),
   auditoria: (contratoId: string) => requisicao<LogAuditoria[]>(`/contratos/${contratoId}/auditoria`),
   /** Contador de datas: início + prazo em meses = fim da vigência. O cálculo
-   * fica no backend para não divergir do que é validado ao salvar. */
-  calcularVigencia: (dataInicio: string, meses: number, dataAssinatura?: string) =>
+   * fica no backend para não divergir do que é validado ao salvar. Com
+   * excecaoTeto informado, não há teto de 5 anos a calcular (art. 71, I ou
+   * II, da Lei 13.303/16 — ex.: locação de imóvel). */
+  calcularVigencia: (
+    dataInicio: string,
+    meses: number,
+    dataAssinatura?: string,
+    excecaoTeto?: ExcecaoTetoVigencia | null,
+  ) =>
     requisicao<CalculoVigencia>(
       `/contratos/calcular-vigencia?data_inicio=${dataInicio}&meses=${meses}` +
-        (dataAssinatura ? `&data_assinatura=${dataAssinatura}` : ""),
+        (dataAssinatura ? `&data_assinatura=${dataAssinatura}` : "") +
+        (excecaoTeto ? `&excecao_teto_vigencia=${excecaoTeto}` : ""),
     ),
 };
 

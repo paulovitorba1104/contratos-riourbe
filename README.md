@@ -237,9 +237,22 @@ Implementa a seção 4 do plano de desenvolvimento:
   salvar. A data de fim continua editável, para prazo que não feche em meses redondos. Na ficha
   do contrato, a "Vigência atual" mostra a contagem regressiva legível ("Faltam 8 meses e 12
   dias" / "Vencido há 3 dias").
+- **Exceção ao teto de 5 anos (art. 71, I e II, da Lei 13.303/16)**: o teto é a regra, não é
+  absoluto — a própria lei prevê duas exceções, e o cadastro/edição do contrato tem um campo para
+  registrar qual se aplica: **inciso I** (projeto contemplado no plano de negócios e
+  investimentos da empresa) e **inciso II** (o prazo maior é prática rotineira de mercado e
+  impor 5 anos inviabilizaria ou oneraria o negócio — o caso típico é locação de imóvel, cujo
+  prazo longo é padrão do mercado imobiliário comercial). Marcar a exceção exige justificativa em
+  texto e o número do documento que a formaliza (parecer jurídico/SEI) — sem isso o sistema
+  recusa, para a exceção não virar uma marcação sem lastro nenhum. Contrato com exceção não tem
+  data-limite: nem o contador de datas nem a validação de prorrogação (seção "3 relógios" abaixo)
+  bloqueiam por teto — a lei remove o limite nesses casos, não impõe um novo. Na ficha do
+  contrato, o card "Vigência atual" mostra "Sem teto de 5 anos — exceção [inciso]" com a
+  justificativa e o documento, no lugar da data-limite normal.
 - **3 relógios de prazo**: vigência atual (derivada do instrumento de origem/prorrogação mais
-  recente), teto rígido de 5 anos desde a assinatura original (bloqueia prorrogação que
-  ultrapasse — `TetoVigenciaExcedido`), e garantia contratual independente. A garantia é um
+  recente), teto rígido de 5 anos desde a assinatura original — salvo exceção registrada, acima —
+  (bloqueia prorrogação que ultrapasse — `TetoVigenciaExcedido`), e garantia contratual
+  independente. A garantia é um
   histórico de registros (`contratos.garantias_contrato`), nunca sobrescrito — cada alteração
   (definição inicial ou correção) entra como uma linha nova com quem registrou e quando, e a
   garantia "atual" é sempre a mais recente; a tela só mostra os dois campos de data quando o

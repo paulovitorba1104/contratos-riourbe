@@ -66,8 +66,15 @@ def vigencia_atual(contrato: Contrato) -> tuple[date | None, date | None]:
     return mais_recente.data_inicio_vigencia, mais_recente.data_fim_vigencia
 
 
-def teto_vigencia(contrato: Contrato) -> date:
-    """Relógio 2: data-limite absoluta — 5 anos desde a assinatura original."""
+def teto_vigencia(contrato: Contrato) -> date | None:
+    """Relógio 2: data-limite absoluta — 5 anos desde a assinatura original.
+
+    Nula quando o contrato tem exceção registrada (art. 71, I ou II, da Lei
+    13.303/16 — ex.: locação de imóvel, cujo prazo longo é prática rotineira
+    de mercado): a lei não impõe um novo limite nesses casos, ela remove o
+    teto, então não há data-limite a mostrar."""
+    if contrato.excecao_teto_vigencia is not None:
+        return None
     return contrato.data_assinatura_original + relativedelta(years=5)
 
 
@@ -112,6 +119,8 @@ def tempo_restante(data_limite: date | None, hoje: date | None = None) -> TempoR
 
 def validar_teto_cinco_anos(contrato: Contrato, nova_data_fim_vigencia: date) -> None:
     limite = teto_vigencia(contrato)
+    if limite is None:
+        return
     if nova_data_fim_vigencia > limite:
         raise TetoVigenciaExcedido(
             f"Esta prorrogação levaria a vigência até {nova_data_fim_vigencia.isoformat()}, "

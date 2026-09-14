@@ -2,9 +2,9 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.contrato import FormaContratacao, SistemaProcesso, StatusContrato, TipoProcesso
+from app.models.contrato import ExcecaoTetoVigencia, FormaContratacao, SistemaProcesso, StatusContrato, TipoProcesso
 from app.models.instrumento_processual import FundamentacaoLei
 from app.schemas.fiscal import FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualSaida
@@ -73,6 +73,25 @@ class ContratoCriar(BaseModel):
     item_patrimonial: str | None = None
     codigo_ccon: str | None = None
     observacoes: str | None = None
+    # Exceção ao teto de 5 anos (art. 71, I ou II, da Lei 13.303/16) — nula na
+    # imensa maioria dos contratos. Marcada, exige justificativa e o número do
+    # documento (parecer jurídico/SEI) que a formaliza — ex.: locação de
+    # imóvel, cujo prazo longo é prática rotineira de mercado (inciso II).
+    excecao_teto_vigencia: ExcecaoTetoVigencia | None = None
+    excecao_teto_justificativa: str | None = Field(None, max_length=2000)
+    excecao_teto_documento_sei: str | None = Field(None, max_length=50)
+
+    @model_validator(mode="after")
+    def _excecao_exige_justificativa_e_documento(self):
+        if self.excecao_teto_vigencia is not None and (
+            not self.excecao_teto_justificativa or not self.excecao_teto_documento_sei
+        ):
+            raise ValueError(
+                "Marcar exceção ao teto de 5 anos exige justificativa e o número do "
+                "documento (parecer jurídico/SEI) que a formaliza."
+            )
+        return self
+
     # Prazo de vigência inicial (Relógio 1) — o teto de 5 anos (Relógio 2) só
     # funciona corretamente se o contrato já nascer com esse marco zero;
     # prorrogações depois entram como novos instrumentos na ficha do contrato.
@@ -110,6 +129,24 @@ class ContratoAtualizar(BaseModel):
     item_patrimonial: str | None = None
     codigo_ccon: str | None = None
     observacoes: str | None = None
+    # Mesma exceção ao teto de 5 anos de ContratoCriar — pode ser marcada
+    # depois da criação (ex.: uma prorrogação revela que o caso se enquadra),
+    # ou desmarcada (envie null para os 3 campos, e a rota também limpa
+    # justificativa/documento nesse caso, mesmo que não reenviados).
+    excecao_teto_vigencia: ExcecaoTetoVigencia | None = None
+    excecao_teto_justificativa: str | None = Field(None, max_length=2000)
+    excecao_teto_documento_sei: str | None = Field(None, max_length=50)
+
+    @model_validator(mode="after")
+    def _excecao_exige_justificativa_e_documento(self):
+        if self.excecao_teto_vigencia is not None and (
+            not self.excecao_teto_justificativa or not self.excecao_teto_documento_sei
+        ):
+            raise ValueError(
+                "Marcar exceção ao teto de 5 anos exige justificativa e o número do "
+                "documento (parecer jurídico/SEI) que a formaliza."
+            )
+        return self
 
 
 class GarantiaCriar(BaseModel):
@@ -214,7 +251,12 @@ class ContratoDetalhado(ContratoSaida):
     saldo_a_pagar: Decimal
     vigencia_inicio: date | None
     vigencia_fim: date | None
-    teto_vigencia: date
+    # Nulo quando o contrato tem exceção registrada (excecao_teto_vigencia) —
+    # a lei remove o teto nesses casos, não impõe um novo.
+    teto_vigencia: date | None
+    excecao_teto_vigencia: ExcecaoTetoVigencia | None
+    excecao_teto_justificativa: str | None
+    excecao_teto_documento_sei: str | None
     # Contagem regressiva até o fim da vigência atual (ou o tempo decorrido,
     # se já venceu). Nula enquanto não houver instrumento de origem.
     tempo_restante_vigencia: TempoRestanteSaida | None = None

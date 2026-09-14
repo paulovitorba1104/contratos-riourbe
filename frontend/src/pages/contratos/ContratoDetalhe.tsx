@@ -9,6 +9,7 @@ import { useAuth } from "../../lib/AuthContext";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type {
   ContratoDetalhado,
+  ExcecaoTetoVigencia,
   Fiscal,
   FormaContratacao,
   Fornecedor,
@@ -23,6 +24,7 @@ import type {
 } from "../../lib/tiposContratos";
 import {
   ROTULOS_ACAO_AUDITORIA,
+  ROTULOS_EXCECAO_TETO,
   ROTULOS_FORMA_CONTRATACAO,
   ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_STATUS_CONTRATO,
@@ -77,10 +79,12 @@ const CORES_STATUS: Record<string, string> = {
 function NovoInstrumentoForm({
   contratoId,
   dataAssinatura,
+  excecaoTetoVigencia,
   aoCriar,
 }: {
   contratoId: string;
   dataAssinatura: string;
+  excecaoTetoVigencia: ExcecaoTetoVigencia | null;
   aoCriar: (c: ContratoDetalhado) => void;
 }) {
   const [tipo, setTipo] = useState<TipoInstrumento>("apostilamento");
@@ -104,14 +108,14 @@ function NovoInstrumentoForm({
    * prorrogação que o teto costuma morder. */
   useEffect(() => {
     const meses = Number(prazoMeses);
-    if (!exigeVigencia || !dataInicioVigencia || !Number.isInteger(meses) || meses < 1 || meses > 120) {
+    if (!exigeVigencia || !dataInicioVigencia || !Number.isInteger(meses) || meses < 1 || meses > 1200) {
       setAvisoTeto(null);
       return;
     }
 
     let cancelado = false;
     apiContratos
-      .calcularVigencia(dataInicioVigencia, meses, dataAssinatura)
+      .calcularVigencia(dataInicioVigencia, meses, dataAssinatura, excecaoTetoVigencia)
       .then((calculo) => {
         if (cancelado) return;
         setDataFimVigencia(calculo.data_fim);
@@ -129,7 +133,7 @@ function NovoInstrumentoForm({
     return () => {
       cancelado = true;
     };
-  }, [dataInicioVigencia, prazoMeses, dataAssinatura, exigeVigencia]);
+  }, [dataInicioVigencia, prazoMeses, dataAssinatura, exigeVigencia, excecaoTetoVigencia]);
 
   async function enviar() {
     setErro(null);
@@ -223,7 +227,7 @@ function NovoInstrumentoForm({
                 id="instrumento_prazo_meses"
                 type="number"
                 min={1}
-                max={120}
+                max={1200}
                 className={campoClasse}
                 value={prazoMeses}
                 onChange={(e) => setPrazoMeses(e.target.value)}
@@ -244,6 +248,12 @@ function NovoInstrumentoForm({
             </div>
           </div>
           {avisoTeto && <p className="text-xs font-medium text-red-600">{avisoTeto}</p>}
+          {excecaoTetoVigencia && (
+            <p className="text-xs text-amber-700">
+              Este contrato tem exceção ao teto de 5 anos ({ROTULOS_EXCECAO_TETO[excecaoTetoVigencia]}) — sem
+              limite de prazo a verificar.
+            </p>
+          )}
         </>
       )}
 
@@ -650,11 +660,25 @@ function EditarContratoForm({
   const [itemPatrimonial, setItemPatrimonial] = useState(contrato.item_patrimonial ?? "");
   const [codigoCcon, setCodigoCcon] = useState(contrato.codigo_ccon ?? "");
   const [observacoes, setObservacoes] = useState(contrato.observacoes ?? "");
+
+  // Exceção ao teto de 5 anos (art. 71, I ou II, da Lei 13.303/16) — semeada
+  // do que o contrato já tem registrado.
+  const [temExcecaoTeto, setTemExcecaoTeto] = useState(contrato.excecao_teto_vigencia !== null);
+  const [excecaoTeto, setExcecaoTeto] = useState<ExcecaoTetoVigencia>(
+    contrato.excecao_teto_vigencia ?? "art_71_ii",
+  );
+  const [excecaoJustificativa, setExcecaoJustificativa] = useState(contrato.excecao_teto_justificativa ?? "");
+  const [excecaoDocumentoSei, setExcecaoDocumentoSei] = useState(contrato.excecao_teto_documento_sei ?? "");
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   async function enviar() {
     setErro(null);
+    if (temExcecaoTeto && (!excecaoJustificativa.trim() || !excecaoDocumentoSei.trim())) {
+      setErro("A exceção ao teto de 5 anos exige justificativa e o número do documento (parecer jurídico/SEI).");
+      return;
+    }
     setEnviando(true);
     try {
       const atualizado = await apiContratos.atualizar(contrato.id, {
@@ -675,6 +699,9 @@ function EditarContratoForm({
         item_patrimonial: itemPatrimonial || null,
         codigo_ccon: codigoCcon || null,
         observacoes: observacoes || null,
+        excecao_teto_vigencia: temExcecaoTeto ? excecaoTeto : null,
+        excecao_teto_justificativa: temExcecaoTeto ? excecaoJustificativa : null,
+        excecao_teto_documento_sei: temExcecaoTeto ? excecaoDocumentoSei : null,
       });
       aoSalvar(atualizado);
     } catch (e) {
@@ -826,6 +853,71 @@ function EditarContratoForm({
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
         />
+      </div>
+
+      <div className="border-t border-slate-200 pt-3">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            id="tem_excecao_teto"
+            type="checkbox"
+            checked={temExcecaoTeto}
+            onChange={(e) => setTemExcecaoTeto(e.target.checked)}
+          />
+          Este contrato tem exceção ao teto de 5 anos (art. 71, Lei 13.303/16)
+        </label>
+        <p className="mt-1 text-xs text-slate-500">
+          Marque só quando o prazo do contrato pode, por lei, ultrapassar 5 anos — ex.: locação de
+          imóvel, cujo prazo longo é prática rotineira de mercado (inciso II). Desmarcar limpa a
+          justificativa e o documento registrados.
+        </p>
+
+        {temExcecaoTeto && (
+          <div className="mt-3 space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="excecao_teto_vigencia">
+                Inciso do art. 71
+              </label>
+              <select
+                id="excecao_teto_vigencia"
+                className={campoClasse}
+                value={excecaoTeto}
+                onChange={(e) => setExcecaoTeto(e.target.value as ExcecaoTetoVigencia)}
+              >
+                {Object.entries(ROTULOS_EXCECAO_TETO).map(([valor, rotulo]) => (
+                  <option key={valor} value={valor}>
+                    {rotulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="excecao_teto_justificativa">
+                Justificativa
+              </label>
+              <textarea
+                id="excecao_teto_justificativa"
+                className={campoClasse}
+                rows={2}
+                value={excecaoJustificativa}
+                onChange={(e) => setExcecaoJustificativa(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-slate-600"
+                htmlFor="excecao_teto_documento_sei"
+              >
+                Documento que formaliza a exceção (parecer jurídico/SEI)
+              </label>
+              <input
+                id="excecao_teto_documento_sei"
+                className={campoClasse}
+                value={excecaoDocumentoSei}
+                onChange={(e) => setExcecaoDocumentoSei(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {erro && <p className="text-sm text-red-600">{erro}</p>}
@@ -1258,7 +1350,21 @@ export function ContratoDetalhe() {
                 {textoTempoRestante(contrato.tempo_restante_vigencia)}
               </p>
             )}
-            <p className="mt-1 text-xs text-slate-500">Teto (5 anos): {contrato.teto_vigencia}</p>
+            {contrato.excecao_teto_vigencia ? (
+              <div className="mt-1 rounded-md bg-amber-50 p-2">
+                <p className="text-xs font-medium text-amber-800">
+                  Sem teto de 5 anos — exceção {ROTULOS_EXCECAO_TETO[contrato.excecao_teto_vigencia]}
+                </p>
+                {contrato.excecao_teto_justificativa && (
+                  <p className="mt-0.5 text-xs text-amber-700">{contrato.excecao_teto_justificativa}</p>
+                )}
+                {contrato.excecao_teto_documento_sei && (
+                  <p className="mt-0.5 text-xs text-amber-700">Doc.: {contrato.excecao_teto_documento_sei}</p>
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">Teto (5 anos): {contrato.teto_vigencia}</p>
+            )}
             <div className="mt-2">
               <BadgeAlerta alerta={contrato.alerta_vigencia} />
             </div>
@@ -1470,6 +1576,7 @@ export function ContratoDetalhe() {
               <NovoInstrumentoForm
                 contratoId={contrato.id}
                 dataAssinatura={contrato.data_assinatura_original}
+                excecaoTetoVigencia={contrato.excecao_teto_vigencia}
                 aoCriar={(c) => {
                   setContrato(c);
                   setMostrarFormInstrumento(false);

@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.contrato import ContratoCriar, InstrumentoOrigemCriar, ProcessoCriar
+from app.schemas.contrato import ContratoAtualizar, ContratoCriar, InstrumentoOrigemCriar, ProcessoCriar
 
 PROCESSO_BASE = dict(numero_processo="SEI-1", sistema_origem="sei_rio", tipo="principal")
 
@@ -83,6 +83,46 @@ def test_contrato_criar_aceita_mais_de_um_processo_apenso():
     assert len(contrato.processos) == 2
     assert contrato.processos[1].sistema_origem == "sicop"
     assert contrato.processos[1].tipo == "apenso"
+
+
+def test_excecao_ao_teto_exige_justificativa_e_documento():
+    """Marcar a exceção sem justificativa ou sem documento SEI é recusado —
+    não pode virar uma exceção sem lastro nenhum."""
+    with pytest.raises(ValidationError):
+        ContratoCriar(
+            **DADOS_BASE,
+            instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+            excecao_teto_vigencia="art_71_ii",
+        )
+    with pytest.raises(ValidationError):
+        ContratoCriar(
+            **DADOS_BASE,
+            instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+            excecao_teto_vigencia="art_71_ii",
+            excecao_teto_justificativa="Locação de imóvel — prazo longo é prática de mercado.",
+        )
+
+
+def test_excecao_ao_teto_aceita_com_justificativa_e_documento():
+    contrato = ContratoCriar(
+        **DADOS_BASE,
+        instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+        excecao_teto_vigencia="art_71_ii",
+        excecao_teto_justificativa="Locação de imóvel — prazo longo é prática de mercado.",
+        excecao_teto_documento_sei="SEI-12345",
+    )
+    assert contrato.excecao_teto_vigencia == "art_71_ii"
+
+
+def test_contrato_atualizar_nao_exige_excecao_quando_nao_informada():
+    """Edição comum (ex.: só objeto) não deve disparar a validação da exceção."""
+    atualizacao = ContratoAtualizar(objeto="Objeto revisado")
+    assert atualizacao.excecao_teto_vigencia is None
+
+
+def test_contrato_atualizar_exige_lastro_ao_marcar_excecao():
+    with pytest.raises(ValidationError):
+        ContratoAtualizar(excecao_teto_vigencia="art_71_i")
 
 
 def test_tempo_restante_do_servico_vira_schema():
