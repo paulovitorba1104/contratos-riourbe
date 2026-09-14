@@ -23,6 +23,11 @@ def _contrato(**overrides) -> Contrato:
         data_assinatura_original=date(2024, 1, 10),
         valor_inicial=Decimal("100000.00"),
         valor_pago=Decimal("0.00"),
+        valor_pago_anterior_sistema=Decimal("0.00"),
+        # Contrato() em memória (sem passar por flush no banco) não aplica o
+        # default=True da coluna — sem isto aqui o valor fica None, e
+        # `not None` também dá True, mascarando o teste do caso comum.
+        faturamento_gerido_pela_gct=True,
     )
     padrao.update(overrides)
     contrato = Contrato(**padrao)

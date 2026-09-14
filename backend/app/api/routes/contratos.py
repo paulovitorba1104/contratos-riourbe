@@ -17,6 +17,7 @@ from app.models.contrato import (
 )
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
+from app.models.faturamento import Fatura
 from app.models.instrumento_processual import InstrumentoProcessual, TipoInstrumento
 from app.models.log_auditoria import LogAuditoria
 from app.models.modelo_ripm import ModeloRipm
@@ -37,6 +38,7 @@ from app.schemas.contrato import (
 from app.schemas.fiscal import FiscalEncerrarVinculo, FiscalVincular, FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualCriar, InstrumentoSubStatusAtualizar
 from app.services import contratos as regras
+from app.services import faturamento as regras_faturamento
 from app.services.auditoria import registrar_log
 
 router = APIRouter(prefix="/contratos", tags=["contratos"])
@@ -90,6 +92,7 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
         ],
         valor_atualizado=regras.calcular_valor_atualizado(contrato),
         saldo_a_pagar=regras.calcular_saldo_a_pagar(contrato),
+        valor_pago_anterior_sistema=contrato.valor_pago_anterior_sistema,
         vigencia_inicio=vigencia_inicio,
         vigencia_fim=vigencia_fim,
         teto_vigencia=regras.teto_vigencia(contrato),
@@ -200,6 +203,10 @@ def criar_contrato(
     contrato = Contrato(
         **dados.model_dump(exclude={"fiscais_ids", "instrumento_origem", "processos"}),
     )
+    # Nenhuma fatura existe ainda para um contrato recém-criado — o valor
+    # pago total começa igual à parte manual informada (0 para contrato
+    # novo; o total já pago, para um contrato antigo entrando no sistema).
+    contrato.valor_pago = contrato.valor_pago_anterior_sistema
     db.add(contrato)
     db.flush()
 
@@ -258,6 +265,11 @@ def atualizar_contrato(
     if "excecao_teto_vigencia" in dados_informados and dados_informados["excecao_teto_vigencia"] is None:
         dados_informados["excecao_teto_justificativa"] = None
         dados_informados["excecao_teto_documento_sei"] = None
+
+    # Devolver o faturamento à GCT (faturamento_gerido_pela_gct = true) limpa
+    # o setor anotado — não faz sentido ficar registrado depois da mudança.
+    if dados_informados.get("faturamento_gerido_pela_gct") is True:
+        dados_informados["setor_responsavel_faturamento"] = None
 
     for campo, valor in dados_informados.items():
         setattr(contrato, campo, valor)
@@ -432,7 +444,18 @@ def atualizar_pagamento(
     usuario: Usuario = Depends(get_current_user),
 ) -> ContratoDetalhado:
     contrato = _carregar_contrato(db, contrato_id)
-    contrato.valor_pago = dados.valor_pago
+    contrato.valor_pago_anterior_sistema = dados.valor_pago_anterior_sistema
+    # Recalcula o total somando ao que as faturas pagas no sistema já cobrem
+    # — nunca sobrescreve essa parte, só a soma à parte manual.
+    faturas = (
+        db.query(Fatura)
+        .options(selectinload(Fatura.glosas))
+        .filter(Fatura.contrato_id == contrato.id)
+        .all()
+    )
+    contrato.valor_pago = regras_faturamento.calcular_valor_pago_total(
+        contrato.valor_pago_anterior_sistema, faturas
+    )
     registrar_log(
         db,
         usuario_id=usuario.id,

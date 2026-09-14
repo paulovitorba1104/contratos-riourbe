@@ -64,6 +64,11 @@ class ContratoCriar(BaseModel):
     forma_contratacao: FormaContratacao
     data_assinatura_original: date
     valor_inicial: Decimal = Field(..., gt=0)
+    # Contratos antigos que estão entrando no sistema agora, não vale a pena
+    # lançar fatura por fatura do que já foi pago — lança-se esse total de
+    # uma vez aqui, e o faturamento (módulo Faturamento) passa a valer só
+    # daqui para frente. Em contrato genuinamente novo, fica 0 (padrão).
+    valor_pago_anterior_sistema: Decimal = Field(Decimal("0"), ge=0)
     nota_reserva: str | None = None
     nota_empenho: str | None = None
     pt: str | None = None
@@ -80,6 +85,11 @@ class ContratoCriar(BaseModel):
     excecao_teto_vigencia: ExcecaoTetoVigencia | None = None
     excecao_teto_justificativa: str | None = Field(None, max_length=2000)
     excecao_teto_documento_sei: str | None = Field(None, max_length=50)
+    # Nem todo contrato é faturado pela Gerência de Contratos (ex.: benefícios
+    # são faturados pelo RH, jurídicos pela AJU). Quando falso, este contrato
+    # não entra no módulo de Faturamento — a GCT só gerencia prazo/renovação.
+    faturamento_gerido_pela_gct: bool = True
+    setor_responsavel_faturamento: str | None = Field(None, max_length=100)
 
     @model_validator(mode="after")
     def _excecao_exige_justificativa_e_documento(self):
@@ -89,6 +99,15 @@ class ContratoCriar(BaseModel):
             raise ValueError(
                 "Marcar exceção ao teto de 5 anos exige justificativa e o número do "
                 "documento (parecer jurídico/SEI) que a formaliza."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _setor_responsavel_quando_nao_e_gct(self):
+        if not self.faturamento_gerido_pela_gct and not (self.setor_responsavel_faturamento or "").strip():
+            raise ValueError(
+                "Informe o setor responsável pelo faturamento quando ele não é feito pela "
+                "Gerência de Contratos."
             )
         return self
 
@@ -119,7 +138,9 @@ class ContratoAtualizar(BaseModel):
     forma_contratacao: FormaContratacao | None = None
     data_assinatura_original: date | None = None
     valor_inicial: Decimal | None = Field(None, gt=0)
-    valor_pago: Decimal | None = Field(None, ge=0)
+    # valor_pago não é editável aqui — ele é sempre calculado (nunca digitado
+    # direto), soma de valor_pago_anterior_sistema com o que as faturas pagas
+    # no sistema cobrem. Ajuste pelo endpoint dedicado `/pagamento`.
     nota_reserva: str | None = None
     nota_empenho: str | None = None
     pt: str | None = None
@@ -136,6 +157,11 @@ class ContratoAtualizar(BaseModel):
     excecao_teto_vigencia: ExcecaoTetoVigencia | None = None
     excecao_teto_justificativa: str | None = Field(None, max_length=2000)
     excecao_teto_documento_sei: str | None = Field(None, max_length=50)
+    # Mesma regra de setor responsável de ContratoCriar — envie
+    # faturamento_gerido_pela_gct=true para devolver o faturamento à GCT (a
+    # rota também limpa setor_responsavel_faturamento nesse caso).
+    faturamento_gerido_pela_gct: bool | None = None
+    setor_responsavel_faturamento: str | None = Field(None, max_length=100)
 
     @model_validator(mode="after")
     def _excecao_exige_justificativa_e_documento(self):
@@ -145,6 +171,15 @@ class ContratoAtualizar(BaseModel):
             raise ValueError(
                 "Marcar exceção ao teto de 5 anos exige justificativa e o número do "
                 "documento (parecer jurídico/SEI) que a formaliza."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _setor_responsavel_quando_nao_e_gct(self):
+        if self.faturamento_gerido_pela_gct is False and not (self.setor_responsavel_faturamento or "").strip():
+            raise ValueError(
+                "Informe o setor responsável pelo faturamento quando ele não é feito pela "
+                "Gerência de Contratos."
             )
         return self
 
@@ -212,7 +247,13 @@ class LogAuditoriaSaida(BaseModel):
 
 
 class ContratoAtualizarPagamento(BaseModel):
-    valor_pago: Decimal = Field(..., ge=0)
+    """Ajusta só a parte manual do valor pago — o que foi pago fora do
+    controle de faturas deste sistema (histórico anterior à entrada do
+    contrato no sistema, ou o total de um contrato cujo faturamento é de
+    outro setor). O valor pago total exibido soma isto com o que as faturas
+    pagas no sistema já cobrem — nunca substitui, sempre soma."""
+
+    valor_pago_anterior_sistema: Decimal = Field(..., ge=0)
 
 
 class ContratoSaida(BaseModel):
@@ -241,6 +282,10 @@ class ContratoSaida(BaseModel):
     # precisam ser visíveis no Kanban, não só na ficha do contrato.
     alerta_vigencia: str | None
     alerta_garantia: str | None
+    # Também na listagem — a tela de Nova fatura precisa saber quais
+    # contratos aceitam fatura sem abrir cada um; o Kanban usa para o selo.
+    faturamento_gerido_pela_gct: bool
+    setor_responsavel_faturamento: str | None
 
     model_config = {"from_attributes": True}
 
@@ -249,6 +294,10 @@ class ContratoDetalhado(ContratoSaida):
     fiscais: list[FiscalVinculoSaida]
     valor_atualizado: Decimal
     saldo_a_pagar: Decimal
+    # Parte manual do valor pago (ver ContratoAtualizarPagamento) — a tela de
+    # edição pré-carrega o box de ajuste a partir daqui, não de valor_pago
+    # (que já inclui as faturas pagas no sistema).
+    valor_pago_anterior_sistema: Decimal
     vigencia_inicio: date | None
     vigencia_fim: date | None
     # Nulo quando o contrato tem exceção registrada (excecao_teto_vigencia) —

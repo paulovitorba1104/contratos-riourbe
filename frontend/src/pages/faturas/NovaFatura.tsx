@@ -35,9 +35,28 @@ export function NovaFatura() {
   useEffect(() => {
     apiContratos
       .listar()
-      .then(setContratos)
+      .then((todos) => {
+        setContratos(todos);
+        const idPreSelecionado = parametros.get("contrato");
+        if (idPreSelecionado) {
+          const contrato = todos.find((c) => c.id === idPreSelecionado);
+          if (contrato && !contrato.faturamento_gerido_pela_gct) {
+            setErro(
+              `O faturamento do contrato ${contrato.numero_contrato} é feito por ` +
+                `${contrato.setor_responsavel_faturamento || "outro setor"}, não pela Gerência de ` +
+                "Contratos — não é possível registrar fatura para ele aqui.",
+            );
+            setContratoId("");
+          }
+        }
+      })
       .catch(() => setErro("Não foi possível carregar os contratos."));
-  }, []);
+  }, [parametros]);
+
+  // Só contratos cujo faturamento é feito pela GCT aceitam fatura — os
+  // demais (benefícios pelo RH, jurídicos pela AJU etc.) a GCT só gerencia
+  // prazo e renovação, o faturamento roda em outro lugar.
+  const contratosFaturaveis = contratos.filter((c) => c.faturamento_gerido_pela_gct);
 
   // Só as medições aprovadas e ainda não usadas por outra nota entram na lista.
   useEffect(() => {
@@ -110,7 +129,7 @@ export function NovaFatura() {
               required
             >
               <option value="">Selecione...</option>
-              {contratos.map((c) => (
+              {contratosFaturaveis.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.numero_contrato} — {c.tipo_servico}
                 </option>

@@ -171,6 +171,11 @@ export interface Contrato {
   processos: Processo[];
   alerta_vigencia: NivelAlerta | null;
   alerta_garantia: NivelAlerta | null;
+  // Nem todo contrato é faturado pela GCT (benefícios são faturados pelo RH,
+  // jurídicos pela AJU, por exemplo). Falso bloqueia fatura no módulo de
+  // Faturamento — a GCT só gerencia prazo e renovação desse contrato.
+  faturamento_gerido_pela_gct: boolean;
+  setor_responsavel_faturamento: string | null;
 }
 
 export interface LogAuditoria {
@@ -209,6 +214,11 @@ export interface ContratoDetalhado extends Contrato {
   fiscais: FiscalVinculo[];
   valor_atualizado: string;
   saldo_a_pagar: string;
+  // Parte manual do valor pago (histórico anterior à entrada no sistema, ou
+  // total de contrato cujo faturamento é de outro setor) — a tela de edição
+  // pré-carrega o ajuste a partir daqui, não de valor_pago (que já soma as
+  // faturas pagas no sistema).
+  valor_pago_anterior_sistema: string;
   vigencia_inicio: string | null;
   vigencia_fim: string | null;
   // Nulo quando o contrato tem exceção registrada — a lei remove o teto
@@ -254,6 +264,11 @@ export interface NovoContratoPayload {
   excecao_teto_vigencia?: ExcecaoTetoVigencia | null;
   excecao_teto_justificativa?: string | null;
   excecao_teto_documento_sei?: string | null;
+  faturamento_gerido_pela_gct?: boolean;
+  setor_responsavel_faturamento?: string | null;
+  // Contrato antigo entrando no sistema agora: total já pago lançado de uma
+  // vez, sem fatura por fatura. Fica 0 (padrão do backend) em contrato novo.
+  valor_pago_anterior_sistema?: string;
 }
 
 export interface ContratoAtualizarPayload {
@@ -264,7 +279,8 @@ export interface ContratoAtualizarPayload {
   forma_contratacao?: FormaContratacao;
   data_assinatura_original?: string;
   valor_inicial?: string;
-  valor_pago?: string;
+  // valor_pago não é editável aqui — sempre calculado. Ajuste pelo endpoint
+  // dedicado (apiContratos.atualizarPagamento).
   nota_reserva?: string | null;
   nota_empenho?: string | null;
   pt?: string | null;
@@ -277,6 +293,8 @@ export interface ContratoAtualizarPayload {
   excecao_teto_vigencia?: ExcecaoTetoVigencia | null;
   excecao_teto_justificativa?: string | null;
   excecao_teto_documento_sei?: string | null;
+  faturamento_gerido_pela_gct?: boolean;
+  setor_responsavel_faturamento?: string | null;
 }
 
 export interface NovoInstrumentoPayload {

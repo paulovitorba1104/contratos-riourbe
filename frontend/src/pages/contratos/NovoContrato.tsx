@@ -71,6 +71,17 @@ export function NovoContrato() {
   const [excecaoJustificativa, setExcecaoJustificativa] = useState("");
   const [excecaoDocumentoSei, setExcecaoDocumentoSei] = useState("");
 
+  // Nem todo contrato é faturado pela GCT (benefícios pelo RH, jurídicos pela
+  // AJU, por exemplo) — desmarcado, o contrato não entra no módulo de
+  // Faturamento, a GCT só gerencia prazo e renovação dele.
+  const [faturamentoPelaGct, setFaturamentoPelaGct] = useState(true);
+  const [setorResponsavelFaturamento, setSetorResponsavelFaturamento] = useState("");
+
+  // Contrato antigo entrando no sistema agora: total já pago até hoje,
+  // lançado de uma vez — não vale a pena lançar fatura por fatura do
+  // histórico. Fica 0,00 (padrão) em contrato genuinamente novo.
+  const [valorPagoAnteriorSistema, setValorPagoAnteriorSistema] = useState("");
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -196,6 +207,10 @@ export function NovoContrato() {
       setErro("A exceção ao teto de 5 anos exige justificativa e o número do documento (parecer jurídico/SEI).");
       return;
     }
+    if (!faturamentoPelaGct && !setorResponsavelFaturamento.trim()) {
+      setErro("Informe o setor responsável pelo faturamento quando ele não é feito pela Gerência de Contratos.");
+      return;
+    }
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
@@ -216,6 +231,11 @@ export function NovoContrato() {
         },
         processos,
         fiscais_ids: fiscaisSelecionados,
+        faturamento_gerido_pela_gct: faturamentoPelaGct,
+        setor_responsavel_faturamento: faturamentoPelaGct ? null : setorResponsavelFaturamento,
+        valor_pago_anterior_sistema: valorPagoAnteriorSistema
+          ? moedaParaNumero(valorPagoAnteriorSistema)
+          : undefined,
         ...(temExcecaoTeto
           ? {
               excecao_teto_vigencia: excecaoTeto,
@@ -425,6 +445,37 @@ export function NovoContrato() {
             </select>
           </div>
 
+          <div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                id="faturamento_gerido_pela_gct"
+                type="checkbox"
+                checked={faturamentoPelaGct}
+                onChange={(e) => setFaturamentoPelaGct(e.target.checked)}
+              />
+              O faturamento deste contrato é feito pela Gerência de Contratos
+            </label>
+            <p className="mt-1 text-xs text-slate-500">
+              Desmarque para contrato cujo faturamento é de outro setor (ex.: benefícios pelo RH,
+              jurídicos pela AJU) — aqui a GCT só gerencia prazo e renovação; o contrato não entra
+              no módulo de Faturamento.
+            </p>
+            {!faturamentoPelaGct && (
+              <div className="mt-2">
+                <label className={rotuloClasse} htmlFor="setor_responsavel_faturamento">
+                  Setor responsável pelo faturamento
+                </label>
+                <input
+                  id="setor_responsavel_faturamento"
+                  className={campoClasse}
+                  value={setorResponsavelFaturamento}
+                  onChange={(e) => setSetorResponsavelFaturamento(e.target.value)}
+                  placeholder="ex.: RH, AJU"
+                />
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={rotuloClasse} htmlFor="data_assinatura">
@@ -454,6 +505,26 @@ export function NovoContrato() {
                 required
               />
             </div>
+          </div>
+
+          <div>
+            <label className={rotuloClasse} htmlFor="valor_pago_anterior_sistema">
+              Valor já pago (opcional)
+            </label>
+            <input
+              id="valor_pago_anterior_sistema"
+              type="text"
+              inputMode="numeric"
+              placeholder="0,00"
+              className={campoClasse}
+              value={valorPagoAnteriorSistema}
+              onChange={(e) => setValorPagoAnteriorSistema(mascararMoeda(e.target.value))}
+            />
+            <p className="field-hint">
+              Só para contrato que já vem de antes deste sistema: lance aqui o total já pago até
+              hoje, de uma vez — não é preciso lançar fatura por fatura do histórico. A partir de
+              agora, registre as próximas faturas pelo módulo de Faturamento normalmente.
+            </p>
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">

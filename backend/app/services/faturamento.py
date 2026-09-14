@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from app.core.tempo import hoje_brasilia
 from app.models.contrato import Contrato, StatusContrato
 from app.models.faturamento import (
     Fatura,
@@ -120,15 +121,34 @@ def faturas_consomem_contrato(faturas: list[Fatura]) -> Decimal:
 
 
 def total_pago(faturas: list[Fatura]) -> Decimal:
-    """Quanto já foi efetivamente pago — é o que alimenta o valor pago do
-    contrato, aposentando o lançamento manual."""
+    """Quanto já foi efetivamente pago pelas faturas registradas no sistema —
+    é a parte automática do valor pago do contrato. Não é o total: some com
+    `calcular_valor_pago_total` para chegar no valor pago de verdade."""
     return sum((valor_executado(f) for f in faturas if f.status == StatusFatura.PAGA), Decimal("0"))
+
+
+def calcular_valor_pago_total(valor_pago_anterior_sistema: Decimal, faturas: list[Fatura]) -> Decimal:
+    """Valor pago total do contrato: o que veio de fora do controle de
+    faturas deste sistema (histórico anterior à entrada do contrato no
+    sistema, ou o total de um contrato cujo faturamento é de outro setor)
+    somado ao que as faturas pagas aqui dentro já cobrem.
+
+    Sempre soma, nunca sobrescreve — é o que evita um lançamento manual de
+    saldo inicial (ex.: contrato antigo entrando no sistema) ser apagado
+    assim que a primeira fatura nova for paga."""
+    return _dec(valor_pago_anterior_sistema) + total_pago(faturas)
 
 
 def validar_contrato_aceita_fatura(contrato: Contrato) -> None:
     if contrato.status == StatusContrato.ENCERRADO:
         raise RegraFaturamentoError(
             "Contrato encerrado não aceita novas faturas."
+        )
+    if not contrato.faturamento_gerido_pela_gct:
+        setor = contrato.setor_responsavel_faturamento or "outro setor"
+        raise RegraFaturamentoError(
+            f"O faturamento deste contrato não é feito pela Gerência de Contratos "
+            f"(é gerido por {setor}) — aqui só é feita a gestão de prazo e renovação dele."
         )
 
 
@@ -263,7 +283,7 @@ class AlertasFatura:
 def calcular_alertas(fatura: Fatura, hoje: date | None = None) -> AlertasFatura:
     """Mesma filosofia dos relógios do Contratos: avisar antes de virar
     problema. Fatura já paga ou fora do fluxo não alerta vencimento."""
-    hoje = hoje or date.today()
+    hoje = hoje or hoje_brasilia()
 
     alerta_vencimento: str | None = None
     if fatura.data_vencimento and fatura.status not in STATUS_TERMINAIS:

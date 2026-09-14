@@ -1,11 +1,11 @@
 import uuid
-from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import exigir_administrador, get_current_user
+from app.core.tempo import hoje_brasilia
 from app.db.session import get_db
 from app.models.contrato import Contrato, ContratoFiscal
 from app.models.faturamento import (
@@ -171,12 +171,15 @@ def _erro_regra(exc: Exception) -> HTTPException:
 
 
 def _sincronizar_valor_pago(db: Session, contrato: Contrato) -> None:
-    """O valor pago do contrato passa a ser consequência das faturas pagas —
-    aposenta o lançamento manual. Retenção não reduz execução; glosa reduz."""
+    """O valor pago do contrato soma o que as faturas pagas no sistema cobrem
+    com valor_pago_anterior_sistema (histórico anterior à entrada do
+    contrato no sistema, ou o total de um contrato cujo faturamento é de
+    outro setor) — nunca sobrescreve essa parte manual, só soma a ela.
+    Retenção não reduz execução; glosa reduz."""
     faturas = db.query(Fatura).options(selectinload(Fatura.glosas)).filter(
         Fatura.contrato_id == contrato.id
     ).all()
-    contrato.valor_pago = regras.total_pago(faturas)
+    contrato.valor_pago = regras.calcular_valor_pago_total(contrato.valor_pago_anterior_sistema, faturas)
 
 
 # --------------------------------------------------------------------------
@@ -554,7 +557,7 @@ def registrar_conferencia(
         fatura,
         usuario,
         TipoEventoFatura.CONFERENCIA,
-        RegistrarEvento(data_evento=date.today(), observacoes=dados.observacoes),
+        RegistrarEvento(data_evento=hoje_brasilia(), observacoes=dados.observacoes),
     )
     db.commit()
     return _para_detalhada(db, _carregar_fatura(db, fatura_id))

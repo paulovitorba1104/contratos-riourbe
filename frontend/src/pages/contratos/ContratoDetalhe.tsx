@@ -650,7 +650,8 @@ function EditarContratoForm({
   const [formaContratacao, setFormaContratacao] = useState<FormaContratacao>(contrato.forma_contratacao);
   const [dataAssinatura, setDataAssinatura] = useState(contrato.data_assinatura_original);
   const [valorInicial, setValorInicial] = useState(formatarMoedaInicial(contrato.valor_inicial));
-  const [valorPago, setValorPago] = useState(formatarMoedaInicial(contrato.valor_pago));
+  // Valor pago não se edita aqui — é sempre calculado (histórico + faturas
+  // pagas no sistema). Ajuste pelo box dedicado no card "Financeiro".
   const [notaReserva, setNotaReserva] = useState(contrato.nota_reserva ?? "");
   const [notaEmpenho, setNotaEmpenho] = useState(contrato.nota_empenho ?? "");
   const [pt, setPt] = useState(contrato.pt ?? "");
@@ -670,6 +671,12 @@ function EditarContratoForm({
   const [excecaoJustificativa, setExcecaoJustificativa] = useState(contrato.excecao_teto_justificativa ?? "");
   const [excecaoDocumentoSei, setExcecaoDocumentoSei] = useState(contrato.excecao_teto_documento_sei ?? "");
 
+  // Setor responsável pelo faturamento — semeado do que o contrato já tem.
+  const [faturamentoPelaGct, setFaturamentoPelaGct] = useState(contrato.faturamento_gerido_pela_gct);
+  const [setorResponsavelFaturamento, setSetorResponsavelFaturamento] = useState(
+    contrato.setor_responsavel_faturamento ?? "",
+  );
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -677,6 +684,10 @@ function EditarContratoForm({
     setErro(null);
     if (temExcecaoTeto && (!excecaoJustificativa.trim() || !excecaoDocumentoSei.trim())) {
       setErro("A exceção ao teto de 5 anos exige justificativa e o número do documento (parecer jurídico/SEI).");
+      return;
+    }
+    if (!faturamentoPelaGct && !setorResponsavelFaturamento.trim()) {
+      setErro("Informe o setor responsável pelo faturamento quando ele não é feito pela Gerência de Contratos.");
       return;
     }
     setEnviando(true);
@@ -689,7 +700,6 @@ function EditarContratoForm({
         forma_contratacao: formaContratacao,
         data_assinatura_original: dataAssinatura,
         valor_inicial: moedaParaNumero(valorInicial),
-        valor_pago: moedaParaNumero(valorPago),
         nota_reserva: notaReserva || null,
         nota_empenho: notaEmpenho || null,
         pt: pt || null,
@@ -702,6 +712,8 @@ function EditarContratoForm({
         excecao_teto_vigencia: temExcecaoTeto ? excecaoTeto : null,
         excecao_teto_justificativa: temExcecaoTeto ? excecaoJustificativa : null,
         excecao_teto_documento_sei: temExcecaoTeto ? excecaoDocumentoSei : null,
+        faturamento_gerido_pela_gct: faturamentoPelaGct,
+        setor_responsavel_faturamento: faturamentoPelaGct ? null : setorResponsavelFaturamento,
       });
       aoSalvar(atualizado);
     } catch (e) {
@@ -765,7 +777,7 @@ function EditarContratoForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Data de assinatura original</label>
           <input
@@ -786,17 +798,39 @@ function EditarContratoForm({
             onChange={(e) => setValorInicial(mascararMoeda(e.target.value))}
           />
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Valor pago</label>
+      </div>
+      <p className="text-xs text-slate-500">
+        O valor pago se ajusta no card "Financeiro" da ficha, não aqui.
+      </p>
+
+      <div className="border-t border-slate-200 pt-3">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
-            type="text"
-            inputMode="numeric"
-            placeholder="0,00"
-            className={campoClasse}
-            value={valorPago}
-            onChange={(e) => setValorPago(mascararMoeda(e.target.value))}
+            id="faturamento_gerido_pela_gct"
+            type="checkbox"
+            checked={faturamentoPelaGct}
+            onChange={(e) => setFaturamentoPelaGct(e.target.checked)}
           />
-        </div>
+          O faturamento deste contrato é feito pela Gerência de Contratos
+        </label>
+        <p className="mt-1 text-xs text-slate-500">
+          Desmarque para contrato cujo faturamento é de outro setor (ex.: benefícios pelo RH,
+          jurídicos pela AJU) — aqui a GCT só gerencia prazo e renovação; o contrato sai do
+          módulo de Faturamento.
+        </p>
+        {!faturamentoPelaGct && (
+          <div className="mt-2">
+            <label className="mb-1 block text-xs font-medium text-slate-600">
+              Setor responsável pelo faturamento
+            </label>
+            <input
+              className={campoClasse}
+              value={setorResponsavelFaturamento}
+              onChange={(e) => setSetorResponsavelFaturamento(e.target.value)}
+              placeholder="ex.: RH, AJU"
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -945,7 +979,15 @@ function EditarContratoForm({
 
 /** A ponte visível entre Contratos e Faturamento: as faturas daquele contrato,
  * em que etapa cada uma está e quanto já foi pago. */
-function FaturasDoContrato({ contratoId }: { contratoId: string }) {
+function FaturasDoContrato({
+  contratoId,
+  faturamentoPelaGct,
+  setorResponsavel,
+}: {
+  contratoId: string;
+  faturamentoPelaGct: boolean;
+  setorResponsavel: string | null;
+}) {
   const [faturas, setFaturas] = useState<Fatura[] | null>(null);
 
   useEffect(() => {
@@ -970,10 +1012,20 @@ function FaturasDoContrato({ contratoId }: { contratoId: string }) {
             </span>
           )}
         </h2>
-        <Link to={`/faturas/nova?contrato=${contratoId}`} className="btn-secondary btn-sm">
-          + Nova fatura
-        </Link>
+        {faturamentoPelaGct && (
+          <Link to={`/faturas/nova?contrato=${contratoId}`} className="btn-secondary btn-sm">
+            + Nova fatura
+          </Link>
+        )}
       </div>
+
+      {!faturamentoPelaGct && (
+        <p className="mb-3 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
+          O faturamento deste contrato é feito por {setorResponsavel || "outro setor"}, não pela
+          Gerência de Contratos — aqui só a gestão de prazo e renovação. Novas faturas não podem
+          ser registradas neste sistema para este contrato.
+        </p>
+      )}
 
       {faturas === null && <p className="text-sm text-slate-500">Carregando...</p>}
       {faturas?.length === 0 && (
@@ -1031,6 +1083,8 @@ export function ContratoDetalhe() {
   const [erro, setErro] = useState<string | null>(null);
   const { mostrarToast } = useToast();
 
+  // Pré-carrega do valor_pago_anterior_sistema (a parte manual), não do
+  // valor_pago total — que já soma as faturas pagas no sistema.
   const [valorPagoEdicao, setValorPagoEdicao] = useState("");
 
   function carregar() {
@@ -1039,7 +1093,7 @@ export function ContratoDetalhe() {
       .obter(id)
       .then((c) => {
         setContrato(c);
-        setValorPagoEdicao(formatarMoedaInicial(c.valor_pago));
+        setValorPagoEdicao(formatarMoedaInicial(c.valor_pago_anterior_sistema));
       })
       .catch(() => setErro("Não foi possível carregar o contrato."));
   }
@@ -1204,6 +1258,14 @@ export function ContratoDetalhe() {
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CORES_STATUS[contrato.status]}`}>
                 {ROTULOS_STATUS_CONTRATO[contrato.status]}
               </span>
+              {!contrato.faturamento_gerido_pela_gct && (
+                <span
+                  className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+                  title="A GCT só gerencia prazo e renovação deste contrato — o faturamento é de outro setor."
+                >
+                  Faturamento: {contrato.setor_responsavel_faturamento || "outro setor"}
+                </span>
+              )}
             </div>
             <p className="text-sm text-slate-600">
               {contrato.tipo_servico} · {processoResumo(contrato.processos)} ·{" "}
@@ -1455,21 +1517,32 @@ export function ContratoDetalhe() {
               <p className="font-medium text-slate-900">{formatarMoeda(contrato.saldo_a_pagar)}</p>
             </div>
           </div>
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="0,00"
-              className={campoClasse}
-              value={valorPagoEdicao}
-              onChange={(e) => setValorPagoEdicao(mascararMoeda(e.target.value))}
-            />
-            <button
-              onClick={salvarPagamento}
-              className="btn-secondary btn-sm"
-            >
-              Atualizar valor pago
-            </button>
+          <div className="mt-3">
+            <label className="mb-1 block text-xs font-medium text-slate-600">
+              Valor pago fora do controle de faturas deste sistema
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="0,00"
+                className={campoClasse}
+                value={valorPagoEdicao}
+                onChange={(e) => setValorPagoEdicao(mascararMoeda(e.target.value))}
+              />
+              <button
+                onClick={salvarPagamento}
+                className="btn-secondary btn-sm"
+              >
+                Ajustar
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Total já pago antes de este contrato entrar no controle de faturas do sistema, ou —
+              quando o faturamento é de outro setor — o valor total pago, atualizado à mão. Soma-se
+              ao que as faturas pagas aqui dentro já cobrem para formar o "Valor pago" acima; nunca
+              o substitui.
+            </p>
           </div>
         </section>
 
@@ -1643,7 +1716,11 @@ export function ContratoDetalhe() {
           </div>
         </section>
 
-        <FaturasDoContrato contratoId={contrato.id} />
+        <FaturasDoContrato
+          contratoId={contrato.id}
+          faturamentoPelaGct={contrato.faturamento_gerido_pela_gct}
+          setorResponsavel={contrato.setor_responsavel_faturamento}
+        />
 
         <section className="card p-5">
           <div className="flex items-center justify-between">

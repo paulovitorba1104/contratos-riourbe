@@ -108,9 +108,28 @@ class Contrato(Base):
     excecao_teto_justificativa: Mapped[str | None] = mapped_column(Text, nullable=True)
     excecao_teto_documento_sei: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # Nem todo contrato é faturado pela Gerência de Contratos — benefícios são
+    # faturados pelo RH, jurídicos pela AJU, por exemplo. Quando falso, este
+    # contrato não entra no módulo de Faturamento: a GCT só gerencia prazo e
+    # renovação dele, o faturamento é responsabilidade de outro setor.
+    faturamento_gerido_pela_gct: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    setor_responsavel_faturamento: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     # Financeiro
     valor_inicial: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False)
+    # Total pago: soma do que veio de fora do controle de faturas deste
+    # sistema (valor_pago_anterior_sistema — histórico de contrato antigo, ou
+    # o total de um contrato cujo faturamento é de outro setor) com o que as
+    # faturas pagas aqui dentro já cobrem. Nunca editado diretamente fora
+    # dessa soma — ver `atualizar_pagamento` e `_sincronizar_valor_pago`.
     valor_pago: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False, default=0)
+    # Parte manual do valor pago: o que foi pago antes deste contrato entrar
+    # no controle de faturas do sistema (não vale a pena lançar retroativo
+    # fatura por fatura de um contrato antigo — lança-se esse total de uma
+    # vez e o faturamento passa a valer só daqui para frente) ou, quando
+    # faturamento_gerido_pela_gct é falso, o valor total pago, atualizado à
+    # mão porque nunca haverá fatura deste contrato no sistema.
+    valor_pago_anterior_sistema: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False, default=0)
     # Obras e serviços continuados medem o período executado antes de o
     # fornecedor emitir a nota; compra pontual não. Quando marcado, o módulo
     # de Faturamento só aceita fatura vinculada a uma medição aprovada.

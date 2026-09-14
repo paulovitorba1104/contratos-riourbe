@@ -34,10 +34,14 @@ export const apiContratos = {
       method: "POST",
       body: JSON.stringify(dados),
     }),
-  atualizarPagamento: (id: string, valor_pago: string) =>
+  /** Ajusta só a parte manual do valor pago (histórico anterior à entrada no
+   * sistema, ou total de um contrato cujo faturamento é de outro setor) — o
+   * backend soma isso ao que as faturas pagas no sistema já cobrem, nunca
+   * substitui. */
+  atualizarPagamento: (id: string, valor_pago_anterior_sistema: string) =>
     requisicao<ContratoDetalhado>(`/contratos/${id}/pagamento`, {
       method: "PATCH",
-      body: JSON.stringify({ valor_pago }),
+      body: JSON.stringify({ valor_pago_anterior_sistema }),
     }),
   adicionarFiscal: (contratoId: string, fiscal_id: string, data_inicio: string) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/fiscais`, {
