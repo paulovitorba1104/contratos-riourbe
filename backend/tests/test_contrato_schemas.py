@@ -125,6 +125,46 @@ def test_contrato_atualizar_exige_lastro_ao_marcar_excecao():
         ContratoAtualizar(excecao_teto_vigencia="art_71_i")
 
 
+def test_contrato_criar_exige_setor_quando_faturamento_nao_e_da_gct():
+    with pytest.raises(ValidationError):
+        ContratoCriar(
+            **DADOS_BASE,
+            instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+            faturamento_gerido_pela_gct=False,
+        )
+
+
+def test_contrato_criar_aceita_faturamento_de_outro_setor_com_setor_informado():
+    contrato = ContratoCriar(
+        **DADOS_BASE,
+        instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+        faturamento_gerido_pela_gct=False,
+        setor_responsavel_faturamento="RH",
+    )
+    assert contrato.setor_responsavel_faturamento == "RH"
+
+
+def test_contrato_criar_faturamento_pela_gct_e_o_padrao():
+    contrato = ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE)
+    assert contrato.faturamento_gerido_pela_gct is True
+    assert contrato.setor_responsavel_faturamento is None
+
+
+def test_contrato_criar_valor_pago_anterior_sistema_padrao_e_zero():
+    contrato = ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE)
+    assert contrato.valor_pago_anterior_sistema == Decimal("0")
+
+
+def test_contrato_atualizar_exige_setor_ao_marcar_faturamento_de_outro_setor():
+    with pytest.raises(ValidationError):
+        ContratoAtualizar(faturamento_gerido_pela_gct=False)
+
+
+def test_contrato_atualizar_nao_exige_setor_quando_nao_mexe_no_faturamento():
+    atualizacao = ContratoAtualizar(objeto="Objeto revisado")
+    assert atualizacao.faturamento_gerido_pela_gct is None
+
+
 def test_tempo_restante_do_servico_vira_schema():
     """O serviço devolve um dataclass e a ficha do contrato o serializa — sem
     `from_attributes` isso quebra o GET do contrato inteiro, não só o campo."""

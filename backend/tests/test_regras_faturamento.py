@@ -34,7 +34,12 @@ def _contrato(**overrides) -> Contrato:
         data_assinatura_original=date(2026, 1, 10),
         valor_inicial=Decimal("100000.00"),
         valor_pago=Decimal("0.00"),
+        valor_pago_anterior_sistema=Decimal("0.00"),
         exige_medicao=False,
+        # Contrato() em memória (sem passar por flush no banco) não aplica o
+        # default=True da coluna — sem isto aqui o valor fica None, e
+        # `not None` também dá True, mascarando o teste do caso comum.
+        faturamento_gerido_pela_gct=True,
     )
     padrao.update(overrides)
     contrato = Contrato(**padrao)
@@ -146,6 +151,41 @@ def test_saldo_aceita_fatura_dentro_do_limite():
 def test_contrato_encerrado_nao_aceita_fatura():
     with pytest.raises(regras.RegraFaturamentoError):
         regras.validar_contrato_aceita_fatura(_contrato(status=StatusContrato.ENCERRADO))
+
+
+def test_contrato_vigente_gerido_pela_gct_aceita_fatura():
+    regras.validar_contrato_aceita_fatura(_contrato())  # não deve levantar
+
+
+def test_contrato_gerido_por_outro_setor_nao_aceita_fatura():
+    """Benefícios são faturados pelo RH, jurídicos pela AJU — a GCT só
+    gerencia prazo e renovação desses contratos, não faz o faturamento."""
+    contrato = _contrato(faturamento_gerido_pela_gct=False, setor_responsavel_faturamento="RH")
+    with pytest.raises(regras.RegraFaturamentoError, match="RH"):
+        regras.validar_contrato_aceita_fatura(contrato)
+
+
+# --------------------------------------------------------------------------
+# Valor pago total (histórico anterior ao sistema + faturas pagas aqui)
+# --------------------------------------------------------------------------
+def test_valor_pago_total_soma_historico_anterior_com_faturas_pagas():
+    """O ponto central do go-live de um contrato antigo: lançar o total já
+    pago de uma vez (valor_pago_anterior_sistema) e, dali para frente, cada
+    fatura nova paga no sistema soma a esse total — nunca o substitui."""
+    paga = _fatura(valor_bruto=Decimal("1000.00"), status=StatusFatura.PAGA)
+    total = regras.calcular_valor_pago_total(Decimal("50000.00"), [paga])
+    assert total == Decimal("51000.00")
+
+
+def test_valor_pago_total_sem_faturas_e_so_o_historico():
+    """Contrato cujo faturamento é de outro setor: nunca terá fatura no
+    sistema, então o total pago é sempre só a parte lançada à mão."""
+    assert regras.calcular_valor_pago_total(Decimal("20000.00"), []) == Decimal("20000.00")
+
+
+def test_valor_pago_total_nao_soma_fatura_nao_paga():
+    nao_paga = _fatura(valor_bruto=Decimal("1000.00"), status=StatusFatura.ATESTADA)
+    assert regras.calcular_valor_pago_total(Decimal("50000.00"), [nao_paga]) == Decimal("50000.00")
 
 
 # --------------------------------------------------------------------------

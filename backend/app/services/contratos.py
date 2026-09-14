@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 
+from app.core.tempo import hoje_brasilia
 from app.models.contrato import Contrato, StatusContrato
 from app.models.instrumento_processual import (
     TIPOS_QUE_DEFINEM_VIGENCIA,
@@ -103,7 +104,7 @@ class TempoRestante:
 def tempo_restante(data_limite: date | None, hoje: date | None = None) -> TempoRestante | None:
     if data_limite is None:
         return None
-    hoje = hoje or date.today()
+    hoje = hoje or hoje_brasilia()
 
     vencido = hoje > data_limite
     inicio, fim = (data_limite, hoje) if vencido else (hoje, data_limite)
@@ -149,7 +150,7 @@ class AlertasContrato:
 
 
 def calcular_alertas(contrato: Contrato, hoje: date | None = None) -> AlertasContrato:
-    hoje = hoje or date.today()
+    hoje = hoje or hoje_brasilia()
     _, vigencia_fim = vigencia_atual(contrato)
     _, garantia_fim = garantia_atual(contrato)
     return AlertasContrato(

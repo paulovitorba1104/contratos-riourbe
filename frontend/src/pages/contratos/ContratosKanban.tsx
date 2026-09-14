@@ -70,6 +70,11 @@ function CartaoContrato({ contrato }: { contrato: Contrato }) {
       <p className="mt-1 text-xs text-slate-400">
         {ROTULOS_FORMA_CONTRATACAO[contrato.forma_contratacao]}
       </p>
+      {!contrato.faturamento_gerido_pela_gct && (
+        <p className="mt-1 text-xs font-medium text-amber-700" title="Faturamento não é feito pela GCT">
+          Faturamento: {contrato.setor_responsavel_faturamento || "outro setor"}
+        </p>
+      )}
       <p className="mt-2 text-sm font-semibold text-slate-800">
         R$ {Number(contrato.valor_inicial).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
       </p>

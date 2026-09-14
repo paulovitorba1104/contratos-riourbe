@@ -25,6 +25,14 @@ dois módulos construídos:
 | Banco de dados | PostgreSQL 17 |
 | Dev local | Docker Compose |
 
+**Fuso horário**: toda contagem de prazo (vigência, garantia, vencimento de fatura) usa o horário
+de Brasília explicitamente (`app/core/tempo.py`, `zoneinfo.ZoneInfo("America/Sao_Paulo")`), nunca
+o fuso do servidor — containers costumam vir em UTC por padrão (é o caso da imagem base do
+Dockerfile), e usar `date.today()` puro contaria o prazo errado nas 3 horas diárias em que UTC já
+virou o dia seguinte mas ainda é o dia anterior em Brasília (21h-23h59 horário de Brasília). O
+calendário é o gregoriano padrão, por dias corridos (não dias úteis) — é como a vigência
+contratual é contada pela Lei 13.303/16 e pela Lei 14.133/21.
+
 ## Subindo o ambiente com Docker Compose (recomendado)
 
 1. Copie o arquivo de variáveis de ambiente do backend:
@@ -218,7 +226,11 @@ Implementa a seção 4 do plano de desenvolvimento:
   principal ou um apenso dele; nasce de 1 forma de
   contratação (Pregão Eletrônico, Dispensa ou Inexigibilidade); status macro
   (`vigente` → `suspenso` → `encerrado`) só muda através de um instrumento de suspensão ou
-  rescisão/extinção — nunca editado diretamente.
+  rescisão/extinção — nunca editado diretamente. Marca também **quem faz o faturamento**
+  (`faturamento_gerido_pela_gct`, padrão verdadeiro): nem todo contrato é faturado pela Gerência
+  de Contratos — benefícios são faturados pelo RH, jurídicos pela AJU, por exemplo. Desmarcado
+  (com o setor responsável anotado), o contrato sai do módulo de Faturamento — a GCT passa a só
+  gerenciar prazo e renovação dele. Ver detalhe do efeito na seção do módulo Faturamento abaixo.
 - **Instrumentos processuais**: origem + aditivos (prorrogação, acréscimo/supressão de valor,
   alteração qualitativa, reequilíbrio, apostilamento, suspensão, rescisão/extinção), cada um
   mapeado a um modelo RIPM e com fundamentação legal estruturada (lei + artigo). O instrumento de
@@ -311,18 +323,31 @@ de controle.
   nunca sobrescrita, como o histórico de garantia.
 - **Regras que o sistema recusa quebrar**: fatura não ultrapassa o saldo do contrato (valor
   atualizado, com aditivos já contabilizados); só o fiscal com vínculo vigente atesta (ou
-  administrador); contrato encerrado não recebe fatura nova.
+  administrador); contrato encerrado não recebe fatura nova; contrato cujo faturamento não é
+  gerido pela GCT (`faturamento_gerido_pela_gct = false`) não aceita fatura nenhuma — a tela de
+  Nova fatura nem lista esses contratos no seletor.
 - **Painel anual**: matriz contrato × mês reproduzindo a aba anual da planilha de controle, mas
   mostrando em que etapa está a fatura de cada competência em vez de só um "X".
 - Cada fatura tem o **seu próprio número de processo** (ex.: `006700.000249/2026-51`), que não é
   o processo do contrato, e registra as datas de acompanhamento: recebimento, emissão,
   vencimento, envio à GCO, liquidação e pagamento.
 
-**Integração com Contratos**: o `valor_pago` do contrato deixa de ser digitado e passa a ser
-consequência das faturas pagas — soma do valor bruto menos glosas (retenção tributária não
-reduz execução contratual). A ficha do contrato ganha a seção "Faturas" com a lista daquele
-contrato. Os endpoints manuais de pagamento continuam existindo para contratos históricos, cujas
-faturas nunca passaram pelo sistema.
+**Integração com Contratos**: o `valor_pago` do contrato é sempre a **soma** de duas partes —
+nunca a substituição de uma pela outra:
+
+1. `valor_pago_anterior_sistema` — a parte manual. É para dois casos: um contrato antigo que já
+   vem de antes deste sistema (não vale a pena lançar fatura por fatura do histórico — lança-se
+   o total já pago de uma vez, no cadastro ou depois pelo box "Valor pago fora do controle de
+   faturas deste sistema" na ficha, e o faturamento passa a valer só daqui para frente); ou um
+   contrato cujo faturamento é de outro setor (nunca terá fatura no sistema, então essa é a
+   única fonte do valor pago, atualizada à mão).
+2. O que as faturas **pagas no sistema** já cobrem (soma do valor bruto menos glosas — retenção
+   tributária não reduz execução contratual).
+
+Cada fatura paga **soma** à parte manual, nunca a sobrescreve — é o que permite um contrato
+antigo entrar no sistema já com saldo, sem que a primeira fatura nova paga apague esse saldo.
+A ficha do contrato ganha a seção "Faturas" com a lista daquele contrato (ausente/bloqueada,
+com nota explicativa, quando o faturamento não é gerido pela GCT).
 
 
 ## Pendências (ver seção 16 do plano)
