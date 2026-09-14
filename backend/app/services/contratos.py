@@ -11,7 +11,7 @@ from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
 from app.core.tempo import hoje_brasilia
-from app.models.contrato import Contrato, StatusContrato
+from app.models.contrato import Contrato, ModoExecucao, StatusContrato
 from app.models.instrumento_processual import (
     TIPOS_QUE_DEFINEM_VIGENCIA,
     InstrumentoProcessual,
@@ -88,6 +88,16 @@ def proximo_marco_reajuste(contrato: Contrato) -> date | None:
     ]
     marco_base = max(marcos_anteriores, default=contrato.data_assinatura_original)
     return marco_base + relativedelta(months=contrato.periodicidade_reajuste_meses)
+
+
+def quantidade_execucoes_atingida(contrato: Contrato) -> bool:
+    """True quando um contrato controlado por quantidade (modo_execucao =
+    por_quantidade) já registrou tantas execuções quanto o previsto — sinal
+    para a ficha sugerir o encerramento, nunca um encerramento automático
+    (quem decide quando encerrar é sempre a pessoa, clicando)."""
+    if contrato.modo_execucao != ModoExecucao.POR_QUANTIDADE or contrato.quantidade_execucoes_previstas is None:
+        return False
+    return len(contrato.execucoes) >= contrato.quantidade_execucoes_previstas
 
 
 def teto_vigencia(contrato: Contrato) -> date | None:

@@ -165,6 +165,44 @@ def test_contrato_atualizar_nao_exige_setor_quando_nao_mexe_no_faturamento():
     assert atualizacao.faturamento_gerido_pela_gct is None
 
 
+def test_contrato_criar_aceita_modo_por_vigencia_sem_quantidade():
+    """Modo padrão — a imensa maioria dos contratos não informa nada aqui."""
+    contrato = ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE)
+    assert contrato.modo_execucao == "por_vigencia"
+    assert contrato.quantidade_execucoes_previstas is None
+
+
+def test_contrato_criar_por_quantidade_exige_quantidade_prevista():
+    with pytest.raises(ValidationError):
+        ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE, modo_execucao="por_quantidade")
+
+
+def test_contrato_criar_por_quantidade_aceita_com_quantidade_prevista():
+    contrato = ContratoCriar(
+        **DADOS_BASE,
+        instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+        modo_execucao="por_quantidade",
+        quantidade_execucoes_previstas=3,
+    )
+    assert contrato.quantidade_execucoes_previstas == 3
+
+
+def test_contrato_criar_por_vigencia_rejeita_quantidade_prevista():
+    """Quantidade prevista só faz sentido junto com modo_execucao = por_quantidade."""
+    with pytest.raises(ValidationError):
+        ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE, quantidade_execucoes_previstas=3)
+
+
+def test_contrato_atualizar_por_quantidade_exige_quantidade_prevista():
+    with pytest.raises(ValidationError):
+        ContratoAtualizar(modo_execucao="por_quantidade")
+
+
+def test_contrato_atualizar_nao_mexer_em_modo_execucao_nao_exige_nada():
+    atualizacao = ContratoAtualizar(objeto="Objeto revisado")
+    assert atualizacao.modo_execucao is None
+
+
 def test_tempo_restante_do_servico_vira_schema():
     """O serviço devolve um dataclass e a ficha do contrato o serializa — sem
     `from_attributes` isso quebra o GET do contrato inteiro, não só o campo."""

@@ -11,7 +11,9 @@ from app.models.contrato import (
     Contrato,
     ContratoFiscal,
     ExcecaoTetoVigencia,
+    ExecucaoContrato,
     GarantiaContrato,
+    ModoExecucao,
     ProcessoContrato,
     StatusContrato,
 )
@@ -30,6 +32,8 @@ from app.schemas.contrato import (
     ContratoCriar,
     ContratoDetalhado,
     ContratoSaida,
+    ExecucaoCriar,
+    ExecucaoSaida,
     GarantiaCriar,
     GarantiaSaida,
     LinhaReajusteSaida,
@@ -62,6 +66,7 @@ def _carregar_contrato(db: Session, contrato_id: uuid.UUID) -> Contrato:
             ),
             selectinload(Contrato.fiscais).selectinload(ContratoFiscal.fiscal),
             selectinload(Contrato.garantias).selectinload(GarantiaContrato.registrado_por),
+            selectinload(Contrato.execucoes).selectinload(ExecucaoContrato.registrado_por),
             selectinload(Contrato.processos),
         )
         .filter(Contrato.id == contrato_id)
@@ -150,6 +155,19 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
         periodicidade_reajuste_meses=contrato.periodicidade_reajuste_meses,
         indice_reajuste_padrao=contrato.indice_reajuste_padrao,
         proximo_marco_reajuste=regras.proximo_marco_reajuste(contrato),
+        modo_execucao=contrato.modo_execucao,
+        quantidade_execucoes_previstas=contrato.quantidade_execucoes_previstas,
+        quantidade_execucoes_atingida=regras.quantidade_execucoes_atingida(contrato),
+        execucoes=[
+            ExecucaoSaida(
+                id=e.id,
+                data_execucao=e.data_execucao,
+                observacao=e.observacao,
+                registrado_por_nome=e.registrado_por.nome,
+                registrado_em=e.registrado_em,
+            )
+            for e in contrato.execucoes
+        ],
         instrumentos=[_instrumento_para_saida(i) for i in contrato.instrumentos],
     )
 
@@ -341,6 +359,11 @@ def atualizar_contrato(
     if dados_informados.get("faturamento_gerido_pela_gct") is True:
         dados_informados["setor_responsavel_faturamento"] = None
 
+    # Voltar para controle por vigência (modo_execucao = por_vigencia) limpa
+    # a quantidade prevista — não se aplica mais nesse modo.
+    if dados_informados.get("modo_execucao") == ModoExecucao.POR_VIGENCIA:
+        dados_informados["quantidade_execucoes_previstas"] = None
+
     for campo, valor in dados_informados.items():
         setattr(contrato, campo, valor)
 
@@ -501,6 +524,80 @@ def registrar_garantia(
         acao="registrar_garantia_contrato",
         entidade="contrato",
         entidade_id=str(contrato.id),
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.post(
+    "/{contrato_id}/execucoes", response_model=ContratoDetalhado, status_code=status.HTTP_201_CREATED
+)
+def registrar_execucao(
+    contrato_id: uuid.UUID,
+    dados: ExecucaoCriar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Registra uma execução do serviço — só para contrato controlado por
+    quantidade (modo_execucao = por_quantidade), como a limpeza de carpete
+    aplicada N vezes no ano. Cada aplicação é uma linha nova, igual ao
+    histórico de garantia; a quantidade realizada é sempre a contagem dessas
+    linhas. Não bloqueia registrar além do previsto (a quantidade prevista é
+    uma estimativa do termo de referência, não um limite rígido do sistema)."""
+    contrato = _carregar_contrato(db, contrato_id)
+    if contrato.modo_execucao != ModoExecucao.POR_QUANTIDADE:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Este contrato não é controlado por quantidade de execuções.",
+        )
+    if contrato.status == StatusContrato.ENCERRADO:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Contrato encerrado não aceita novas execuções registradas.",
+        )
+    db.add(
+        ExecucaoContrato(
+            contrato_id=contrato.id,
+            data_execucao=dados.data_execucao,
+            observacao=dados.observacao,
+            registrado_por_id=usuario.id,
+        )
+    )
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="registrar_execucao_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato.id),
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.delete(
+    "/{contrato_id}/execucoes/{execucao_id}", response_model=ContratoDetalhado
+)
+def excluir_execucao(
+    contrato_id: uuid.UUID,
+    execucao_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva — restrita a administrador, para corrigir execução
+    # lançada por engano, mesmo padrão de todo histórico do sistema.
+    usuario: Usuario = Depends(exigir_administrador),
+) -> ContratoDetalhado:
+    contrato = _carregar_contrato(db, contrato_id)
+    execucao = next((e for e in contrato.execucoes if e.id == execucao_id), None)
+    if execucao is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Execução não encontrada.")
+
+    db.delete(execucao)
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="excluir_execucao_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato_id),
+        detalhes={"execucao_id": str(execucao_id)},
     )
     db.commit()
     return _para_detalhado(_carregar_contrato(db, contrato_id))

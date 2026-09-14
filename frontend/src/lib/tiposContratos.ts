@@ -17,6 +17,7 @@ export type SistemaProcesso = "sicop" | "processo_rio" | "sei_rio";
 export type TipoProcesso = "principal" | "apenso";
 export type ExcecaoTetoVigencia = "art_71_i" | "art_71_ii";
 export type TipoReajuste = "automatico" | "mediante_solicitacao";
+export type ModoExecucao = "por_vigencia" | "por_quantidade";
 
 export const ROTULOS_FORMA_CONTRATACAO: Record<FormaContratacao, string> = {
   pregao_eletronico: "Pregão Eletrônico",
@@ -70,6 +71,11 @@ export const ROTULOS_TIPO_REAJUSTE: Record<TipoReajuste, string> = {
   mediante_solicitacao: "Só se a contratada pedir",
 };
 
+export const ROTULOS_MODO_EXECUCAO: Record<ModoExecucao, string> = {
+  por_vigencia: "Por vigência (padrão) — prazo em datas",
+  por_quantidade: "Por quantidade de execuções — ex.: aplicado N vezes no exercício",
+};
+
 export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
   criar_contrato: "Contrato criado",
   atualizar_contrato: "Dados do contrato atualizados",
@@ -87,6 +93,8 @@ export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
   excluir_instrumento_processual: "Instrumento excluído",
   anexar_arquivo_instrumento: "Arquivo anexado",
   excluir_anexo_instrumento: "Anexo excluído",
+  registrar_execucao_contrato: "Execução registrada",
+  excluir_execucao_contrato: "Execução excluída",
 };
 
 export const TIPOS_QUE_DEFINEM_VIGENCIA: TipoInstrumento[] = ["origem", "prorrogacao"];
@@ -252,6 +260,14 @@ export interface GarantiaHistorico {
   registrado_em: string;
 }
 
+export interface ExecucaoHistorico {
+  id: string;
+  data_execucao: string;
+  observacao: string | null;
+  registrado_por_nome: string;
+  registrado_em: string;
+}
+
 export interface ContratoDetalhado extends Contrato {
   fiscais: FiscalVinculo[];
   valor_atualizado: string;
@@ -278,6 +294,12 @@ export interface ContratoDetalhado extends Contrato {
   periodicidade_reajuste_meses: number | null;
   indice_reajuste_padrao: string | null;
   proximo_marco_reajuste: string | null;
+  // Controle por quantidade de execuções (ex.: limpeza de carpete) — vazio/
+  // falso na imensa maioria dos contratos, que usa vigência normalmente.
+  modo_execucao: ModoExecucao;
+  quantidade_execucoes_previstas: number | null;
+  quantidade_execucoes_atingida: boolean;
+  execucoes: ExecucaoHistorico[];
   instrumentos: InstrumentoProcessual[];
 }
 
@@ -320,6 +342,10 @@ export interface NovoContratoPayload {
   tipo_reajuste?: TipoReajuste | null;
   periodicidade_reajuste_meses?: number | null;
   indice_reajuste_padrao?: string | null;
+  // Controle por quantidade de execuções (ex.: limpeza de carpete, aplicada
+  // N vezes por exercício) — omitido/por_vigencia na imensa maioria.
+  modo_execucao?: ModoExecucao;
+  quantidade_execucoes_previstas?: number | null;
 }
 
 export interface ContratoAtualizarPayload {
@@ -349,6 +375,13 @@ export interface ContratoAtualizarPayload {
   tipo_reajuste?: TipoReajuste | null;
   periodicidade_reajuste_meses?: number | null;
   indice_reajuste_padrao?: string | null;
+  modo_execucao?: ModoExecucao;
+  quantidade_execucoes_previstas?: number | null;
+}
+
+export interface ExecucaoPayload {
+  data_execucao: string;
+  observacao?: string | null;
 }
 
 export interface NovoInstrumentoPayload {

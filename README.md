@@ -294,6 +294,25 @@ Implementa a seção 4 do plano de desenvolvimento:
   persistente configurado), os arquivos são perdidos a cada redeploy — para uso em produção fora
   do computador local, isso precisa de um volume persistente ou armazenamento externo (S3 e
   equivalentes), ainda não implementado.
+- **Contrato por quantidade de execuções**: nem toda dispensa de licitação usa vigência por
+  datas. Exemplo real: limpeza de carpete, aplicada um número certo de vezes dentro do mesmo
+  exercício (ex.: 3x/ano) — o controle certo é quantidade de execuções previstas × realizadas.
+  O contrato marca `modo_execucao = por_quantidade` (padrão continua sendo `por_vigencia`) com a
+  `quantidade_execucoes_previstas`; cada aplicação é registrada como uma linha no histórico
+  (`contratos.execucoes_contrato`, nunca editado depois — mesmo princípio da garantia), e a
+  quantidade realizada é sempre a contagem dessas linhas. A vigência (instrumento de Origem)
+  continua sendo informada normalmente — ela ainda limita o exercício —, só deixa de ser o
+  critério de conclusão do contrato. Contratos assim normalmente não têm assinatura de
+  contrato/termo aditivo: o campo `data_assinatura_original` é reaproveitado como a **data de
+  publicação no Diário Oficial** (a tela troca só o rótulo, quando `modo_execucao =
+  por_quantidade`), sem precisar de um campo novo nem mexer em `teto_vigencia()`,
+  `proximo_marco_reajuste()` ou nas validações que já dependiam dele. Ao atingir a quantidade
+  prevista, a ficha mostra um aviso com o atalho "Encerrar contrato" — que abre o formulário de
+  novo instrumento já no tipo Rescisão/Extinção — mas o encerramento em si **é sempre decisão de
+  quem usa o sistema, nunca automático**: o status só muda quando a pessoa de fato registra esse
+  instrumento, o mesmo mecanismo usado para encerrar qualquer outro contrato. Licenças de
+  software (pagas por período fixo, sem execução por quantidade) já são atendidas pelo modelo
+  padrão — não precisam desse modo.
 - **Painel Kanban** por status macro, com número do contrato e alertas de vigência/garantia já
   visíveis no card, busca (número, processo, tipo de serviço ou objeto) e filtro por forma de
   contratação, e um resumo no topo com a contagem de contratos vencidos/vencendo e com garantia
@@ -433,21 +452,6 @@ administrativo do processo (não é documento jurídico do processo em si).
 JWT (`JWT_EXPIRA_HORAS`, 12h por padrão), sem expirar por inatividade. Fica para ser feito junto
 com a tela de "esqueci minha senha"/recuperação de senha (e-mail transacional via Brevo, já
 citado nas pendências gerais), já que as duas mexem no mesmo fluxo de autenticação.
-
-**Contratos por quantidade de execução (planejado, não implementado)**: o modelo atual de vigência
-(`data_inicio_vigencia`/`data_fim_vigencia`/prazo em meses) não serve para toda dispensa de
-licitação. Exemplo real: limpeza de carpete, contratada para ser executada um número certo de
-vezes dentro do mesmo exercício (ex.: 3x/ano) — o controle certo é **quantidade de execuções
-previstas × realizadas**, não uma janela de datas. Nesses contratos também não há assinatura de
-contrato nem termo aditivo — a referência é a **data de publicação no Diário Oficial**, não a
-`data_assinatura_original` (usada hoje em `teto_vigencia()`, nos alertas, na validação de
-`ContratoCriar` e em `proximo_marco_reajuste()`). Ao completar a quantidade prevista de execuções
-**e** os pagamentos correspondentes, o contrato deve encerrar sozinho, sinalizando a necessidade
-de nova contratação. Vai exigir: um modo de execução alternativo ao intervalo de datas (quantidade
-prevista × realizada), uma referência de data alternativa à assinatura (publicação no D.O.), e um
-mecanismo de registro de execução com transição automática para `encerrado`. Licenças de software
-(pagas por período fixo, sem execução por quantidade) já são atendidas pelo modelo atual — não
-precisam dessa mudança.
 
 **Exclusão de registros**: restrita a administrador (`papel = administrador`) em todos os
 cadastros do módulo Contratos — contrato (exclusão em cascata: instrumentos, vínculos de fiscal,

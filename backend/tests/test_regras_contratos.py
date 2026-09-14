@@ -8,6 +8,7 @@ from app.models.contrato import (
     ExcecaoTetoVigencia,
     FormaContratacao,
     GarantiaContrato,
+    ModoExecucao,
     StatusContrato,
     TipoReajuste,
 )
@@ -35,12 +36,16 @@ def _contrato(**overrides) -> Contrato:
         # default=True da coluna — sem isto aqui o valor fica None, e
         # `not None` também dá True, mascarando o teste do caso comum.
         faturamento_gerido_pela_gct=True,
+        # Mesmo motivo do faturamento_gerido_pela_gct acima — sem isto o
+        # default da coluna não é aplicado em memória.
+        modo_execucao=ModoExecucao.POR_VIGENCIA,
     )
     padrao.update(overrides)
     contrato = Contrato(**padrao)
     contrato.instrumentos = []
     contrato.garantias = []
     contrato.processos = []
+    contrato.execucoes = []
     return contrato
 
 
@@ -51,6 +56,17 @@ def _garantia(**overrides) -> GarantiaContrato:
     )
     padrao.update(overrides)
     return GarantiaContrato(**padrao)
+
+
+def _execucao(**overrides):
+    from app.models.contrato import ExecucaoContrato
+
+    padrao = dict(
+        data_execucao=date(2024, 3, 1),
+        registrado_por_id="00000000-0000-0000-0000-000000000000",
+    )
+    padrao.update(overrides)
+    return ExecucaoContrato(**padrao)
 
 
 def _instrumento(tipo: TipoInstrumento, **overrides) -> InstrumentoProcessual:
@@ -339,3 +355,46 @@ def test_alerta_de_reajuste_usa_as_mesmas_janelas_de_vigencia():
     alertas = regras.calcular_alertas(contrato, hoje=date(2026, 1, 5))  # 5 dias antes do marco
     assert alertas.proximo_marco_reajuste == date(2026, 1, 10)
     assert alertas.alerta_reajuste == "1_meses"
+
+
+# --------------------------------------------------------------------------
+# Controle por quantidade de execuções (ex.: limpeza de carpete, 3x/ano)
+# --------------------------------------------------------------------------
+def test_contrato_por_vigencia_nunca_tem_quantidade_atingida():
+    """O modo padrão (por_vigencia) não usa esse controle, mesmo se alguém
+    tivesse deixado execuções e quantidade prevista preenchidas por engano."""
+    contrato = _contrato(
+        modo_execucao=ModoExecucao.POR_VIGENCIA,
+        quantidade_execucoes_previstas=None,
+    )
+    assert regras.quantidade_execucoes_atingida(contrato) is False
+
+
+def test_quantidade_execucoes_nao_atingida_enquanto_faltar_registro():
+    contrato = _contrato(
+        modo_execucao=ModoExecucao.POR_QUANTIDADE,
+        quantidade_execucoes_previstas=3,
+    )
+    contrato.execucoes = [_execucao(), _execucao(data_execucao=date(2024, 6, 1))]
+    assert regras.quantidade_execucoes_atingida(contrato) is False
+
+
+def test_quantidade_execucoes_atingida_quando_conta_bate():
+    contrato = _contrato(
+        modo_execucao=ModoExecucao.POR_QUANTIDADE,
+        quantidade_execucoes_previstas=3,
+    )
+    contrato.execucoes = [
+        _execucao(),
+        _execucao(data_execucao=date(2024, 6, 1)),
+        _execucao(data_execucao=date(2024, 9, 1)),
+    ]
+    assert regras.quantidade_execucoes_atingida(contrato) is True
+
+
+def test_quantidade_execucoes_atingida_tambem_quando_passa_do_previsto():
+    """Registrar além do previsto não é bloqueado (a quantidade prevista é
+    estimativa do termo de referência) — a partir dali continua atingida."""
+    contrato = _contrato(modo_execucao=ModoExecucao.POR_QUANTIDADE, quantidade_execucoes_previstas=2)
+    contrato.execucoes = [_execucao(), _execucao(), _execucao()]
+    assert regras.quantidade_execucoes_atingida(contrato) is True

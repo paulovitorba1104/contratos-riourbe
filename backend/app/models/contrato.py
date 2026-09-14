@@ -38,6 +38,20 @@ class ExcecaoTetoVigencia(str, enum.Enum):
     ART_71_II = "art_71_ii"  # prazo maior é prática rotineira de mercado (ex.: locação de imóvel)
 
 
+class ModoExecucao(str, enum.Enum):
+    """A maioria dos contratos executa continuamente dentro de um período de
+    vigência (datas) — Relógio 1 de sempre. Alguns não seguem essa lógica:
+    dispensa de licitação com execução sazonal (ex.: limpeza de carpete,
+    aplicada N vezes dentro do mesmo exercício) não tem prazo em dias, tem
+    uma quantidade prevista de execuções no termo de referência. Nesses
+    contratos normalmente também não há assinatura de contrato/termo
+    aditivo — `data_assinatura_original` passa a ser a data de publicação no
+    Diário Oficial (mesmo campo, rótulo diferente na tela)."""
+
+    POR_VIGENCIA = "por_vigencia"
+    POR_QUANTIDADE = "por_quantidade"
+
+
 class TipoReajuste(str, enum.Enum):
     """Nem todo contrato reajusta do mesmo jeito: alguns têm cláusula que
     obriga o reajuste (a Rio-Urbe aplica assim que o prazo se completa,
@@ -120,6 +134,17 @@ class Contrato(Base):
     excecao_teto_justificativa: Mapped[str | None] = mapped_column(Text, nullable=True)
     excecao_teto_documento_sei: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # Controle por vigência (padrão) ou por quantidade de execuções — ver
+    # ModoExecucao. Nula-equivalente é por_vigencia (imensa maioria).
+    modo_execucao: Mapped[ModoExecucao] = mapped_column(
+        Enum(ModoExecucao, name="modo_execucao", schema="contratos", values_callable=_valores_enum),
+        nullable=False,
+        default=ModoExecucao.POR_VIGENCIA,
+    )
+    # Só preenchida quando modo_execucao = por_quantidade — quantas vezes o
+    # serviço está previsto para ser executado (ex.: 3x/ano).
+    quantidade_execucoes_previstas: Mapped[int | None] = mapped_column(nullable=True)
+
     # Nem todo contrato é faturado pela Gerência de Contratos — benefícios são
     # faturados pelo RH, jurídicos pela AJU, por exemplo. Quando falso, este
     # contrato não entra no módulo de Faturamento: a GCT só gerencia prazo e
@@ -196,6 +221,11 @@ class Contrato(Base):
     garantias: Mapped[list["GarantiaContrato"]] = relationship(
         back_populates="contrato", order_by="GarantiaContrato.registrado_em", cascade="all, delete-orphan"
     )
+    # Histórico de execuções — só usado quando modo_execucao = por_quantidade
+    # (fica vazio para a imensa maioria dos contratos, que usa vigência).
+    execucoes: Mapped[list["ExecucaoContrato"]] = relationship(
+        back_populates="contrato", order_by="ExecucaoContrato.data_execucao", cascade="all, delete-orphan"
+    )
 
 
 class ContratoFiscal(Base):
@@ -248,6 +278,30 @@ class GarantiaContrato(Base):
     registrado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     contrato: Mapped["Contrato"] = relationship(back_populates="garantias")
+    registrado_por: Mapped["Usuario"] = relationship()
+
+
+class ExecucaoContrato(Base):
+    """Registro de uma execução do serviço, para contrato controlado por
+    quantidade (modo_execucao = por_quantidade), não por vigência de datas —
+    ex.: limpeza de carpete aplicada N vezes no ano. Cada aplicação é uma
+    linha nova, nunca editada depois de registrada (mesmo princípio do
+    histórico de garantia) — a quantidade realizada é sempre `len(execucoes)`."""
+
+    __tablename__ = "execucoes_contrato"
+    __table_args__ = {"schema": "contratos"}
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    contrato_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contratos.contratos.id", ondelete="CASCADE"), nullable=False
+    )
+    data_execucao: Mapped[date] = mapped_column(Date, nullable=False)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    registrado_por_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.usuarios.id"), nullable=False)
+    registrado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    contrato: Mapped["Contrato"] = relationship(back_populates="execucoes")
     registrado_por: Mapped["Usuario"] = relationship()
 
 
