@@ -27,6 +27,17 @@ class StatusContrato(str, enum.Enum):
     ENCERRADO = "encerrado"
 
 
+class ExcecaoTetoVigencia(str, enum.Enum):
+    """As duas exceções ao teto de 5 anos do art. 71 da Lei 13.303/16 — sem
+    elas, `teto_vigencia` sempre bloqueia prorrogação além de 5 anos da
+    assinatura original. Marcar aqui remove o teto para este contrato (não o
+    estende para um novo número de anos: a lei simplesmente não impõe limite
+    nesses dois casos)."""
+
+    ART_71_I = "art_71_i"  # projeto contemplado no plano de negócios e investimentos da empresa
+    ART_71_II = "art_71_ii"  # prazo maior é prática rotineira de mercado (ex.: locação de imóvel)
+
+
 class SistemaProcesso(str, enum.Enum):
     """Sistema onde o número do processo foi aberto — a Prefeitura já passou
     por 3 sistemas de processo administrativo."""
@@ -82,6 +93,20 @@ class Contrato(Base):
 
     # Relógio 2: tempo total desde a assinatura original — teto rígido de 5 anos
     data_assinatura_original: Mapped[date] = mapped_column(Date, nullable=False)
+    # Exceção ao teto de 5 anos (art. 71, I ou II, da Lei 13.303/16) — nula na
+    # imensa maioria dos contratos. Quando marcada, exige justificativa e o
+    # documento que a formaliza (schema valida isso, não o banco).
+    excecao_teto_vigencia: Mapped[ExcecaoTetoVigencia | None] = mapped_column(
+        Enum(
+            ExcecaoTetoVigencia,
+            name="excecao_teto_vigencia",
+            schema="contratos",
+            values_callable=_valores_enum,
+        ),
+        nullable=True,
+    )
+    excecao_teto_justificativa: Mapped[str | None] = mapped_column(Text, nullable=True)
+    excecao_teto_documento_sei: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Financeiro
     valor_inicial: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False)

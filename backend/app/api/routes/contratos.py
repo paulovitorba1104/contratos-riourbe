@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import exigir_administrador, get_current_user
 from app.db.session import get_db
-from app.models.contrato import Contrato, ContratoFiscal, GarantiaContrato, ProcessoContrato, StatusContrato
+from app.models.contrato import (
+    Contrato,
+    ContratoFiscal,
+    ExcecaoTetoVigencia,
+    GarantiaContrato,
+    ProcessoContrato,
+    StatusContrato,
+)
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import InstrumentoProcessual, TipoInstrumento
@@ -86,6 +93,9 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
         vigencia_inicio=vigencia_inicio,
         vigencia_fim=vigencia_fim,
         teto_vigencia=regras.teto_vigencia(contrato),
+        excecao_teto_vigencia=contrato.excecao_teto_vigencia,
+        excecao_teto_justificativa=contrato.excecao_teto_justificativa,
+        excecao_teto_documento_sei=contrato.excecao_teto_documento_sei,
         tempo_restante_vigencia=regras.tempo_restante(vigencia_fim),
         garantia_inicio=garantia_inicio,
         garantia_fim=garantia_fim,
@@ -124,8 +134,12 @@ def listar_contratos(
 @router.get("/calcular-vigencia", response_model=CalculoVigenciaSaida)
 def calcular_vigencia(
     data_inicio: date,
-    meses: int = Query(..., ge=1, le=120),
+    # Limite alto (100 anos) só para pegar erro de digitação — o limite legal
+    # de verdade é o teto de 5 anos (`excede_teto`), que tem exceção própria
+    # (art. 71, I ou II) para contratos como locação de imóvel de prazo longo.
+    meses: int = Query(..., ge=1, le=1200),
     data_assinatura: date | None = None,
+    excecao_teto_vigencia: ExcecaoTetoVigencia | None = None,
     _: Usuario = Depends(get_current_user),
 ) -> CalculoVigenciaSaida:
     """Contador de datas: informado o início e o prazo em meses, devolve o fim
@@ -134,13 +148,15 @@ def calcular_vigencia(
 
     Passando também a data de assinatura, devolve o teto de 5 anos e avisa se o
     prazo informado o ultrapassa, para o aviso aparecer enquanto a pessoa
-    digita em vez de só ao salvar.
+    digita em vez de só ao salvar. Se o contrato tem exceção ao teto marcada
+    (art. 71, I ou II, da Lei 13.303/16 — ex.: locação de imóvel), não há
+    teto a calcular nem aviso a mostrar.
     """
     data_fim = regras.calcular_fim_vigencia(data_inicio, meses)
 
     teto = None
     excede = False
-    if data_assinatura is not None:
+    if data_assinatura is not None and excecao_teto_vigencia is None:
         teto = data_assinatura + relativedelta(years=5)
         excede = data_fim > teto
 
@@ -235,6 +251,13 @@ def atualizar_contrato(
     dados_informados = dados.model_dump(exclude_unset=True)
     if "fornecedor_id" in dados_informados and db.get(Fornecedor, dados_informados["fornecedor_id"]) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fornecedor não encontrado.")
+
+    # Desmarcar a exceção ao teto (excecao_teto_vigencia = null) limpa também a
+    # justificativa e o documento — evita texto de uma exceção que não vale
+    # mais ficar parado no contrato depois de o teto voltar a valer.
+    if "excecao_teto_vigencia" in dados_informados and dados_informados["excecao_teto_vigencia"] is None:
+        dados_informados["excecao_teto_justificativa"] = None
+        dados_informados["excecao_teto_documento_sei"] = None
 
     for campo, valor in dados_informados.items():
         setattr(contrato, campo, valor)

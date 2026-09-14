@@ -15,6 +15,7 @@ export type FundamentacaoLei = "lei_13303_16" | "lei_14133_21";
 export type NivelAlerta = "1_meses" | "3_meses" | "6_meses" | "vencido";
 export type SistemaProcesso = "sicop" | "processo_rio" | "sei_rio";
 export type TipoProcesso = "principal" | "apenso";
+export type ExcecaoTetoVigencia = "art_71_i" | "art_71_ii";
 
 export const ROTULOS_FORMA_CONTRATACAO: Record<FormaContratacao, string> = {
   pregao_eletronico: "Pregão Eletrônico",
@@ -56,6 +57,11 @@ export const ROTULOS_SISTEMA_PROCESSO: Record<SistemaProcesso, string> = {
 export const ROTULOS_TIPO_PROCESSO: Record<TipoProcesso, string> = {
   principal: "Principal",
   apenso: "Apenso",
+};
+
+export const ROTULOS_EXCECAO_TETO: Record<ExcecaoTetoVigencia, string> = {
+  art_71_i: "Art. 71, I — projeto do plano de negócios e investimentos",
+  art_71_ii: "Art. 71, II — prazo maior é prática rotineira de mercado",
 };
 
 export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
@@ -205,7 +211,12 @@ export interface ContratoDetalhado extends Contrato {
   saldo_a_pagar: string;
   vigencia_inicio: string | null;
   vigencia_fim: string | null;
-  teto_vigencia: string;
+  // Nulo quando o contrato tem exceção registrada — a lei remove o teto
+  // nesses casos, não impõe um novo (art. 71, I ou II, da Lei 13.303/16).
+  teto_vigencia: string | null;
+  excecao_teto_vigencia: ExcecaoTetoVigencia | null;
+  excecao_teto_justificativa: string | null;
+  excecao_teto_documento_sei: string | null;
   tempo_restante_vigencia: TempoRestante | null;
   garantia_inicio: string | null;
   garantia_fim: string | null;
@@ -240,6 +251,9 @@ export interface NovoContratoPayload {
   instrumento_origem: InstrumentoOrigemPayload;
   processos: ProcessoPayload[];
   fiscais_ids: string[];
+  excecao_teto_vigencia?: ExcecaoTetoVigencia | null;
+  excecao_teto_justificativa?: string | null;
+  excecao_teto_documento_sei?: string | null;
 }
 
 export interface ContratoAtualizarPayload {
@@ -260,6 +274,9 @@ export interface ContratoAtualizarPayload {
   item_patrimonial?: string | null;
   codigo_ccon?: string | null;
   observacoes?: string | null;
+  excecao_teto_vigencia?: ExcecaoTetoVigencia | null;
+  excecao_teto_justificativa?: string | null;
+  excecao_teto_documento_sei?: string | null;
 }
 
 export interface NovoInstrumentoPayload {

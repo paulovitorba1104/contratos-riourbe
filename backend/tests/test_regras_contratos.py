@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.models.contrato import Contrato, FormaContratacao, GarantiaContrato, StatusContrato
+from app.models.contrato import Contrato, ExcecaoTetoVigencia, FormaContratacao, GarantiaContrato, StatusContrato
 from app.models.instrumento_processual import (
     FundamentacaoLei,
     InstrumentoProcessual,
@@ -237,3 +237,32 @@ def test_teto_de_cinco_anos_barra_prazo_longo_no_cadastro():
     fim = regras.calcular_fim_vigencia(date(2026, 1, 10), 72)
     with pytest.raises(regras.TetoVigenciaExcedido):
         regras.validar_teto_cinco_anos(contrato, fim)
+
+
+# --------------------------------------------------------------------------
+# Exceção ao teto de 5 anos (art. 71, I e II, da Lei 13.303/16)
+# --------------------------------------------------------------------------
+def test_excecao_ao_teto_remove_a_data_limite():
+    """Locação de imóvel (inciso II) é o caso típico: prazo longo é prática
+    rotineira de mercado, então a lei não impõe teto, não estende para outro
+    número de anos."""
+    contrato = _contrato(
+        data_assinatura_original=date(2024, 1, 10),
+        excecao_teto_vigencia=ExcecaoTetoVigencia.ART_71_II,
+    )
+    assert regras.teto_vigencia(contrato) is None
+
+
+def test_excecao_ao_teto_libera_prazo_que_normalmente_seria_barrado():
+    contrato = _contrato(
+        data_assinatura_original=date(2024, 1, 10),
+        excecao_teto_vigencia=ExcecaoTetoVigencia.ART_71_II,
+    )
+    regras.validar_teto_cinco_anos(contrato, date(2044, 1, 10))  # 20 anos — não deve levantar
+
+
+def test_sem_excecao_o_teto_de_cinco_anos_continua_valendo():
+    contrato = _contrato(data_assinatura_original=date(2024, 1, 10), excecao_teto_vigencia=None)
+    assert regras.teto_vigencia(contrato) == date(2029, 1, 10)
+    with pytest.raises(regras.TetoVigenciaExcedido):
+        regras.validar_teto_cinco_anos(contrato, date(2029, 1, 11))

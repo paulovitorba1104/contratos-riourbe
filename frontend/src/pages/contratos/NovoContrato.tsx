@@ -5,6 +5,7 @@ import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContrato
 import { ErroApi } from "../../lib/api";
 import { mascararCnpj, mascararCpf, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type {
+  ExcecaoTetoVigencia,
   Fiscal,
   Fornecedor,
   FormaContratacao,
@@ -13,7 +14,12 @@ import type {
   SistemaProcesso,
   TipoProcesso,
 } from "../../lib/tiposContratos";
-import { ROTULOS_FORMA_CONTRATACAO, ROTULOS_SISTEMA_PROCESSO, ROTULOS_TIPO_PROCESSO } from "../../lib/tiposContratos";
+import {
+  ROTULOS_EXCECAO_TETO,
+  ROTULOS_FORMA_CONTRATACAO,
+  ROTULOS_SISTEMA_PROCESSO,
+  ROTULOS_TIPO_PROCESSO,
+} from "../../lib/tiposContratos";
 import { useToast } from "../../lib/ToastContext";
 
 const campoClasse = "field-input";
@@ -56,6 +62,15 @@ export function NovoContrato() {
   const [calculandoVigencia, setCalculandoVigencia] = useState(false);
   const [avisoTeto, setAvisoTeto] = useState<string | null>(null);
 
+  // Exceção ao teto de 5 anos (art. 71, I ou II, da Lei 13.303/16) — nula na
+  // imensa maioria dos contratos; marcada, exige justificativa e o documento
+  // (parecer jurídico/SEI) que a formaliza. Ex.: locação de imóvel, cujo
+  // prazo longo é prática rotineira de mercado (inciso II).
+  const [temExcecaoTeto, setTemExcecaoTeto] = useState(false);
+  const [excecaoTeto, setExcecaoTeto] = useState<ExcecaoTetoVigencia>("art_71_ii");
+  const [excecaoJustificativa, setExcecaoJustificativa] = useState("");
+  const [excecaoDocumentoSei, setExcecaoDocumentoSei] = useState("");
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -69,7 +84,7 @@ export function NovoContrato() {
    * dias, fevereiro, ano bissexto) e já avisa se o prazo estoura os 5 anos. */
   useEffect(() => {
     const meses = Number(prazoMeses);
-    if (!dataInicioVigencia || !Number.isInteger(meses) || meses < 1 || meses > 120) {
+    if (!dataInicioVigencia || !Number.isInteger(meses) || meses < 1 || meses > 1200) {
       setAvisoTeto(null);
       return;
     }
@@ -77,7 +92,12 @@ export function NovoContrato() {
     let cancelado = false;
     setCalculandoVigencia(true);
     apiContratos
-      .calcularVigencia(dataInicioVigencia, meses, dataAssinatura || undefined)
+      .calcularVigencia(
+        dataInicioVigencia,
+        meses,
+        dataAssinatura || undefined,
+        temExcecaoTeto ? excecaoTeto : null,
+      )
       .then((calculo) => {
         if (cancelado) return;
         setDataFimVigencia(calculo.data_fim);
@@ -98,7 +118,7 @@ export function NovoContrato() {
     return () => {
       cancelado = true;
     };
-  }, [dataInicioVigencia, prazoMeses, dataAssinatura]);
+  }, [dataInicioVigencia, prazoMeses, dataAssinatura, temExcecaoTeto, excecaoTeto]);
 
   async function criarFornecedor() {
     setErro(null);
@@ -172,6 +192,10 @@ export function NovoContrato() {
       setErro("Preencha o número de todos os processos ou remova as linhas vazias.");
       return;
     }
+    if (temExcecaoTeto && (!excecaoJustificativa.trim() || !excecaoDocumentoSei.trim())) {
+      setErro("A exceção ao teto de 5 anos exige justificativa e o número do documento (parecer jurídico/SEI).");
+      return;
+    }
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
@@ -192,6 +216,13 @@ export function NovoContrato() {
         },
         processos,
         fiscais_ids: fiscaisSelecionados,
+        ...(temExcecaoTeto
+          ? {
+              excecao_teto_vigencia: excecaoTeto,
+              excecao_teto_justificativa: excecaoJustificativa,
+              excecao_teto_documento_sei: excecaoDocumentoSei,
+            }
+          : {}),
       });
       mostrarToast("Contrato criado com sucesso.");
       navegar(`/contratos/${contrato.id}`);
@@ -492,7 +523,7 @@ export function NovoContrato() {
                   id="prazo_meses"
                   type="number"
                   min={1}
-                  max={120}
+                  max={1200}
                   className={campoClasse}
                   value={prazoMeses}
                   onChange={(e) => setPrazoMeses(e.target.value)}
@@ -526,6 +557,70 @@ export function NovoContrato() {
               próximas prorrogações (feitas depois, na ficha do contrato) só são aceitas até
               completar 5 anos a partir da data de assinatura original.
             </p>
+
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  id="tem_excecao_teto"
+                  type="checkbox"
+                  checked={temExcecaoTeto}
+                  onChange={(e) => setTemExcecaoTeto(e.target.checked)}
+                />
+                Este contrato tem exceção ao teto de 5 anos (art. 71, Lei 13.303/16)
+              </label>
+              <p className="mt-1 text-xs text-slate-500">
+                Marque só quando o prazo do contrato pode, por lei, ultrapassar 5 anos — ex.:
+                locação de imóvel, cujo prazo longo é prática rotineira de mercado (inciso II).
+                Sem isto, o sistema sempre recusa prorrogação além de 5 anos da assinatura.
+              </p>
+
+              {temExcecaoTeto && (
+                <div className="mt-3 space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                  <div>
+                    <label className={rotuloClasse} htmlFor="excecao_teto_vigencia">
+                      Inciso do art. 71
+                    </label>
+                    <select
+                      id="excecao_teto_vigencia"
+                      className={campoClasse}
+                      value={excecaoTeto}
+                      onChange={(e) => setExcecaoTeto(e.target.value as ExcecaoTetoVigencia)}
+                    >
+                      {Object.entries(ROTULOS_EXCECAO_TETO).map(([valor, rotulo]) => (
+                        <option key={valor} value={valor}>
+                          {rotulo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={rotuloClasse} htmlFor="excecao_teto_justificativa">
+                      Justificativa
+                    </label>
+                    <textarea
+                      id="excecao_teto_justificativa"
+                      className={campoClasse}
+                      rows={2}
+                      value={excecaoJustificativa}
+                      onChange={(e) => setExcecaoJustificativa(e.target.value)}
+                      placeholder="ex.: locação de imóvel para a sede — prazo de 10 anos é prática rotineira do mercado imobiliário comercial."
+                    />
+                  </div>
+                  <div>
+                    <label className={rotuloClasse} htmlFor="excecao_teto_documento_sei">
+                      Documento que formaliza a exceção (parecer jurídico/SEI)
+                    </label>
+                    <input
+                      id="excecao_teto_documento_sei"
+                      className={campoClasse}
+                      value={excecaoDocumentoSei}
+                      onChange={(e) => setExcecaoDocumentoSei(e.target.value)}
+                      placeholder="ex.: SEI-04/000123/2026"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
