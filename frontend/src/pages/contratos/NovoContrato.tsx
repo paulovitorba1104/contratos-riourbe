@@ -10,6 +10,7 @@ import type {
   Fornecedor,
   FormaContratacao,
   FundamentacaoLei,
+  ModoExecucao,
   ProcessoPayload,
   SistemaProcesso,
   TipoProcesso,
@@ -18,6 +19,7 @@ import type {
 import {
   ROTULOS_EXCECAO_TETO,
   ROTULOS_FORMA_CONTRATACAO,
+  ROTULOS_MODO_EXECUCAO,
   ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_TIPO_PROCESSO,
   ROTULOS_TIPO_REAJUSTE,
@@ -90,6 +92,14 @@ export function NovoContrato() {
   const [tipoReajuste, setTipoReajuste] = useState<TipoReajuste>("automatico");
   const [periodicidadeReajusteMeses, setPeriodicidadeReajusteMeses] = useState("24");
   const [indiceReajustePadrao, setIndiceReajustePadrao] = useState("IPCA-E");
+
+  // Controle por quantidade de execuções — dispensa sazonal cujo termo de
+  // referência prevê a quantidade de vezes que o serviço será aplicado
+  // dentro do exercício (ex.: limpeza de carpete, 3x/ano), em vez de um
+  // prazo em dias. A vigência abaixo continua sendo informada (ainda limita
+  // o exercício), só não é mais o critério de conclusão do contrato.
+  const [modoExecucao, setModoExecucao] = useState<ModoExecucao>("por_vigencia");
+  const [quantidadeExecucoesPrevistas, setQuantidadeExecucoesPrevistas] = useState("");
 
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -224,6 +234,10 @@ export function NovoContrato() {
       setErro("Informe a periodicidade do reajuste (em meses).");
       return;
     }
+    if (modoExecucao === "por_quantidade" && !quantidadeExecucoesPrevistas.trim()) {
+      setErro("Informe a quantidade de execuções previstas.");
+      return;
+    }
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
@@ -262,6 +276,9 @@ export function NovoContrato() {
               periodicidade_reajuste_meses: Number(periodicidadeReajusteMeses),
               indice_reajuste_padrao: indiceReajustePadrao || null,
             }
+          : {}),
+        ...(modoExecucao === "por_quantidade"
+          ? { modo_execucao: modoExecucao, quantidade_execucoes_previstas: Number(quantidadeExecucoesPrevistas) }
           : {}),
       });
       mostrarToast("Contrato criado com sucesso.");
@@ -466,6 +483,47 @@ export function NovoContrato() {
           </div>
 
           <div>
+            <label className={rotuloClasse} htmlFor="modo_execucao">
+              Modo de execução
+            </label>
+            <select
+              id="modo_execucao"
+              className={campoClasse}
+              value={modoExecucao}
+              onChange={(e) => setModoExecucao(e.target.value as ModoExecucao)}
+            >
+              {Object.entries(ROTULOS_MODO_EXECUCAO).map(([valor, rotulo]) => (
+                <option key={valor} value={valor}>
+                  {rotulo}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Use "por quantidade" para dispensa sazonal cujo termo de referência prevê um número
+              de aplicações no exercício (ex.: limpeza de carpete, 3x/ano) — a vigência abaixo
+              continua sendo informada normalmente, ela só deixa de ser o critério de conclusão do
+              contrato.
+            </p>
+            {modoExecucao === "por_quantidade" && (
+              <div className="mt-2">
+                <label className={rotuloClasse} htmlFor="quantidade_execucoes_previstas">
+                  Quantidade de execuções previstas
+                </label>
+                <input
+                  id="quantidade_execucoes_previstas"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  className={campoClasse}
+                  value={quantidadeExecucoesPrevistas}
+                  onChange={(e) => setQuantidadeExecucoesPrevistas(e.target.value)}
+                  placeholder="ex.: 3"
+                />
+              </div>
+            )}
+          </div>
+
+          <div>
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
                 id="faturamento_gerido_pela_gct"
@@ -499,7 +557,9 @@ export function NovoContrato() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={rotuloClasse} htmlFor="data_assinatura">
-                Data de assinatura original
+                {modoExecucao === "por_quantidade"
+                  ? "Data de publicação no Diário Oficial"
+                  : "Data de assinatura original"}
               </label>
               <input
                 id="data_assinatura"
@@ -509,6 +569,12 @@ export function NovoContrato() {
                 onChange={(e) => setDataAssinatura(e.target.value)}
                 required
               />
+              {modoExecucao === "por_quantidade" && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Contrato sem assinatura formal (dispensa sazonal) — a referência é a publicação
+                  no D.O.
+                </p>
+              )}
             </div>
             <div>
               <label className={rotuloClasse} htmlFor="valor_inicial">

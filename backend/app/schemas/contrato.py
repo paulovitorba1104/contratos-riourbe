@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.models.contrato import (
     ExcecaoTetoVigencia,
     FormaContratacao,
+    ModoExecucao,
     SistemaProcesso,
     StatusContrato,
     TipoProcesso,
@@ -106,6 +107,13 @@ class ContratoCriar(BaseModel):
     tipo_reajuste: TipoReajuste | None = None
     periodicidade_reajuste_meses: int | None = Field(None, ge=1, le=120)
     indice_reajuste_padrao: str | None = Field(None, max_length=50)
+    # Controle por vigência (padrão) ou por quantidade de execuções (ex.:
+    # limpeza de carpete, aplicada N vezes por exercício) — ver ModoExecucao.
+    # A vigência continua sendo informada (instrumento_origem) mesmo em
+    # modo por_quantidade: ela ainda limita o exercício, só não é o critério
+    # de conclusão do contrato.
+    modo_execucao: ModoExecucao = ModoExecucao.POR_VIGENCIA
+    quantidade_execucoes_previstas: int | None = Field(None, ge=1, le=1000)
 
     @model_validator(mode="after")
     def _excecao_exige_justificativa_e_documento(self):
@@ -131,6 +139,16 @@ class ContratoCriar(BaseModel):
     def _periodicidade_exige_tipo_reajuste(self):
         if self.tipo_reajuste is not None and self.periodicidade_reajuste_meses is None:
             raise ValueError("Informe a periodicidade do reajuste (em meses) quando o contrato tem cláusula de reajuste.")
+        return self
+
+    @model_validator(mode="after")
+    def _quantidade_execucoes_condiz_com_modo(self):
+        if self.modo_execucao == ModoExecucao.POR_QUANTIDADE and self.quantidade_execucoes_previstas is None:
+            raise ValueError(
+                "Informe a quantidade de execuções previstas quando o contrato é controlado por quantidade."
+            )
+        if self.modo_execucao == ModoExecucao.POR_VIGENCIA and self.quantidade_execucoes_previstas is not None:
+            raise ValueError("Quantidade de execuções previstas só se aplica a contrato controlado por quantidade.")
         return self
 
     # Prazo de vigência inicial (Relógio 1) — o teto de 5 anos (Relógio 2) só
@@ -190,6 +208,11 @@ class ContratoAtualizar(BaseModel):
     tipo_reajuste: TipoReajuste | None = None
     periodicidade_reajuste_meses: int | None = Field(None, ge=1, le=120)
     indice_reajuste_padrao: str | None = Field(None, max_length=50)
+    # Mesma classificação de ContratoCriar — pode ser ajustada depois da
+    # criação (ex.: percebeu-se que o contrato se enquadra no modelo por
+    # quantidade só depois de cadastrado).
+    modo_execucao: ModoExecucao | None = None
+    quantidade_execucoes_previstas: int | None = Field(None, ge=1, le=1000)
 
     @model_validator(mode="after")
     def _excecao_exige_justificativa_e_documento(self):
@@ -216,6 +239,35 @@ class ContratoAtualizar(BaseModel):
         if self.tipo_reajuste is not None and self.periodicidade_reajuste_meses is None:
             raise ValueError("Informe a periodicidade do reajuste (em meses) quando o contrato tem cláusula de reajuste.")
         return self
+
+    @model_validator(mode="after")
+    def _quantidade_execucoes_condiz_com_modo(self):
+        if self.modo_execucao == ModoExecucao.POR_QUANTIDADE and self.quantidade_execucoes_previstas is None:
+            raise ValueError(
+                "Informe a quantidade de execuções previstas quando o contrato é controlado por quantidade."
+            )
+        if self.modo_execucao == ModoExecucao.POR_VIGENCIA and self.quantidade_execucoes_previstas is not None:
+            raise ValueError("Quantidade de execuções previstas só se aplica a contrato controlado por quantidade.")
+        return self
+
+
+class ExecucaoCriar(BaseModel):
+    """Registra uma execução do serviço, para contrato controlado por
+    quantidade — cada aplicação é uma linha nova, nunca editada depois
+    (mesmo princípio do histórico de garantia)."""
+
+    data_execucao: date
+    observacao: str | None = Field(None, max_length=500)
+
+
+class ExecucaoSaida(BaseModel):
+    id: uuid.UUID
+    data_execucao: date
+    observacao: str | None
+    registrado_por_nome: str
+    registrado_em: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class GarantiaCriar(BaseModel):
@@ -378,4 +430,10 @@ class ContratoDetalhado(ContratoSaida):
     periodicidade_reajuste_meses: int | None
     indice_reajuste_padrao: str | None
     proximo_marco_reajuste: date | None = None
+    # Controle por quantidade de execuções (ex.: limpeza de carpete) — vazio/
+    # falso na imensa maioria dos contratos, que usa vigência normalmente.
+    modo_execucao: ModoExecucao
+    quantidade_execucoes_previstas: int | None
+    quantidade_execucoes_atingida: bool = False
+    execucoes: list[ExecucaoSaida]
     instrumentos: list[InstrumentoProcessualSaida]

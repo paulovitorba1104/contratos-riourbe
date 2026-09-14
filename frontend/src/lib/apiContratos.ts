@@ -7,6 +7,7 @@ import type {
   ContratoAtualizarPayload,
   ContratoDetalhado,
   ExcecaoTetoVigencia,
+  ExecucaoPayload,
   Fiscal,
   Fornecedor,
   LogAuditoria,
@@ -112,6 +113,16 @@ export const apiContratos = {
         `&indice_atual=${indiceAtual}&indice_base=${indiceBase}` +
         `&data_inicio=${dataInicio}&data_fim=${dataFim}`,
     ),
+  /** Registra uma execução do serviço (contrato controlado por quantidade —
+   * ex.: limpeza de carpete). Cada aplicação é uma linha nova, nunca
+   * editada depois. */
+  registrarExecucao: (contratoId: string, dados: ExecucaoPayload) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/execucoes`, {
+      method: "POST",
+      body: JSON.stringify(dados),
+    }),
+  excluirExecucao: (contratoId: string, execucaoId: string) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/execucoes/${execucaoId}`, { method: "DELETE" }),
   anexarArquivo: (contratoId: string, instrumentoId: string, arquivo: File) => {
     const formData = new FormData();
     formData.append("arquivo", arquivo);

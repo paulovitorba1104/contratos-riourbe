@@ -17,6 +17,7 @@ import type {
   Fornecedor,
   FundamentacaoLei,
   LogAuditoria,
+  ModoExecucao,
   Processo,
   SistemaProcesso,
   SubStatusInstrumento,
@@ -29,6 +30,7 @@ import {
   ROTULOS_ACAO_AUDITORIA,
   ROTULOS_EXCECAO_TETO,
   ROTULOS_FORMA_CONTRATACAO,
+  ROTULOS_MODO_EXECUCAO,
   ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_STATUS_CONTRATO,
   ROTULOS_SUB_STATUS,
@@ -84,14 +86,16 @@ function NovoInstrumentoForm({
   contratoId,
   dataAssinatura,
   excecaoTetoVigencia,
+  tipoInicial,
   aoCriar,
 }: {
   contratoId: string;
   dataAssinatura: string;
   excecaoTetoVigencia: ExcecaoTetoVigencia | null;
+  tipoInicial?: TipoInstrumento;
   aoCriar: (c: ContratoDetalhado) => void;
 }) {
-  const [tipo, setTipo] = useState<TipoInstrumento>("apostilamento");
+  const [tipo, setTipo] = useState<TipoInstrumento>(tipoInicial ?? "apostilamento");
   const [fundamentacaoLei, setFundamentacaoLei] = useState<FundamentacaoLei>("lei_13303_16");
   const [fundamentacaoArtigo, setFundamentacaoArtigo] = useState("");
   const [numeroDocumentoSei, setNumeroDocumentoSei] = useState("");
@@ -713,6 +717,76 @@ function NovoVinculoFiscalForm({
   );
 }
 
+function RegistrarExecucaoForm({
+  contratoId,
+  aoRegistrar,
+  aoCancelar,
+}: {
+  contratoId: string;
+  aoRegistrar: (c: ContratoDetalhado) => void;
+  aoCancelar: () => void;
+}) {
+  const [dataExecucao, setDataExecucao] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar() {
+    if (!dataExecucao) {
+      setErro("Informe a data da execução.");
+      return;
+    }
+    setErro(null);
+    setEnviando(true);
+    try {
+      const atualizado = await apiContratos.registrarExecucao(contratoId, {
+        data_execucao: dataExecucao,
+        observacao: observacao || null,
+      });
+      aoRegistrar(atualizado);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível registrar a execução.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="execucao_data">
+          Data da execução
+        </label>
+        <input
+          id="execucao_data"
+          type="date"
+          className={campoClasse}
+          value={dataExecucao}
+          onChange={(e) => setDataExecucao(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600">Observação (opcional)</label>
+        <input
+          className={campoClasse}
+          value={observacao}
+          onChange={(e) => setObservacao(e.target.value)}
+          placeholder="ex.: aplicação no 3º andar"
+        />
+      </div>
+      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={enviar} disabled={enviando} className="btn-primary btn-sm">
+          {enviando ? "Registrando..." : "Registrar execução"}
+        </button>
+        <button type="button" onClick={aoCancelar} className="btn-secondary btn-sm">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function RegistrarGarantiaForm({
   contratoId,
   aoRegistrar,
@@ -1036,6 +1110,12 @@ function EditarContratoForm({
   );
   const [indiceReajustePadrao, setIndiceReajustePadrao] = useState(contrato.indice_reajuste_padrao ?? "");
 
+  // Controle por quantidade de execuções — semeado do que o contrato já tem.
+  const [modoExecucao, setModoExecucao] = useState<ModoExecucao>(contrato.modo_execucao);
+  const [quantidadeExecucoesPrevistas, setQuantidadeExecucoesPrevistas] = useState(
+    contrato.quantidade_execucoes_previstas ? String(contrato.quantidade_execucoes_previstas) : "",
+  );
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -1051,6 +1131,10 @@ function EditarContratoForm({
     }
     if (temClausulaReajuste && !periodicidadeReajusteMeses.trim()) {
       setErro("Informe a periodicidade do reajuste (em meses).");
+      return;
+    }
+    if (modoExecucao === "por_quantidade" && !quantidadeExecucoesPrevistas.trim()) {
+      setErro("Informe a quantidade de execuções previstas.");
       return;
     }
     setEnviando(true);
@@ -1080,6 +1164,9 @@ function EditarContratoForm({
         tipo_reajuste: temClausulaReajuste ? tipoReajuste : null,
         periodicidade_reajuste_meses: temClausulaReajuste ? Number(periodicidadeReajusteMeses) : null,
         indice_reajuste_padrao: temClausulaReajuste ? indiceReajustePadrao || null : null,
+        modo_execucao: modoExecucao,
+        quantidade_execucoes_previstas:
+          modoExecucao === "por_quantidade" ? Number(quantidadeExecucoesPrevistas) : null,
       });
       aoSalvar(atualizado);
     } catch (e) {
@@ -1143,9 +1230,50 @@ function EditarContratoForm({
         </div>
       </div>
 
+      <div>
+        <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="editar_modo_execucao">
+          Modo de execução
+        </label>
+        <select
+          id="editar_modo_execucao"
+          className={campoClasse}
+          value={modoExecucao}
+          onChange={(e) => setModoExecucao(e.target.value as ModoExecucao)}
+        >
+          {Object.entries(ROTULOS_MODO_EXECUCAO).map(([valor, rotulo]) => (
+            <option key={valor} value={valor}>
+              {rotulo}
+            </option>
+          ))}
+        </select>
+        {modoExecucao === "por_quantidade" && (
+          <div className="mt-2">
+            <label
+              className="mb-1 block text-xs font-medium text-slate-600"
+              htmlFor="editar_quantidade_execucoes_previstas"
+            >
+              Quantidade de execuções previstas
+            </label>
+            <input
+              id="editar_quantidade_execucoes_previstas"
+              type="number"
+              min={1}
+              max={1000}
+              className={campoClasse}
+              value={quantidadeExecucoesPrevistas}
+              onChange={(e) => setQuantidadeExecucoesPrevistas(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Data de assinatura original</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">
+            {modoExecucao === "por_quantidade"
+              ? "Data de publicação no Diário Oficial"
+              : "Data de assinatura original"}
+          </label>
           <input
             type="date"
             className={campoClasse}
@@ -1505,6 +1633,11 @@ export function ContratoDetalhe() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [fiscaisDisponiveis, setFiscaisDisponiveis] = useState<Fiscal[]>([]);
   const [mostrarFormInstrumento, setMostrarFormInstrumento] = useState(false);
+  // Tipo pré-selecionado ao abrir "+ Novo instrumento" — usado pelo atalho
+  // "Encerrar contrato" (quando a quantidade de execuções prevista é
+  // atingida) para já abrir no tipo Rescisão/Extinção.
+  const [tipoInstrumentoInicial, setTipoInstrumentoInicial] = useState<TipoInstrumento>("apostilamento");
+  const [mostrarFormExecucao, setMostrarFormExecucao] = useState(false);
   const [mostrarFormFiscal, setMostrarFormFiscal] = useState(false);
   const [mostrarFormEditarContrato, setMostrarFormEditarContrato] = useState(false);
   const [mostrarFormGarantia, setMostrarFormGarantia] = useState(false);
@@ -1612,6 +1745,22 @@ export function ContratoDetalhe() {
       mostrarToast("Instrumento excluído.");
     } catch (e) {
       const mensagem = e instanceof ErroApi ? e.message : "Não foi possível excluir o instrumento.";
+      setErro(mensagem);
+      mostrarToast(mensagem, "erro");
+    }
+  }
+
+  async function excluirExecucao(execucaoId: string) {
+    if (!id) return;
+    if (!window.confirm("Excluir esta execução registrada? Essa ação não pode ser desfeita.")) {
+      return;
+    }
+    try {
+      const atualizado = await apiContratos.excluirExecucao(id, execucaoId);
+      setContrato(atualizado);
+      mostrarToast("Execução excluída.");
+    } catch (e) {
+      const mensagem = e instanceof ErroApi ? e.message : "Não foi possível excluir a execução.";
       setErro(mensagem);
       mostrarToast(mensagem, "erro");
     }
@@ -2005,7 +2154,14 @@ export function ContratoDetalhe() {
         <section className="card p-5">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Dados administrativos</h2>
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <CampoInfo rotulo="Data de assinatura original" valor={contrato.data_assinatura_original} />
+            <CampoInfo
+              rotulo={
+                contrato.modo_execucao === "por_quantidade"
+                  ? "Data de publicação no D.O."
+                  : "Data de assinatura original"
+              }
+              valor={contrato.data_assinatura_original}
+            />
             <CampoInfo rotulo="Nota de reserva" valor={contrato.nota_reserva} />
             <CampoInfo rotulo="Nota de empenho" valor={contrato.nota_empenho} />
             <CampoInfo rotulo="PT" valor={contrato.pt} />
@@ -2087,6 +2243,84 @@ export function ContratoDetalhe() {
           </ul>
         </section>
 
+        {contrato.modo_execucao === "por_quantidade" && (
+          <section className="card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">
+                Execuções ({contrato.execucoes.length}
+                {contrato.quantidade_execucoes_previstas !== null
+                  ? ` de ${contrato.quantidade_execucoes_previstas}`
+                  : ""}
+                )
+              </h2>
+              {contrato.status !== "encerrado" && (
+                <button onClick={() => setMostrarFormExecucao((v) => !v)} className="btn-primary btn-sm">
+                  {mostrarFormExecucao ? "Cancelar" : "+ Registrar execução"}
+                </button>
+              )}
+            </div>
+
+            {contrato.quantidade_execucoes_atingida && contrato.status !== "encerrado" && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-amber-50 p-3">
+                <p className="text-sm text-amber-800">
+                  Quantidade de execuções prevista atingida — considere encerrar o contrato e abrir
+                  uma nova contratação.
+                </p>
+                <button
+                  onClick={() => {
+                    setTipoInstrumentoInicial("rescisao_extincao");
+                    setMostrarFormInstrumento(true);
+                  }}
+                  className="btn-secondary btn-sm shrink-0"
+                >
+                  Encerrar contrato
+                </button>
+              </div>
+            )}
+
+            {mostrarFormExecucao && (
+              <div className="mb-3">
+                <RegistrarExecucaoForm
+                  contratoId={contrato.id}
+                  aoRegistrar={(c) => {
+                    setContrato(c);
+                    setMostrarFormExecucao(false);
+                    mostrarToast("Execução registrada com sucesso.");
+                  }}
+                  aoCancelar={() => setMostrarFormExecucao(false)}
+                />
+              </div>
+            )}
+
+            <ul className="space-y-1.5">
+              {[...contrato.execucoes].reverse().map((e) => (
+                <li key={e.id} className="flex items-center justify-between gap-3 text-sm">
+                  <div>
+                    <span className="font-medium text-slate-900">{e.data_execucao}</span>
+                    {e.observacao && <span className="ml-2 text-xs text-slate-500">{e.observacao}</span>}
+                    <p className="text-xs text-slate-400">
+                      registrado por {e.registrado_por_nome} em{" "}
+                      {new Date(e.registrado_em).toLocaleString("pt-BR")}
+                    </p>
+                  </div>
+                  {ehAdministrador && (
+                    <button
+                      onClick={() => excluirExecucao(e.id)}
+                      className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
+                      title="Exclusão definitiva — restrita a administrador"
+                    >
+                      Excluir
+                    </button>
+                  )}
+                </li>
+              ))}
+              {contrato.execucoes.length === 0 && (
+                <p className="text-sm text-slate-500">Nenhuma execução registrada ainda.</p>
+              )}
+            </ul>
+          </section>
+        )}
+
         <section className="card p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900">Instrumentos processuais</h2>
@@ -2103,9 +2337,11 @@ export function ContratoDetalhe() {
           {mostrarFormInstrumento && (
             <div className="mb-4">
               <NovoInstrumentoForm
+                key={tipoInstrumentoInicial}
                 contratoId={contrato.id}
                 dataAssinatura={contrato.data_assinatura_original}
                 excecaoTetoVigencia={contrato.excecao_teto_vigencia}
+                tipoInicial={tipoInstrumentoInicial}
                 aoCriar={(c) => {
                   setContrato(c);
                   setMostrarFormInstrumento(false);
