@@ -452,6 +452,18 @@ e qual a providência) deve sair dele, não de suposição. Também fica para es
 que exatamente entra em "pagando certinho" (encargos trabalhistas e previdenciários da mão de
 obra alocada, regularidade fiscal, ou ambos).
 
+**Módulo Almoxarifado — compras avulsas com faturamento, mas sem ser "contrato" (registrado, a
+detalhar)**: existem compras (ex.: material de almoxarifado) que são entrega de produto, não
+serviço continuado — não fazem sentido no módulo Contratos, mas precisam de faturamento mesmo
+assim, e hoje esse faturamento não tem onde entrar no sistema. O Almoxarifado ainda vai ser
+estruturado (é um módulo do hub ainda não construído); quando for, ele precisa nascer já ligado
+ao módulo Faturamento — do jeito que o próprio Faturamento hoje é alimentado pelo módulo
+Contratos (fatura aponta para um contrato), uma compra de almoxarifado vai precisar poder
+alimentar uma fatura sem que exista um contrato por trás dela. Vale revisitar, nessa hora, se o
+`contrato_id` obrigatório em `faturas.faturas` precisa virar opcional (ou se o Almoxarifado gera
+algum registro equivalente a "contrato" só para a fatura apontar) — decisão de desenho a tomar
+quando o módulo Almoxarifado for desenhado, não antes.
+
 **Consulta de jurisprudência do TCM-RJ e do TCU (agendado, a pesquisar)**: buscar uma API que
 permita consultar jurisprudência dos dois tribunais de contas sobre licitações e contratos, para
 o sistema poder trazer os precedentes relevantes ao lado do caso concreto — hoje essa pesquisa é
