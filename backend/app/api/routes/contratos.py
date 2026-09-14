@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 
 from dateutil.relativedelta import relativedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import exigir_administrador, get_current_user
@@ -18,11 +18,12 @@ from app.models.contrato import (
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.faturamento import Fatura
-from app.models.instrumento_processual import InstrumentoProcessual, TipoInstrumento
+from app.models.instrumento_processual import AnexoInstrumento, InstrumentoProcessual, TipoInstrumento
 from app.models.log_auditoria import LogAuditoria
 from app.models.modelo_ripm import ModeloRipm
 from app.models.usuario import Usuario
 from app.schemas.contrato import (
+    CalculoReajusteSaida,
     CalculoVigenciaSaida,
     ContratoAtualizar,
     ContratoAtualizarPagamento,
@@ -31,14 +32,22 @@ from app.schemas.contrato import (
     ContratoSaida,
     GarantiaCriar,
     GarantiaSaida,
+    LinhaReajusteSaida,
     LogAuditoriaSaida,
     ProcessoAtualizar,
     ProcessoCriar,
 )
 from app.schemas.fiscal import FiscalEncerrarVinculo, FiscalVincular, FiscalVinculoSaida
-from app.schemas.instrumento import InstrumentoProcessualCriar, InstrumentoSubStatusAtualizar
+from app.schemas.instrumento import (
+    AnexoInstrumentoSaida,
+    InstrumentoProcessualCriar,
+    InstrumentoProcessualSaida,
+    InstrumentoSubStatusAtualizar,
+)
+from app.services import armazenamento
 from app.services import contratos as regras
 from app.services import faturamento as regras_faturamento
+from app.services import reajuste as regras_reajuste
 from app.services.auditoria import registrar_log
 
 router = APIRouter(prefix="/contratos", tags=["contratos"])
@@ -48,7 +57,9 @@ def _carregar_contrato(db: Session, contrato_id: uuid.UUID) -> Contrato:
     contrato = (
         db.query(Contrato)
         .options(
-            selectinload(Contrato.instrumentos),
+            selectinload(Contrato.instrumentos).selectinload(InstrumentoProcessual.anexos).selectinload(
+                AnexoInstrumento.enviado_por
+            ),
             selectinload(Contrato.fiscais).selectinload(ContratoFiscal.fiscal),
             selectinload(Contrato.garantias).selectinload(GarantiaContrato.registrado_por),
             selectinload(Contrato.processos),
@@ -67,10 +78,32 @@ def _para_saida(contrato: Contrato) -> ContratoSaida:
         **{
             campo: getattr(contrato, campo)
             for campo in ContratoSaida.model_fields
-            if campo not in {"alerta_vigencia", "alerta_garantia"}
+            if campo not in {"alerta_vigencia", "alerta_garantia", "alerta_reajuste"}
         },
         alerta_vigencia=alertas.alerta_vigencia,
         alerta_garantia=alertas.alerta_garantia,
+        alerta_reajuste=alertas.alerta_reajuste,
+    )
+
+
+def _instrumento_para_saida(instrumento: InstrumentoProcessual) -> InstrumentoProcessualSaida:
+    """Constrói explicitamente (em vez de deixar o Pydantic coagir sozinho)
+    porque `anexos` precisa do nome de quem enviou, que não é um atributo
+    direto do modelo — está em `anexo.enviado_por.nome`."""
+    dados = {campo: getattr(instrumento, campo) for campo in InstrumentoProcessualSaida.model_fields if campo != "anexos"}
+    return InstrumentoProcessualSaida(
+        **dados,
+        anexos=[
+            AnexoInstrumentoSaida(
+                id=anexo.id,
+                nome_arquivo=anexo.nome_arquivo,
+                tipo_mime=anexo.tipo_mime,
+                tamanho_bytes=anexo.tamanho_bytes,
+                enviado_por_nome=anexo.enviado_por.nome,
+                enviado_em=anexo.enviado_em,
+            )
+            for anexo in instrumento.anexos
+        ],
     )
 
 
@@ -113,7 +146,11 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
             )
             for g in contrato.garantias
         ],
-        instrumentos=list(contrato.instrumentos),
+        tipo_reajuste=contrato.tipo_reajuste,
+        periodicidade_reajuste_meses=contrato.periodicidade_reajuste_meses,
+        indice_reajuste_padrao=contrato.indice_reajuste_padrao,
+        proximo_marco_reajuste=regras.proximo_marco_reajuste(contrato),
+        instrumentos=[_instrumento_para_saida(i) for i in contrato.instrumentos],
     )
 
 
@@ -169,6 +206,39 @@ def calcular_vigencia(
         data_fim=data_fim,
         teto_cinco_anos=teto,
         excede_teto=excede,
+    )
+
+
+@router.get("/calcular-reajuste", response_model=CalculoReajusteSaida)
+def calcular_reajuste(
+    valor_mensal_antigo: float,
+    indice_atual: float,
+    indice_base: float,
+    data_inicio: date,
+    data_fim: date,
+    _: Usuario = Depends(get_current_user),
+) -> CalculoReajusteSaida:
+    """Calculadora de reajuste/apostilamento (seção 4.6) — substitui a
+    calculadora do cidadão para a parte de conta. `data_inicio` é o marco do
+    reajuste (ex.: aniversário da vigência); `data_fim` é o próximo marco ou
+    o fim da vigência do contrato, o que vier primeiro. Devolve o valor
+    mensal reajustado e a distribuição mês a mês do valor a formalizar por
+    apostilamento — o mesmo cálculo usado ao criar o instrumento, aqui só
+    para pré-visualizar antes de enviar.
+    """
+    try:
+        distribuicao = regras_reajuste.calcular_distribuicao_reajuste(
+            valor_mensal_antigo, indice_atual, indice_base, data_inicio, data_fim
+        )
+    except regras_reajuste.PeriodoReajusteInvalido as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+    return CalculoReajusteSaida(
+        valor_mensal_antigo=distribuicao.valor_mensal_antigo,
+        valor_mensal_novo=distribuicao.valor_mensal_novo,
+        percentual_variacao=distribuicao.percentual_variacao,
+        linhas=[LinhaReajusteSaida.model_validate(linha) for linha in distribuicao.linhas],
+        valor_total_apostilamento=distribuicao.valor_total_apostilamento,
     )
 
 
@@ -590,6 +660,23 @@ def criar_instrumento(
 
     instrumento = InstrumentoProcessual(contrato_id=contrato.id, **dados.model_dump())
 
+    # Apostilamento de reajuste: o valor mensal novo e o valor_delta (soma
+    # das diferenças mensais) são sempre calculados aqui, nunca aceitos do
+    # cliente — mesmo racional do contador de datas.
+    if dados.reajuste_data_inicio is not None:
+        try:
+            distribuicao = regras_reajuste.calcular_distribuicao_reajuste(
+                dados.reajuste_valor_mensal_antigo,
+                dados.reajuste_indice_atual,
+                dados.reajuste_indice_base,
+                dados.reajuste_data_inicio,
+                dados.reajuste_data_fim,
+            )
+        except regras_reajuste.PeriodoReajusteInvalido as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        instrumento.reajuste_valor_mensal_novo = distribuicao.valor_mensal_novo
+        instrumento.valor_delta = distribuicao.valor_total_apostilamento
+
     try:
         regras.validar_instrumento(contrato, instrumento)
         regras.aplicar_efeitos_status(contrato, instrumento.tipo)
@@ -672,7 +759,66 @@ def excluir_instrumento(
         entidade_id=str(instrumento.id),
         detalhes={"tipo_instrumento": instrumento.tipo.value},
     )
+    for anexo in instrumento.anexos:
+        armazenamento.remover_arquivo(anexo.caminho_relativo)
     db.delete(instrumento)
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.post(
+    "/{contrato_id}/instrumentos/{instrumento_id}/anexos",
+    response_model=ContratoDetalhado,
+    status_code=status.HTTP_201_CREATED,
+)
+async def anexar_arquivo(
+    contrato_id: uuid.UUID,
+    instrumento_id: uuid.UUID,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Anexa um arquivo (contrato, termo aditivo etc. escaneados) ao
+    instrumento — para visualização rápida sem precisar ir atrás do processo
+    físico/SEI. Guardado em disco local (`app/uploads/`); ver nota no README
+    sobre deploy sem disco persistente."""
+    instrumento = (
+        db.query(InstrumentoProcessual)
+        .filter(InstrumentoProcessual.id == instrumento_id, InstrumentoProcessual.contrato_id == contrato_id)
+        .first()
+    )
+    if instrumento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrumento não encontrado.")
+
+    conteudo = await arquivo.read()
+    if not conteudo:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Arquivo vazio.")
+
+    try:
+        caminho_relativo, nome_sanitizado = armazenamento.salvar_anexo(
+            instrumento.id, arquivo.filename or "arquivo", conteudo
+        )
+    except armazenamento.ExtensaoNaoPermitida as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+    db.add(
+        AnexoInstrumento(
+            instrumento_id=instrumento.id,
+            nome_arquivo=nome_sanitizado,
+            caminho_relativo=caminho_relativo,
+            tipo_mime=arquivo.content_type or "application/octet-stream",
+            tamanho_bytes=len(conteudo),
+            enviado_por_id=usuario.id,
+        )
+    )
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="anexar_arquivo_instrumento",
+        entidade="instrumento_processual",
+        entidade_id=str(instrumento.id),
+        detalhes={"nome_arquivo": nome_sanitizado},
+    )
     db.commit()
     return _para_detalhado(_carregar_contrato(db, contrato_id))
 

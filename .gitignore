@@ -20,6 +20,10 @@ dist/
 # Build do frontend copiado para dentro do backend na imagem de produção
 backend/app/static/
 
+# Anexos de instrumento processual (contrato/aditivo escaneado) — disco
+# local, nunca versionado.
+backend/uploads/
+
 # Editor / SO
 .vscode/
 .idea/

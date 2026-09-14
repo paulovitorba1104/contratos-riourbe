@@ -4,7 +4,14 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.contrato import ExcecaoTetoVigencia, FormaContratacao, SistemaProcesso, StatusContrato, TipoProcesso
+from app.models.contrato import (
+    ExcecaoTetoVigencia,
+    FormaContratacao,
+    SistemaProcesso,
+    StatusContrato,
+    TipoProcesso,
+    TipoReajuste,
+)
 from app.models.instrumento_processual import FundamentacaoLei
 from app.schemas.fiscal import FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualSaida
@@ -90,6 +97,15 @@ class ContratoCriar(BaseModel):
     # não entra no módulo de Faturamento — a GCT só gerencia prazo/renovação.
     faturamento_gerido_pela_gct: bool = True
     setor_responsavel_faturamento: str | None = Field(None, max_length=100)
+    # Reajuste — nulo quando o contrato não tem cláusula de reajuste (ex.:
+    # compra pontual, licença de software sem previsão de correção).
+    # `tipo_reajuste` distingue cláusula obrigatória (a Rio-Urbe aplica assim
+    # que completa o prazo, sem precisar de pedido) de reajuste que só ocorre
+    # se a contratada solicitar. A periodicidade não é fixa em 24 meses no
+    # sistema — cada contrato traz a sua na própria cláusula.
+    tipo_reajuste: TipoReajuste | None = None
+    periodicidade_reajuste_meses: int | None = Field(None, ge=1, le=120)
+    indice_reajuste_padrao: str | None = Field(None, max_length=50)
 
     @model_validator(mode="after")
     def _excecao_exige_justificativa_e_documento(self):
@@ -109,6 +125,12 @@ class ContratoCriar(BaseModel):
                 "Informe o setor responsável pelo faturamento quando ele não é feito pela "
                 "Gerência de Contratos."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _periodicidade_exige_tipo_reajuste(self):
+        if self.tipo_reajuste is not None and self.periodicidade_reajuste_meses is None:
+            raise ValueError("Informe a periodicidade do reajuste (em meses) quando o contrato tem cláusula de reajuste.")
         return self
 
     # Prazo de vigência inicial (Relógio 1) — o teto de 5 anos (Relógio 2) só
@@ -162,6 +184,12 @@ class ContratoAtualizar(BaseModel):
     # rota também limpa setor_responsavel_faturamento nesse caso).
     faturamento_gerido_pela_gct: bool | None = None
     setor_responsavel_faturamento: str | None = Field(None, max_length=100)
+    # Mesma classificação de reajuste de ContratoCriar — envie
+    # tipo_reajuste=null para remover a cláusula (a rota também limpa
+    # periodicidade e índice padrão nesse caso).
+    tipo_reajuste: TipoReajuste | None = None
+    periodicidade_reajuste_meses: int | None = Field(None, ge=1, le=120)
+    indice_reajuste_padrao: str | None = Field(None, max_length=50)
 
     @model_validator(mode="after")
     def _excecao_exige_justificativa_e_documento(self):
@@ -181,6 +209,12 @@ class ContratoAtualizar(BaseModel):
                 "Informe o setor responsável pelo faturamento quando ele não é feito pela "
                 "Gerência de Contratos."
             )
+        return self
+
+    @model_validator(mode="after")
+    def _periodicidade_exige_tipo_reajuste(self):
+        if self.tipo_reajuste is not None and self.periodicidade_reajuste_meses is None:
+            raise ValueError("Informe a periodicidade do reajuste (em meses) quando o contrato tem cláusula de reajuste.")
         return self
 
 
@@ -236,6 +270,32 @@ class CalculoVigenciaSaida(BaseModel):
     excede_teto: bool = False
 
 
+class LinhaReajusteSaida(BaseModel):
+    """Uma competência (mês) da distribuição do apostilamento."""
+
+    competencia: date
+    valor_antigo: Decimal
+    valor_reajustado: Decimal
+    diferenca: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class CalculoReajusteSaida(BaseModel):
+    """Resposta da calculadora de reajuste: valor mensal reajustado e a
+    distribuição mês a mês do que o apostilamento formaliza — substitui a
+    calculadora do cidadão para a parte de conta (o índice em si continua
+    sendo informado por quem calcula)."""
+
+    valor_mensal_antigo: Decimal
+    valor_mensal_novo: Decimal
+    percentual_variacao: Decimal
+    linhas: list[LinhaReajusteSaida]
+    valor_total_apostilamento: Decimal
+
+    model_config = {"from_attributes": True}
+
+
 class LogAuditoriaSaida(BaseModel):
     id: uuid.UUID
     acao: str
@@ -282,6 +342,7 @@ class ContratoSaida(BaseModel):
     # precisam ser visíveis no Kanban, não só na ficha do contrato.
     alerta_vigencia: str | None
     alerta_garantia: str | None
+    alerta_reajuste: str | None
     # Também na listagem — a tela de Nova fatura precisa saber quais
     # contratos aceitam fatura sem abrir cada um; o Kanban usa para o selo.
     faturamento_gerido_pela_gct: bool
@@ -312,4 +373,9 @@ class ContratoDetalhado(ContratoSaida):
     garantia_inicio: date | None
     garantia_fim: date | None
     garantias: list[GarantiaSaida]
+    # Reajuste — nulo quando o contrato não tem cláusula de reajuste.
+    tipo_reajuste: TipoReajuste | None
+    periodicidade_reajuste_meses: int | None
+    indice_reajuste_padrao: str | None
+    proximo_marco_reajuste: date | None = None
     instrumentos: list[InstrumentoProcessualSaida]

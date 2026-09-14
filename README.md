@@ -270,6 +270,30 @@ Implementa a seção 4 do plano de desenvolvimento:
   garantia "atual" é sempre a mais recente; a tela só mostra os dois campos de data quando o
   usuário clica em "Registrar garantia". Alertas calculados em 6/3/1 mês (vigência) e 3/1 mês
   (garantia) — visíveis tanto na ficha do contrato quanto nos cards do Kanban.
+- **Reajuste e apostilamento com calculadora embutida**: o contrato marca se tem cláusula de
+  reajuste (`tipo_reajuste`: `automatico` — obrigatório, reajusta assim que completa o prazo, sem
+  precisar de pedido; ou `mediante_solicitacao` — só se a contratada pedir), a periodicidade em
+  meses (normalmente 24) e o índice padrão (ex.: IPCA-E). A ficha mostra o próximo marco do
+  reajuste (data de assinatura + periodicidade, ou o último apostilamento de reajuste registrado +
+  periodicidade) com o mesmo alerta de 6/3/1 mês da vigência. Ao registrar um apostilamento
+  marcado como "é de reajuste", o formulário substitui a calculadora do cidadão: informa-se o
+  índice na data-base e o atual, o valor mensal vigente e o período (marco até o próximo marco ou
+  o fim da vigência), e o sistema calcula sozinho — mês a mês, convenção de mês comercial de 30
+  dias — o valor mensal novo e a diferença a pagar (o valor do apostilamento), mostrando uma
+  prévia ao vivo antes de salvar (`GET /api/contratos/calcular-reajuste`). O cálculo final sempre
+  roda de novo no backend ao salvar (`POST .../instrumentos`), nunca confia no total calculado no
+  navegador. O valor de reajuste/apostilamento entra no `valor_atualizado` do contrato, junto com
+  acréscimos e supressões.
+- **Anexos nos instrumentos processuais**: cada instrumento (origem, aditivo, apostilamento etc.)
+  aceita anexar arquivos (PDF, Word, Excel, imagem — até 25 MB cada) para consulta rápida sem sair
+  do sistema — contrato assinado, termo aditivo, parecer, etc. Ficam salvos em disco
+  (`backend/uploads/`, fora do controle de versão) e listados na própria linha do instrumento, com
+  download/visualização inline e exclusão (restrita a administrador). **Atenção ao ambiente**: com
+  Docker Compose local, o bind mount `./backend:/app` faz os arquivos persistirem no disco do
+  computador normalmente; num deploy em nuvem com disco efêmero (ex.: Railway, sem volume
+  persistente configurado), os arquivos são perdidos a cada redeploy — para uso em produção fora
+  do computador local, isso precisa de um volume persistente ou armazenamento externo (S3 e
+  equivalentes), ainda não implementado.
 - **Painel Kanban** por status macro, com número do contrato e alertas de vigência/garantia já
   visíveis no card, busca (número, processo, tipo de serviço ou objeto) e filtro por forma de
   contratação, e um resumo no topo com a contagem de contratos vencidos/vencendo e com garantia
@@ -409,6 +433,21 @@ administrativo do processo (não é documento jurídico do processo em si).
 JWT (`JWT_EXPIRA_HORAS`, 12h por padrão), sem expirar por inatividade. Fica para ser feito junto
 com a tela de "esqueci minha senha"/recuperação de senha (e-mail transacional via Brevo, já
 citado nas pendências gerais), já que as duas mexem no mesmo fluxo de autenticação.
+
+**Contratos por quantidade de execução (planejado, não implementado)**: o modelo atual de vigência
+(`data_inicio_vigencia`/`data_fim_vigencia`/prazo em meses) não serve para toda dispensa de
+licitação. Exemplo real: limpeza de carpete, contratada para ser executada um número certo de
+vezes dentro do mesmo exercício (ex.: 3x/ano) — o controle certo é **quantidade de execuções
+previstas × realizadas**, não uma janela de datas. Nesses contratos também não há assinatura de
+contrato nem termo aditivo — a referência é a **data de publicação no Diário Oficial**, não a
+`data_assinatura_original` (usada hoje em `teto_vigencia()`, nos alertas, na validação de
+`ContratoCriar` e em `proximo_marco_reajuste()`). Ao completar a quantidade prevista de execuções
+**e** os pagamentos correspondentes, o contrato deve encerrar sozinho, sinalizando a necessidade
+de nova contratação. Vai exigir: um modo de execução alternativo ao intervalo de datas (quantidade
+prevista × realizada), uma referência de data alternativa à assinatura (publicação no D.O.), e um
+mecanismo de registro de execução com transição automática para `encerrado`. Licenças de software
+(pagas por período fixo, sem execução por quantidade) já são atendidas pelo modelo atual — não
+precisam dessa mudança.
 
 **Exclusão de registros**: restrita a administrador (`papel = administrador`) em todos os
 cadastros do módulo Contratos — contrato (exclusão em cascata: instrumentos, vínculos de fiscal,

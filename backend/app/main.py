@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 
 from app.api.routes import (
+    anexos,
     atas_registro_preco,
     auth,
     contratos,
@@ -32,7 +33,11 @@ validar_configuracao_producao(settings)
 app = FastAPI(title=settings.app_name)
 
 app.add_middleware(SecurityHeadersMiddleware, settings=settings)
-app.add_middleware(LimiteTamanhoCorpoMiddleware, max_bytes=settings.max_body_size_bytes)
+app.add_middleware(
+    LimiteTamanhoCorpoMiddleware,
+    max_bytes=settings.max_body_size_bytes,
+    max_bytes_upload=settings.max_upload_size_bytes,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -59,6 +64,7 @@ app.include_router(fiscais.router, prefix="/api")
 app.include_router(modelos_ripm.router, prefix="/api")
 app.include_router(atas_registro_preco.router, prefix="/api")
 app.include_router(contratos.router, prefix="/api")
+app.include_router(anexos.router, prefix="/api")
 app.include_router(faturas.router, prefix="/api")
 app.include_router(faturamento_config.router_medicoes, prefix="/api")
 app.include_router(faturamento_config.router_regras, prefix="/api")

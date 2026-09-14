@@ -38,13 +38,7 @@ function extrairMensagemErro(corpo: unknown, padrao: string): string {
   return padrao;
 }
 
-export async function requisicao<T>(caminho: string, init?: RequestInit): Promise<T> {
-  const resposta = await fetch(`/api${caminho}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-
+async function _tratarResposta<T>(resposta: Response): Promise<T> {
   if (!resposta.ok) {
     let mensagem = "Erro ao comunicar com o servidor.";
     try {
@@ -60,6 +54,27 @@ export async function requisicao<T>(caminho: string, init?: RequestInit): Promis
     return undefined as T;
   }
   return (await resposta.json()) as T;
+}
+
+export async function requisicao<T>(caminho: string, init?: RequestInit): Promise<T> {
+  const resposta = await fetch(`/api${caminho}`, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+  return _tratarResposta<T>(resposta);
+}
+
+/** Upload de arquivo (multipart/form-data) — sem Content-Type manual: o
+ * navegador define sozinho, com o boundary certo. Definir à mão (como
+ * `requisicao` faz para JSON) quebraria o parsing do formulário. */
+export async function requisicaoComArquivo<T>(caminho: string, formData: FormData): Promise<T> {
+  const resposta = await fetch(`/api${caminho}`, {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+  return _tratarResposta<T>(resposta);
 }
 
 export const api = {
