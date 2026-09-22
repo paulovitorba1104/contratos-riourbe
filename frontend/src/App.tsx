@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import { BarraSuperior } from "./components/BarraSuperior";
-import { Rodape } from "./components/Rodape";
+import { AppShell } from "./components/AppShell";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
 import { ToastProvider } from "./lib/ToastContext";
 import { Atas } from "./pages/contratos/Atas";
@@ -28,12 +27,7 @@ function RotaProtegida({ children }: { children: React.ReactNode }) {
   if (!usuario) {
     return <Navigate to="/login" replace />;
   }
-  return (
-    <>
-      <BarraSuperior />
-      {children}
-    </>
-  );
+  return <AppShell>{children}</AppShell>;
 }
 
 function Rotas() {
@@ -153,7 +147,6 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
         <Rotas />
-        <Rodape />
       </ToastProvider>
     </AuthProvider>
   );

@@ -1,25 +1,11 @@
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../lib/AuthContext";
-
-const BLOCOS = [
-  {
-    titulo: "Contratos",
-    descricao: "Gestão de contratos e instrumentos processuais",
-    caminho: "/contratos",
-  },
-  { titulo: "Licitação", descricao: "Pesquisa de preços, ETP, TR e matriz de risco", caminho: null },
-  {
-    titulo: "Faturas",
-    descricao: "Controle de faturas: conferência documental e tributária, atesto e pagamento",
-    caminho: "/faturas",
-  },
-  { titulo: "Diárias, Passagens e Compras", descricao: "Fundo fixo e suprimento de fundos", caminho: null },
-  { titulo: "Planejador de Tarefas", descricao: "Quadros Kanban de tarefas do setor", caminho: null },
-];
+import { ITENS_NAVEGACAO } from "../lib/navegacao";
 
 export function Hub() {
   const { usuario } = useAuth();
+  const blocos = ITENS_NAVEGACAO.filter((item) => item.titulo !== "Início");
 
   return (
     <div className="page-shell">
@@ -30,10 +16,14 @@ export function Hub() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
-        {BLOCOS.map((bloco) => {
+      <main className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-6 sm:grid-cols-2 sm:p-8 lg:grid-cols-3">
+        {blocos.map((bloco) => {
+          const Icone = bloco.icone;
           const conteudo = (
             <>
+              <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-institucional-50 text-institucional-600">
+                <Icone size={20} strokeWidth={2} />
+              </span>
               <h2 className="mb-1 font-semibold text-slate-900">{bloco.titulo}</h2>
               <p className="text-sm text-slate-500">{bloco.descricao}</p>
               {!bloco.caminho && <span className="pill mt-3 inline-block">Em breve</span>}

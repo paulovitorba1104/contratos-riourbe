@@ -9,25 +9,25 @@ body,
 }
 
 body {
-  @apply bg-slate-50 text-slate-800;
+  @apply bg-slate-50 font-sans text-slate-800 antialiased;
 }
 
 @layer components {
   /* Botões — um único ponto de estilo para todo o sistema */
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
   .btn-primary {
-    @apply btn bg-institucional-600 text-white shadow-sm hover:bg-institucional-700 focus:outline-none focus:ring-2 focus:ring-institucional-500/30;
+    @apply btn bg-institucional-600 text-white shadow-sm hover:bg-institucional-700 hover:shadow-md hover:shadow-institucional-600/20 focus:outline-none focus:ring-2 focus:ring-institucional-500/30;
   }
   .btn-secondary {
-    @apply btn border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200;
+    @apply btn border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200;
   }
   .btn-ghost {
     @apply btn text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-200;
   }
   .btn-danger {
-    @apply btn bg-red-600 text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500/30;
+    @apply btn bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md hover:shadow-red-600/20 focus:outline-none focus:ring-2 focus:ring-red-500/30;
   }
   .btn-sm {
     @apply px-2.5 py-1 text-xs;
@@ -35,10 +35,10 @@ body {
 
   /* Cartões — base de qualquer bloco de conteúdo */
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-card;
   }
   .card-hover {
-    @apply transition hover:-translate-y-0.5 hover:shadow-md;
+    @apply transition-all duration-150 hover:-translate-y-0.5 hover:border-institucional-200 hover:shadow-lg hover:shadow-slate-200/60;
   }
 
   /* Campos de formulário */
@@ -46,7 +46,7 @@ body {
     @apply mb-1 block text-sm font-medium text-slate-700;
   }
   .field-input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20;
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20;
   }
   .field-select {
     @apply field-input;
@@ -55,15 +55,16 @@ body {
     @apply mt-1 text-xs text-slate-500;
   }
 
-  /* Estrutura de página */
+  /* Estrutura de página — vive dentro da coluna de conteúdo do AppShell,
+     não mais a página inteira (o menu lateral cuida da navegação). */
   .page-shell {
-    @apply min-h-screen bg-slate-50 pb-16;
+    @apply min-h-full bg-slate-50 pb-16;
   }
   .page-header {
-    @apply flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4;
+    @apply sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 bg-white/85 px-6 py-5 backdrop-blur-sm sm:px-8;
   }
   .page-title {
-    @apply text-lg font-semibold tracking-tight text-slate-900;
+    @apply text-xl font-semibold tracking-tight text-slate-900;
   }
   .section-title {
     @apply text-sm font-semibold uppercase tracking-wide text-slate-500;
