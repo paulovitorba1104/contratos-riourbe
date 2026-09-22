@@ -21,7 +21,7 @@ dois módulos construídos:
 | Camada | Tecnologia |
 |---|---|
 | Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
-| Frontend | React, Vite, TypeScript, Tailwind CSS |
+| Frontend | React, Vite, TypeScript, Tailwind CSS, [lucide-react](https://lucide.dev/) (ícones), fonte Inter self-hosted (`@fontsource/inter`, sem chamada externa) |
 | Banco de dados | PostgreSQL 17 |
 | Dev local | Docker Compose |
 
@@ -184,9 +184,9 @@ backend/
   tests/
 frontend/
   src/
-    pages/      # Login, Hub (blocos dos módulos)
-    lib/        # cliente da API, contexto de autenticação
-    components/
+    pages/      # Login, Hub e os módulos (contratos/, faturas/)
+    lib/        # cliente da API, contexto de autenticação, navegacao.ts (menu)
+    components/ # AppShell + Sidebar (menu lateral, sempre visível) e afins
 docker-compose.yml
 ```
 
