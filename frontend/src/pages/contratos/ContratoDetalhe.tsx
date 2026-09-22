@@ -1,3 +1,4 @@
+import { Check, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -1638,6 +1639,10 @@ export function ContratoDetalhe() {
   // atingida) para já abrir no tipo Rescisão/Extinção.
   const [tipoInstrumentoInicial, setTipoInstrumentoInicial] = useState<TipoInstrumento>("apostilamento");
   const [mostrarFormExecucao, setMostrarFormExecucao] = useState(false);
+  // Feedback visual junto do seletor de sub-status — a troca salva sozinha
+  // (sem botão "Salvar"), então precisa deixar claro que já foi gravada.
+  const [instrumentoSalvando, setInstrumentoSalvando] = useState<string | null>(null);
+  const [instrumentoSalvo, setInstrumentoSalvo] = useState<string | null>(null);
   const [mostrarFormFiscal, setMostrarFormFiscal] = useState(false);
   const [mostrarFormEditarContrato, setMostrarFormEditarContrato] = useState(false);
   const [mostrarFormGarantia, setMostrarFormGarantia] = useState(false);
@@ -1693,12 +1698,18 @@ export function ContratoDetalhe() {
 
   async function alterarSubStatus(instrumentoId: string, subStatus: SubStatusInstrumento) {
     if (!id) return;
+    setInstrumentoSalvando(instrumentoId);
+    setInstrumentoSalvo(null);
     try {
       const atualizado = await apiContratos.atualizarSubStatusInstrumento(id, instrumentoId, subStatus);
       setContrato(atualizado);
       mostrarToast("Sub-status do instrumento atualizado.");
+      setInstrumentoSalvo(instrumentoId);
+      setTimeout(() => setInstrumentoSalvo((atual) => (atual === instrumentoId ? null : atual)), 2000);
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : "Não foi possível atualizar o sub-status.");
+    } finally {
+      setInstrumentoSalvando((atual) => (atual === instrumentoId ? null : atual));
     }
   }
 
@@ -2368,17 +2379,28 @@ export function ContratoDetalhe() {
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium text-slate-900">{ROTULOS_TIPO_INSTRUMENTO[i.tipo]}</p>
                     <div className="flex items-center gap-2">
-                      <select
-                        className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20"
-                        value={i.sub_status}
-                        onChange={(e) => alterarSubStatus(i.id, e.target.value as SubStatusInstrumento)}
-                      >
-                        {Object.entries(ROTULOS_SUB_STATUS).map(([valor, rotulo]) => (
-                          <option key={valor} value={valor}>
-                            {rotulo}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20 disabled:opacity-60"
+                          value={i.sub_status}
+                          disabled={instrumentoSalvando === i.id}
+                          onChange={(e) => alterarSubStatus(i.id, e.target.value as SubStatusInstrumento)}
+                        >
+                          {Object.entries(ROTULOS_SUB_STATUS).map(([valor, rotulo]) => (
+                            <option key={valor} value={valor}>
+                              {rotulo}
+                            </option>
+                          ))}
+                        </select>
+                        {instrumentoSalvando === i.id && (
+                          <Loader2 size={14} className="animate-spin text-slate-400" aria-label="Salvando..." />
+                        )}
+                        {instrumentoSalvo === i.id && (
+                          <span className="flex items-center gap-0.5 text-xs text-green-600" title="Salvo">
+                            <Check size={14} />
+                          </span>
+                        )}
+                      </div>
                       {ehAdministrador && (
                         <button
                           onClick={() => excluirInstrumento(i.id, ROTULOS_TIPO_INSTRUMENTO[i.tipo])}
