@@ -295,9 +295,12 @@ Implementa a seção 4 do plano de desenvolvimento:
   contratos da Rio-Urbe (`R = Po×[(I-Io)/Io]`): **Io é o índice do mês anterior ao da apresentação
   da proposta** (na prática, a data de assinatura original do contrato, já cadastrada — não pede
   de novo) **e I é o índice do mês anterior ao do aniversário do contrato sendo reajustado agora**
-  (a única data que se digita, no campo "Marco do reajuste") — nunca o índice do próprio mês de
-  referência. O SGS só publica a variação percentual mensal, não um número-índice pronto, então o
-  backend monta um número-índice sintético (base 1000 arbitrária) compondo as variações mês a mês
+  (o único dado que se informa, no campo "Marco do reajuste (mês/ano)" — só mês e ano, como na
+  calculadora do cidadão de verdade, cujos índices também são mensais; o dia é sempre o mesmo da
+  assinatura do contrato, herdado automaticamente, com ajuste para meses mais curtos quando
+  necessário) — nunca o índice do próprio mês de referência. O SGS só publica a variação percentual
+  mensal, não um número-índice pronto, então o backend monta um número-índice sintético (base 1000
+  arbitrária) compondo as variações mês a mês
   entre as duas datas já deslocadas um mês para trás — a razão entre os dois números-índice
   sintéticos é idêntica à de uma tabela oficial de número-índice, o ponto de partida não importa,
   só a variação acumulada entre eles. Consulta de melhor esforço, como a de CNPJ na Receita: se a

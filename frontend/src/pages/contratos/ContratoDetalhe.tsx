@@ -8,6 +8,7 @@ import { apiAnexos, apiContratos, apiFiscais, apiFornecedores, urlAnexo } from "
 import { apiFaturas } from "../../lib/apiFaturas";
 import { useAuth } from "../../lib/AuthContext";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
+import { MESES_CURTOS } from "../../lib/tiposFaturas";
 import type {
   AnexoInstrumento,
   CalculoReajuste,
@@ -120,6 +121,13 @@ function NovoInstrumentoForm({
   const [reajusteValorMensalAntigo, setReajusteValorMensalAntigo] = useState("");
   const [reajusteIndiceBase, setReajusteIndiceBase] = useState("");
   const [reajusteIndiceAtual, setReajusteIndiceAtual] = useState("");
+  // Marco do reajuste: pede só mês/ano (como a calculadora do cidadão, cujos
+  // índices são mensais) em vez de uma data completa — evita o erro de
+  // digitar sem querer o mesmo dia da assinatura. O dia é sempre o mesmo da
+  // assinatura do contrato (é o "aniversário"), com clamp para meses mais
+  // curtos (ex.: assinatura dia 31 → 28/29 em fevereiro).
+  const [reajusteMarcoMes, setReajusteMarcoMes] = useState("");
+  const [reajusteMarcoAno, setReajusteMarcoAno] = useState("");
   const [reajusteDataInicio, setReajusteDataInicio] = useState("");
   const [reajusteDataFim, setReajusteDataFim] = useState("");
   const [previaReajuste, setPreviaReajuste] = useState<CalculoReajuste | null>(null);
@@ -222,6 +230,24 @@ function NovoInstrumentoForm({
     reajusteDataFim,
   ]);
 
+  /** Reconstrói a data completa do marco a partir do mês/ano escolhidos e do
+   * dia da assinatura do contrato — mesmo dia todo ano, exceto quando o mês
+   * escolhido é mais curto (ex.: assinatura dia 31, marco em fevereiro). */
+  useEffect(() => {
+    if (!reajusteMarcoMes || !reajusteMarcoAno || reajusteMarcoAno.length !== 4 || !dataAssinatura) {
+      setReajusteDataInicio("");
+      return;
+    }
+    const mes = Number(reajusteMarcoMes);
+    const ano = Number(reajusteMarcoAno);
+    const diaAssinatura = Number(dataAssinatura.slice(8, 10));
+    const ultimoDiaDoMes = new Date(ano, mes, 0).getDate();
+    const dia = Math.min(diaAssinatura, ultimoDiaDoMes);
+    setReajusteDataInicio(
+      `${String(ano).padStart(4, "0")}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`,
+    );
+  }, [reajusteMarcoMes, reajusteMarcoAno, dataAssinatura]);
+
   async function buscarIndiceIpcaE() {
     setErroConsultaIndice(null);
     if (!reajusteDataInicio) {
@@ -286,6 +312,8 @@ function NovoInstrumentoForm({
       setReajusteValorMensalAntigo("");
       setReajusteIndiceBase("");
       setReajusteIndiceAtual("");
+      setReajusteMarcoMes("");
+      setReajusteMarcoAno("");
       setReajusteDataInicio("");
       setReajusteDataFim("");
       setErroConsultaIndice(null);
@@ -508,16 +536,34 @@ function NovoInstrumentoForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_data_inicio">
-                Marco do reajuste (início)
+              <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_marco_mes">
+                Marco do reajuste (mês/ano)
               </label>
-              <input
-                id="reajuste_data_inicio"
-                type="date"
-                className={campoClasse}
-                value={reajusteDataInicio}
-                onChange={(e) => setReajusteDataInicio(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <select
+                  id="reajuste_marco_mes"
+                  className={campoClasse}
+                  value={reajusteMarcoMes}
+                  onChange={(e) => setReajusteMarcoMes(e.target.value)}
+                >
+                  <option value="">Mês</option>
+                  {MESES_CURTOS.map((nome, indice) => (
+                    <option key={nome} value={String(indice + 1)}>
+                      {nome}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  className={campoClasse}
+                  value={reajusteMarcoAno}
+                  onChange={(e) => setReajusteMarcoAno(e.target.value)}
+                  placeholder="Ano"
+                  min={2000}
+                  max={2100}
+                />
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="reajuste_data_fim">
