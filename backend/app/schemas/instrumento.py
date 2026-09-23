@@ -33,6 +33,11 @@ class InstrumentoProcessualCriar(BaseModel):
     fundamentacao_lei: FundamentacaoLei
     fundamentacao_artigo: str = Field(..., max_length=100)
     numero_documento_sei: str | None = Field(None, max_length=50)
+    # Datas do próprio instrumento — geralmente ainda não conhecidas na
+    # criação (o processo é registrado antes de ser assinado/publicado);
+    # editáveis depois em PATCH .../datas quando ficarem conhecidas.
+    data_formalizacao: date | None = None
+    data_publicacao: date | None = None
     data_inicio_vigencia: date | None = None
     data_fim_vigencia: date | None = None
     valor_delta: Decimal | None = None
@@ -113,6 +118,15 @@ class InstrumentoSubStatusAtualizar(BaseModel):
     sub_status: SubStatusInstrumento
 
 
+class InstrumentoDatasAtualizar(BaseModel):
+    """Data de formalização/assinatura e data de publicação (ex.: Diário
+    Oficial) do instrumento — independentes do sub_status, preenchidas à
+    mão quando ficam conhecidas. Enviar null limpa a data."""
+
+    data_formalizacao: date | None = None
+    data_publicacao: date | None = None
+
+
 class AnexoInstrumentoSaida(BaseModel):
     id: uuid.UUID
     nome_arquivo: str
@@ -133,6 +147,8 @@ class InstrumentoProcessualSaida(BaseModel):
     fundamentacao_artigo: str
     sub_status: SubStatusInstrumento
     numero_documento_sei: str | None
+    data_formalizacao: date | None = None
+    data_publicacao: date | None = None
     data_inicio_vigencia: date | None
     data_fim_vigencia: date | None
     valor_delta: Decimal | None

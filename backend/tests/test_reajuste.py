@@ -64,6 +64,10 @@ def test_distribuicao_bate_linha_a_linha_com_a_planilha_real():
         assert linha.diferenca == diferenca
 
     assert dist.valor_total_apostilamento == Decimal("146378.04")
+    assert dist.valor_total_antigo == Decimal("1472983.22")
+    assert dist.valor_total_reajustado == Decimal("1619361.26")
+    # As colunas do relatório fecham: reajustado - antigo = diferença total.
+    assert dist.valor_total_reajustado - dist.valor_total_antigo == dist.valor_total_apostilamento
 
 
 def test_distribuicao_dentro_de_um_unico_mes_nao_gera_dias_negativos():

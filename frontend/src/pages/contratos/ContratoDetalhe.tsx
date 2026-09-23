@@ -4,7 +4,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { BadgeAlerta } from "../../components/BadgeAlerta";
 import { ErroApi } from "../../lib/api";
-import { apiAnexos, apiContratos, apiFiscais, apiFornecedores, urlAnexo } from "../../lib/apiContratos";
+import {
+  apiAnexos,
+  apiContratos,
+  apiFiscais,
+  apiFornecedores,
+  urlAnexo,
+  urlDistribuicaoReajustePdf,
+} from "../../lib/apiContratos";
 import { apiFaturas } from "../../lib/apiFaturas";
 import { useAuth } from "../../lib/AuthContext";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
@@ -1975,6 +1982,29 @@ export function ContratoDetalhe() {
     }
   }
 
+  async function alterarDatasInstrumento(
+    instrumentoId: string,
+    dataFormalizacao: string | null,
+    dataPublicacao: string | null,
+  ) {
+    if (!id) return;
+    setInstrumentoSalvando(instrumentoId);
+    setInstrumentoSalvo(null);
+    try {
+      const atualizado = await apiContratos.atualizarDatasInstrumento(id, instrumentoId, {
+        data_formalizacao: dataFormalizacao || null,
+        data_publicacao: dataPublicacao || null,
+      });
+      setContrato(atualizado);
+      setInstrumentoSalvo(instrumentoId);
+      setTimeout(() => setInstrumentoSalvo((atual) => (atual === instrumentoId ? null : atual)), 2000);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível atualizar as datas do instrumento.");
+    } finally {
+      setInstrumentoSalvando((atual) => (atual === instrumentoId ? null : atual));
+    }
+  }
+
   async function encerrarVinculo(vinculoId: string) {
     if (!id) return;
     const hoje = new Date().toISOString().slice(0, 10);
@@ -2784,6 +2814,42 @@ export function ContratoDetalhe() {
                       {i.reajuste_data_inicio} até {i.reajuste_data_fim}
                     </p>
                   )}
+                  {i.reajuste_data_inicio && (
+                    <a
+                      href={urlDistribuicaoReajustePdf(contrato.id, i.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-xs font-medium text-institucional-700 hover:underline"
+                    >
+                      Baixar distribuição do apostilamento (PDF)
+                    </a>
+                  )}
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-0.5 block text-[11px] font-medium text-slate-500">
+                        Data do apostilamento
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20 disabled:opacity-60"
+                        value={i.data_formalizacao ?? ""}
+                        disabled={instrumentoSalvando === i.id}
+                        onChange={(e) => alterarDatasInstrumento(i.id, e.target.value || null, i.data_publicacao)}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-0.5 block text-[11px] font-medium text-slate-500">
+                        Data de publicação
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs focus:border-institucional-500 focus:outline-none focus:ring-2 focus:ring-institucional-500/20 disabled:opacity-60"
+                        value={i.data_publicacao ?? ""}
+                        disabled={instrumentoSalvando === i.id}
+                        onChange={(e) => alterarDatasInstrumento(i.id, i.data_formalizacao, e.target.value || null)}
+                      />
+                    </div>
+                  </div>
                   {i.observacoes && <p className="mt-1 text-xs text-slate-500">{i.observacoes}</p>}
                   <AnexosDoInstrumento
                     contratoId={contrato.id}

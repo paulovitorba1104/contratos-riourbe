@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import exigir_administrador, get_current_user
@@ -52,6 +52,7 @@ from app.schemas.contrato import (
 from app.schemas.fiscal import FiscalEncerrarVinculo, FiscalVincular, FiscalVinculoSaida
 from app.schemas.instrumento import (
     AnexoInstrumentoSaida,
+    InstrumentoDatasAtualizar,
     InstrumentoProcessualCriar,
     InstrumentoProcessualSaida,
     InstrumentoSubStatusAtualizar,
@@ -61,6 +62,7 @@ from app.services import contratos as regras
 from app.services import faturamento as regras_faturamento
 from app.services import reajuste as regras_reajuste
 from app.services.auditoria import registrar_log
+from app.services.relatorio_reajuste import gerar_pdf_distribuicao_reajuste
 
 router = APIRouter(prefix="/contratos", tags=["contratos"])
 
@@ -289,6 +291,8 @@ def calcular_reajuste(
         percentual_variacao=distribuicao.percentual_variacao,
         linhas=[LinhaReajusteSaida.model_validate(linha) for linha in distribuicao.linhas],
         valor_total_apostilamento=distribuicao.valor_total_apostilamento,
+        valor_total_antigo=distribuicao.valor_total_antigo,
+        valor_total_reajustado=distribuicao.valor_total_reajustado,
     )
 
 
@@ -1004,6 +1008,45 @@ def atualizar_sub_status_instrumento(
     return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
+@router.patch(
+    "/{contrato_id}/instrumentos/{instrumento_id}/datas",
+    response_model=ContratoDetalhado,
+)
+def atualizar_datas_instrumento(
+    contrato_id: uuid.UUID,
+    instrumento_id: uuid.UUID,
+    dados: InstrumentoDatasAtualizar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Data de formalização/assinatura e data de publicação do instrumento —
+    normalmente preenchidas depois de o instrumento já ter sido criado, à
+    medida que o processo avança e essas datas ficam conhecidas."""
+    instrumento = (
+        db.query(InstrumentoProcessual)
+        .filter(InstrumentoProcessual.id == instrumento_id, InstrumentoProcessual.contrato_id == contrato_id)
+        .first()
+    )
+    if instrumento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrumento não encontrado.")
+
+    instrumento.data_formalizacao = dados.data_formalizacao
+    instrumento.data_publicacao = dados.data_publicacao
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="atualizar_datas_instrumento",
+        entidade="instrumento_processual",
+        entidade_id=str(instrumento.id),
+        detalhes={
+            "data_formalizacao": str(dados.data_formalizacao) if dados.data_formalizacao else None,
+            "data_publicacao": str(dados.data_publicacao) if dados.data_publicacao else None,
+        },
+    )
+    db.commit()
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
+
+
 @router.delete(
     "/{contrato_id}/instrumentos/{instrumento_id}",
     response_model=ContratoDetalhado,
@@ -1095,6 +1138,66 @@ async def anexar_arquivo(
     )
     db.commit()
     return _para_detalhado(db, _carregar_contrato(db, contrato_id))
+
+
+@router.get("/{contrato_id}/instrumentos/{instrumento_id}/distribuicao-reajuste.pdf")
+def baixar_distribuicao_reajuste_pdf(
+    contrato_id: uuid.UUID,
+    instrumento_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: Usuario = Depends(get_current_user),
+) -> Response:
+    """PDF "Distribuição do Apostilamento" (seção 4.6) — recalcula a partir
+    dos campos reajuste_* já salvos no instrumento no momento em que o
+    apostilamento foi registrado, nunca com números diferentes do que ficou
+    formalizado no processo."""
+    instrumento = (
+        db.query(InstrumentoProcessual)
+        .filter(InstrumentoProcessual.id == instrumento_id, InstrumentoProcessual.contrato_id == contrato_id)
+        .first()
+    )
+    if instrumento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrumento não encontrado.")
+    if (
+        instrumento.reajuste_data_inicio is None
+        or instrumento.reajuste_data_fim is None
+        or instrumento.reajuste_indice_atual is None
+        or instrumento.reajuste_indice_base is None
+        or instrumento.reajuste_valor_mensal_antigo is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Este instrumento não é um apostilamento de reajuste.",
+        )
+
+    contrato = _carregar_contrato(db, contrato_id)
+    try:
+        distribuicao = regras_reajuste.calcular_distribuicao_reajuste(
+            instrumento.reajuste_valor_mensal_antigo,
+            instrumento.reajuste_indice_atual,
+            instrumento.reajuste_indice_base,
+            instrumento.reajuste_data_inicio,
+            instrumento.reajuste_data_fim,
+        )
+    except regras_reajuste.PeriodoReajusteInvalido as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    fornecedor = db.get(Fornecedor, contrato.fornecedor_id)
+    pdf = gerar_pdf_distribuicao_reajuste(
+        numero_contrato=contrato.numero_contrato,
+        fornecedor_razao_social=fornecedor.razao_social if fornecedor else "—",
+        indice_nome=instrumento.reajuste_indice_nome or "—",
+        data_inicio=instrumento.reajuste_data_inicio,
+        data_fim=instrumento.reajuste_data_fim,
+        distribuicao=distribuicao,
+        data_formalizacao=instrumento.data_formalizacao,
+        data_publicacao=instrumento.data_publicacao,
+    )
+    nome_arquivo = f"distribuicao-apostilamento-{contrato.numero_contrato}.pdf".replace("/", "-")
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{nome_arquivo}"'},
+    )
 
 
 @router.get("/{contrato_id}/auditoria", response_model=list[LogAuditoriaSaida])

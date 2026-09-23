@@ -17,3 +17,6 @@ python-dateutil==2.9.0.post0
 # zoneinfo.ZoneInfo("America/Sao_Paulo") falharia em produção mesmo
 # funcionando local (onde o SO costuma ter o pacote tzdata instalado).
 tzdata==2024.2
+# Geração do PDF de distribuição do apostilamento de reajuste — puro Python,
+# sem dependência de biblioteca de sistema (ao contrário de WeasyPrint/wkhtmltopdf).
+reportlab==4.2.5

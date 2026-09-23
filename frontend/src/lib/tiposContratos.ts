@@ -178,6 +178,11 @@ export interface InstrumentoProcessual {
   fundamentacao_artigo: string;
   sub_status: SubStatusInstrumento;
   numero_documento_sei: string | null;
+  // Datas do próprio instrumento — quando foi de fato assinado/formalizado
+  // e quando saiu publicado (ex.: Diário Oficial). Independentes do
+  // sub_status acima, preenchidas à mão quando ficam conhecidas.
+  data_formalizacao: string | null;
+  data_publicacao: string | null;
   data_inicio_vigencia: string | null;
   data_fim_vigencia: string | null;
   valor_delta: string | null;
@@ -464,6 +469,10 @@ export interface NovoInstrumentoPayload {
   fundamentacao_lei: FundamentacaoLei;
   fundamentacao_artigo: string;
   numero_documento_sei?: string | null;
+  // Geralmente ainda não conhecidas na criação — dá para preencher depois
+  // via apiContratos.atualizarDatasInstrumento.
+  data_formalizacao?: string | null;
+  data_publicacao?: string | null;
   data_inicio_vigencia?: string | null;
   data_fim_vigencia?: string | null;
   valor_delta?: string | null;
@@ -476,4 +485,9 @@ export interface NovoInstrumentoPayload {
   reajuste_data_inicio?: string | null;
   reajuste_data_fim?: string | null;
   observacoes?: string | null;
+}
+
+export interface InstrumentoDatasPayload {
+  data_formalizacao: string | null;
+  data_publicacao: string | null;
 }

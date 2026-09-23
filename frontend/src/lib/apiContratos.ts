@@ -14,6 +14,7 @@ import type {
   Fiscal,
   FornecedorAdicionalPayload,
   Fornecedor,
+  InstrumentoDatasPayload,
   LogAuditoria,
   ModeloRipm,
   NovoContratoPayload,
@@ -70,6 +71,14 @@ export const apiContratos = {
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/instrumentos/${instrumentoId}/sub-status`, {
       method: "PATCH",
       body: JSON.stringify({ sub_status }),
+    }),
+  /** Data de formalização/assinatura e data de publicação (ex.: Diário
+   * Oficial) do instrumento — independentes do sub-status, preenchidas
+   * quando ficam conhecidas (geralmente depois da criação). */
+  atualizarDatasInstrumento: (contratoId: string, instrumentoId: string, dados: InstrumentoDatasPayload) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/instrumentos/${instrumentoId}/datas`, {
+      method: "PATCH",
+      body: JSON.stringify(dados),
     }),
   excluirInstrumento: (contratoId: string, instrumentoId: string) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/instrumentos/${instrumentoId}`, { method: "DELETE" }),
@@ -171,6 +180,12 @@ export const apiContratos = {
  * sessão vai junto via cookie, não precisa de token na URL). */
 export function urlAnexo(anexoId: string): string {
   return `/api/anexos/${anexoId}`;
+}
+
+/** URL do PDF "Distribuição do Apostilamento" de um instrumento de
+ * reajuste — mesmo padrão de urlAnexo, usar direto num link. */
+export function urlDistribuicaoReajustePdf(contratoId: string, instrumentoId: string): string {
+  return `/api/contratos/${contratoId}/instrumentos/${instrumentoId}/distribuicao-reajuste.pdf`;
 }
 
 export const apiAnexos = {
