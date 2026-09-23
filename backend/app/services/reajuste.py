@@ -74,6 +74,8 @@ class DistribuicaoReajuste:
     percentual_variacao: Decimal
     linhas: list[LinhaReajusteMensal]
     valor_total_apostilamento: Decimal  # soma das diferenças mensais
+    valor_total_antigo: Decimal  # soma da coluna "valor antigo" — linha TOTAL do relatório
+    valor_total_reajustado: Decimal  # soma da coluna "valor reajustado" — linha TOTAL do relatório
 
 
 def calcular_distribuicao_reajuste(
@@ -141,6 +143,8 @@ def calcular_distribuicao_reajuste(
         competencia = competencia + relativedelta(months=1)
 
     valor_total = sum((linha.diferenca for linha in linhas), Decimal("0"))
+    valor_total_antigo = sum((linha.valor_antigo for linha in linhas), Decimal("0"))
+    valor_total_reajustado = sum((linha.valor_reajustado for linha in linhas), Decimal("0"))
 
     return DistribuicaoReajuste(
         valor_mensal_antigo=_arredondar(_dec(valor_mensal_antigo)),
@@ -148,4 +152,6 @@ def calcular_distribuicao_reajuste(
         percentual_variacao=percentual,
         linhas=linhas,
         valor_total_apostilamento=valor_total,
+        valor_total_antigo=valor_total_antigo,
+        valor_total_reajustado=valor_total_reajustado,
     )

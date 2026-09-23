@@ -432,6 +432,8 @@ class CalculoReajusteSaida(BaseModel):
     percentual_variacao: Decimal
     linhas: list[LinhaReajusteSaida]
     valor_total_apostilamento: Decimal
+    valor_total_antigo: Decimal
+    valor_total_reajustado: Decimal
 
     model_config = {"from_attributes": True}
 
