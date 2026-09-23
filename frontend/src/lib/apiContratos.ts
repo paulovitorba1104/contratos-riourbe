@@ -117,13 +117,17 @@ export const apiContratos = {
         `&indice_atual=${indiceAtual}&indice_base=${indiceBase}` +
         `&data_inicio=${dataInicio}&data_fim=${dataFim}`,
     ),
-  /** Busca o IPCA-E direto no Banco Central (SGS, dados do IBGE) para
-   * autopreencher "índice na data-base" e "índice atual" da calculadora de
-   * reajuste — prévia de melhor esforço, nunca bloqueia: se falhar, os
-   * campos continuam editáveis à mão. */
-  consultarIndiceIpcaE: (dataBase: string, dataAtual: string) =>
+  /** Busca o IPCA-E direto no Banco Central (SGS, dados do IBGE) seguindo a
+   * cláusula-padrão de reajuste (R = Po×[(I-Io)/Io]): Io é o índice do mês
+   * anterior à apresentação da proposta (aqui, a data de assinatura do
+   * contrato) e I é o índice do mês anterior ao aniversário sendo
+   * reajustado — nunca o índice do próprio mês de referência. Prévia de
+   * melhor esforço, nunca bloqueia: se falhar, os campos continuam
+   * editáveis à mão. */
+  consultarIndiceIpcaE: (dataApresentacaoProposta: string, dataAniversario: string) =>
     requisicao<ConsultaIndice>(
-      `/contratos/consultar-indice-ipca-e?data_base=${dataBase}&data_atual=${dataAtual}`,
+      `/contratos/consultar-indice-ipca-e?data_apresentacao_proposta=${dataApresentacaoProposta}` +
+        `&data_aniversario=${dataAniversario}`,
     ),
   /** Registra uma execução do serviço (contrato controlado por quantidade —
    * ex.: limpeza de carpete). Cada aplicação é uma linha nova, nunca

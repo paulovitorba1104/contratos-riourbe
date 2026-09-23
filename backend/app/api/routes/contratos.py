@@ -294,15 +294,18 @@ def calcular_reajuste(
 
 @router.get("/consultar-indice-ipca-e", response_model=ConsultaIndiceSaida)
 def consultar_indice_ipca_e(
-    data_base: date,
-    data_atual: date,
+    data_apresentacao_proposta: date,
+    data_aniversario: date,
     _: Usuario = Depends(get_current_user),
 ) -> ConsultaIndiceSaida:
-    """Busca o IPCA-E direto no Banco Central (SGS, dados do IBGE) para
-    autopreencher "índice na data-base" e "índice atual" da calculadora de
-    reajuste — prévia de melhor esforço, nunca bloqueia: se a consulta
+    """Busca o IPCA-E direto no Banco Central (SGS, dados do IBGE) seguindo
+    a cláusula-padrão de reajuste (R = Po×[(I-Io)/Io]): Io é o índice do mês
+    anterior à apresentação da proposta (na prática, a data de assinatura
+    original do contrato) e I é o índice do mês anterior ao aniversário do
+    contrato sendo reajustado agora — nunca o índice do próprio mês de
+    referência. Prévia de melhor esforço, nunca bloqueia: se a consulta
     falhar, os dois campos continuam editáveis à mão, como sempre foi."""
-    resultado = bcb_sgs.consultar_indice("ipca_e", data_base, data_atual)
+    resultado = bcb_sgs.consultar_indice_reajuste("ipca_e", data_apresentacao_proposta, data_aniversario)
     if resultado is None:
         return ConsultaIndiceSaida(encontrado=False)
     return ConsultaIndiceSaida(

@@ -124,10 +124,11 @@ function NovoInstrumentoForm({
   const [reajusteDataFim, setReajusteDataFim] = useState("");
   const [previaReajuste, setPreviaReajuste] = useState<CalculoReajuste | null>(null);
   const [erroPreviaReajuste, setErroPreviaReajuste] = useState<string | null>(null);
-  // Busca automática do IPCA-E no Banco Central — data-base do índice é o
-  // mês do marco anterior (ou da assinatura, se for o primeiro reajuste);
-  // a data atual do índice é o marco deste reajuste (reajusteDataInicio).
-  const [reajusteDataBaseIndice, setReajusteDataBaseIndice] = useState("");
+  // Busca automática do IPCA-E no Banco Central, seguindo a cláusula-padrão
+  // de reajuste (Io = índice do mês anterior à apresentação da proposta —
+  // aqui, a data de assinatura do contrato; I = índice do mês anterior ao
+  // aniversário sendo reajustado, reajusteDataInicio). Nenhuma data extra a
+  // digitar — só o marco do reajuste, que já é pedido abaixo.
   const [buscandoIndice, setBuscandoIndice] = useState(false);
   const [erroConsultaIndice, setErroConsultaIndice] = useState<string | null>(null);
 
@@ -223,13 +224,13 @@ function NovoInstrumentoForm({
 
   async function buscarIndiceIpcaE() {
     setErroConsultaIndice(null);
-    if (!reajusteDataBaseIndice || !reajusteDataInicio) {
-      setErroConsultaIndice("Informe a data-base do índice e o marco do reajuste antes de buscar.");
+    if (!reajusteDataInicio) {
+      setErroConsultaIndice("Informe o marco do reajuste antes de buscar.");
       return;
     }
     setBuscandoIndice(true);
     try {
-      const consulta = await apiContratos.consultarIndiceIpcaE(reajusteDataBaseIndice, reajusteDataInicio);
+      const consulta = await apiContratos.consultarIndiceIpcaE(dataAssinatura, reajusteDataInicio);
       if (!consulta.encontrado || consulta.indice_base === null || consulta.indice_atual === null) {
         setErroConsultaIndice(
           "Não foi possível buscar o IPCA-E agora — preencha os índices manualmente a partir da tabela do Banco Central.",
@@ -287,7 +288,6 @@ function NovoInstrumentoForm({
       setReajusteIndiceAtual("");
       setReajusteDataInicio("");
       setReajusteDataFim("");
-      setReajusteDataBaseIndice("");
       setErroConsultaIndice(null);
       setPreviaReajuste(null);
     } catch (e) {
@@ -458,37 +458,20 @@ function NovoInstrumentoForm({
           </div>
 
           <div className="space-y-2 rounded-md border border-slate-200 bg-white p-2">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div>
-                <label
-                  className="mb-1 block text-xs font-medium text-slate-600"
-                  htmlFor="reajuste_data_base_indice"
-                >
-                  Data-base do índice
-                </label>
-                <input
-                  id="reajuste_data_base_indice"
-                  type="date"
-                  className={campoClasse}
-                  value={reajusteDataBaseIndice}
-                  onChange={(e) => setReajusteDataBaseIndice(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={buscarIndiceIpcaE}
-                  disabled={buscandoIndice}
-                  className="btn-secondary btn-sm"
-                >
-                  {buscandoIndice ? "Buscando..." : "Buscar IPCA-E no Banco Central"}
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={buscarIndiceIpcaE}
+              disabled={buscandoIndice}
+              className="btn-secondary btn-sm"
+            >
+              {buscandoIndice ? "Buscando..." : "Buscar IPCA-E no Banco Central"}
+            </button>
             <p className="text-xs text-slate-500">
-              Busca o IPCA-E direto no Banco Central (dados do IBGE) entre a data-base e o marco do
-              reajuste (abaixo) e preenche os dois campos de índice sozinho — sempre editável, se
-              preferir digitar por conta própria.
+              Busca o IPCA-E direto no Banco Central (dados do IBGE) e preenche os dois campos de
+              índice sozinho, seguindo a cláusula-padrão de reajuste: usa o índice do mês anterior
+              à assinatura do contrato ({dataAssinatura}) como data-base e o mês anterior ao marco
+              do reajuste informado abaixo como índice atual — sempre editável, se preferir digitar
+              por conta própria.
             </p>
             {erroConsultaIndice && <p className="text-xs text-amber-700">{erroConsultaIndice}</p>}
           </div>

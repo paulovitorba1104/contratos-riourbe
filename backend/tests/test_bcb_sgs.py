@@ -60,3 +60,32 @@ def test_consultar_indice_sem_variacoes_no_periodo_mantem_indice_base(monkeypatc
     monkeypatch.setattr(bcb_sgs.httpx, "get", lambda url, params, timeout: _RespostaFalsa(200, []))
     resultado = bcb_sgs.consultar_indice("ipca_e", date(2021, 6, 13), date(2022, 6, 13))
     assert resultado == {"indice_base": 1000.0, "indice_atual": 1000.0}
+
+
+def test_consultar_indice_reajuste_usa_mes_anterior_as_duas_datas(monkeypatch):
+    """Cláusula-padrão: Io é o índice do mês ANTERIOR à apresentação da
+    proposta, I é o índice do mês anterior ao aniversário — não o índice do
+    próprio mês de referência. Proposta em 28/03/2022 (mês anterior:
+    fevereiro) e aniversário em 14/05/2024 (mês anterior: abril) devem
+    consultar o SGS na janela de março/2022 a abril/2024."""
+    chamadas = []
+
+    def _capturar(url, params, timeout):
+        chamadas.append(params)
+        return _RespostaFalsa(200, [])
+
+    monkeypatch.setattr(bcb_sgs.httpx, "get", _capturar)
+    resultado = bcb_sgs.consultar_indice_reajuste("ipca_e", date(2022, 3, 28), date(2024, 5, 14))
+
+    assert resultado == {"indice_base": 1000.0, "indice_atual": 1000.0}
+    assert len(chamadas) == 1
+    assert chamadas[0]["dataInicial"] == "01/03/2022"
+    assert chamadas[0]["dataFinal"] == "01/04/2024"
+
+
+def test_consultar_indice_reajuste_retorna_none_quando_indisponivel(monkeypatch):
+    def _levanta(url, params, timeout):
+        raise httpx.ConnectError("sem rede")
+
+    monkeypatch.setattr(bcb_sgs.httpx, "get", _levanta)
+    assert bcb_sgs.consultar_indice_reajuste("ipca_e", date(2022, 3, 28), date(2024, 5, 14)) is None
