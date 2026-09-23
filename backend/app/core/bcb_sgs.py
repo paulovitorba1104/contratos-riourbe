@@ -83,7 +83,17 @@ def consultar_indice_reajuste(nome_indice: str, data_apresentacao_proposta: date
     Io é o índice do mês ANTERIOR ao da apresentação da proposta, e I é o
     índice do mês anterior ao do aniversário do contrato sendo reajustado —
     nunca o índice do próprio mês de referência. Desloca as duas datas um
-    mês para trás e delega para `consultar_indice`."""
+    mês para trás e delega para `consultar_indice`.
+
+    A razão I/Io é matematicamente a mesma "correção" que a Calculadora do
+    Cidadão do Banco Central calcula ao pedir mês/ano inicial e final —
+    cuja própria metodologia documenta que "são usados no cálculo os
+    índices da data inicial e da data final" (ambos inclusive: pedir o
+    mesmo mês nos dois campos já usa a variação daquele mês sozinho, não
+    zero). Aqui isso equivale a consultar o SGS do mês da apresentação da
+    proposta até o mês anterior ao aniversário, ambos inclusive — é para
+    essa janela que apontam os testes que citam os exemplos oficiais da
+    calculadora (`test_bcb_sgs.py`)."""
     return consultar_indice(
         nome_indice,
         data_apresentacao_proposta + relativedelta(months=-1),
