@@ -436,6 +436,18 @@ class CalculoReajusteSaida(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ConsultaIndiceSaida(BaseModel):
+    """Prévia do número-índice do IPCA-E buscado direto no Banco Central
+    (SGS, dados do IBGE) — autopreenche os campos "índice na data-base" e
+    "índice atual" da calculadora antes de salvar. `encontrado=False`
+    quando a consulta não pôde ser feita (API fora do ar, período inválido)
+    — não bloqueia nada, os campos continuam editáveis à mão."""
+
+    encontrado: bool
+    indice_base: Decimal | None = None
+    indice_atual: Decimal | None = None
+
+
 class LogAuditoriaSaida(BaseModel):
     id: uuid.UUID
     acao: str

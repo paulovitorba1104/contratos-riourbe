@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import exigir_administrador, get_current_user
+from app.core import bcb_sgs
 from app.db.session import get_db
 from app.models.contrato import (
     Contrato,
@@ -34,6 +35,7 @@ from app.schemas.contrato import (
     ContratoAtualizar,
     ContratoAtualizarPagamento,
     ContratoCriar,
+    ConsultaIndiceSaida,
     ContratoDetalhado,
     ContratoSaida,
     ExecucaoCriar,
@@ -287,6 +289,24 @@ def calcular_reajuste(
         percentual_variacao=distribuicao.percentual_variacao,
         linhas=[LinhaReajusteSaida.model_validate(linha) for linha in distribuicao.linhas],
         valor_total_apostilamento=distribuicao.valor_total_apostilamento,
+    )
+
+
+@router.get("/consultar-indice-ipca-e", response_model=ConsultaIndiceSaida)
+def consultar_indice_ipca_e(
+    data_base: date,
+    data_atual: date,
+    _: Usuario = Depends(get_current_user),
+) -> ConsultaIndiceSaida:
+    """Busca o IPCA-E direto no Banco Central (SGS, dados do IBGE) para
+    autopreencher "índice na data-base" e "índice atual" da calculadora de
+    reajuste — prévia de melhor esforço, nunca bloqueia: se a consulta
+    falhar, os dois campos continuam editáveis à mão, como sempre foi."""
+    resultado = bcb_sgs.consultar_indice("ipca_e", data_base, data_atual)
+    if resultado is None:
+        return ConsultaIndiceSaida(encontrado=False)
+    return ConsultaIndiceSaida(
+        encontrado=True, indice_base=resultado["indice_base"], indice_atual=resultado["indice_atual"]
     )
 
 

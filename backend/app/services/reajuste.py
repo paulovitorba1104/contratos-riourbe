@@ -5,9 +5,10 @@ dado o valor mensal antigo e a variação do índice entre dois meses-base
 (a mesma fórmula que a cláusula de reajuste já traz — R = Po×[(I-Io)/Io]),
 devolve o valor mensal reajustado e a distribuição mês a mês da diferença
 retroativa a formalizar por apostilamento (o "Valor do Apostilamento" da
-planilha de controle). O índice em si (IPCA-E, IGPM etc.) continua sendo
-informado por quem calcula — buscar automaticamente numa fonte oficial é
-item futuro, backlogueado no README junto com a API de jurisprudência.
+planilha de controle). O índice em si (IPCA-E, IGPM etc.) pode ser digitado
+à mão ou, para o IPCA-E, buscado sozinho no SGS do Banco Central (ver
+`app/core/bcb_sgs.py` e `GET /contratos/consultar-indice-ipca-e`) — outros
+índices continuam informados por quem calcula.
 
 Convenção de mês comercial de 30 dias para o pro-rata do primeiro mês
 (quando o marco do reajuste cai no meio do mês) e do último (quando o

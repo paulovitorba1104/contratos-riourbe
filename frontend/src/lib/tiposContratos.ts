@@ -295,6 +295,15 @@ export interface CalculoValorMensal {
   valor_global: string;
 }
 
+/** Prévia do número-índice do IPCA-E buscado no Banco Central —
+ * `encontrado=false` quando a consulta não pôde ser feita (API fora do ar,
+ * período inválido); não bloqueia nada, os campos continuam editáveis. */
+export interface ConsultaIndice {
+  encontrado: boolean;
+  indice_base: string | null;
+  indice_atual: string | null;
+}
+
 export interface FornecedorAdicional {
   id: string;
   fornecedor_id: string;
