@@ -426,7 +426,11 @@ function NovoInstrumentoForm({
       {exigeValor && !ehReajuste && (
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">
-            {tipo === "acrescimo_valor" ? "Valor do acréscimo" : "Valor da supressão (digite - na frente)"}
+            {tipo === "acrescimo_valor"
+              ? "Valor do acréscimo"
+              : tipo === "supressao_valor"
+                ? "Valor da supressão (digite - na frente)"
+                : "Valor do apostilamento (opcional — digite - na frente se for supressão)"}
           </label>
           <input
             type="text"
