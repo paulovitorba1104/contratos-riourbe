@@ -11,6 +11,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.fiscal import Fiscal
+    from app.models.fornecedor import Fornecedor
     from app.models.instrumento_processual import InstrumentoProcessual
     from app.models.usuario import Usuario
 
@@ -50,6 +51,16 @@ class ModoExecucao(str, enum.Enum):
 
     POR_VIGENCIA = "por_vigencia"
     POR_QUANTIDADE = "por_quantidade"
+
+
+class ModoValorContrato(str, enum.Enum):
+    """A maioria dos contratos já nasce com o valor total (global) definido —
+    é o que se digita em `valor_inicial`. Alguns (ex.: locação de imóvel) são
+    cotados por mensalidade — o valor global é derivado (mensal × meses
+    cobrados, descontada a carência), não digitado direto."""
+
+    GLOBAL = "global"
+    MENSAL = "mensal"
 
 
 class TipoReajuste(str, enum.Enum):
@@ -153,7 +164,21 @@ class Contrato(Base):
     setor_responsavel_faturamento: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Financeiro
+    # Valor total do contrato — sempre a fonte de verdade usada em
+    # calcular_valor_atualizado/saldo_a_pagar, mesmo quando modo_valor é
+    # mensal: nesse caso o backend calcula e grava aqui (nunca confia num
+    # valor_inicial mandado pelo cliente para esse modo).
     valor_inicial: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False)
+    # Contrato cotado por mensalidade (ex.: locação de imóvel) em vez de
+    # valor global direto — valor_mensal e carencia_meses são a base usada
+    # para calcular valor_inicial (valor_mensal × (prazo - carência)).
+    modo_valor: Mapped[ModoValorContrato] = mapped_column(
+        Enum(ModoValorContrato, name="modo_valor_contrato", schema="contratos", values_callable=_valores_enum),
+        nullable=False,
+        default=ModoValorContrato.GLOBAL,
+    )
+    valor_mensal: Mapped[float | None] = mapped_column(Numeric(16, 2), nullable=True)
+    carencia_meses: Mapped[int | None] = mapped_column(nullable=True)
     # Total pago: soma do que veio de fora do controle de faturas deste
     # sistema (valor_pago_anterior_sistema — histórico de contrato antigo, ou
     # o total de um contrato cujo faturamento é de outro setor) com o que as
@@ -226,6 +251,36 @@ class Contrato(Base):
     execucoes: Mapped[list["ExecucaoContrato"]] = relationship(
         back_populates="contrato", order_by="ExecucaoContrato.data_execucao", cascade="all, delete-orphan"
     )
+    # Fornecedores além do principal (fornecedor_id) — caso da locação de
+    # imóvel em que uma empresa recebe o aluguel e outra administra o
+    # condomínio (IPTU, taxa condominial, água/luz etc.), tudo dentro do
+    # mesmo contrato. Vazio na imensa maioria dos contratos (um fornecedor só).
+    fornecedores_adicionais: Mapped[list["FornecedorAdicionalContrato"]] = relationship(
+        back_populates="contrato", order_by="FornecedorAdicionalContrato.criado_em", cascade="all, delete-orphan"
+    )
+
+
+class FornecedorAdicionalContrato(Base):
+    """Fornecedor adicional vinculado ao contrato, além do principal
+    (`Contrato.fornecedor_id`) — cada um com um papel (ex.: "Administradora
+    do condomínio"). Uma fatura pode ser emitida para qualquer um dos
+    fornecedores do contrato (o principal ou um destes), nunca para fora
+    desse conjunto — ver `Fatura.fornecedor_id`."""
+
+    __tablename__ = "fornecedores_adicionais_contrato"
+    __table_args__ = {"schema": "contratos"}
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    contrato_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contratos.contratos.id", ondelete="CASCADE"), nullable=False
+    )
+    fornecedor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.fornecedores.id"), nullable=False)
+    papel: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    contrato: Mapped["Contrato"] = relationship(back_populates="fornecedores_adicionais")
+    fornecedor: Mapped["Fornecedor"] = relationship()
 
 
 class ContratoFiscal(Base):

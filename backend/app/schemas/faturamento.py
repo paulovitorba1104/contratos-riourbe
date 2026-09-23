@@ -155,6 +155,12 @@ class EventoSaida(BaseModel):
 # --------------------------------------------------------------------------
 class FaturaCriar(BaseModel):
     contrato_id: uuid.UUID
+    # Nulo = fornecedor principal do contrato (a imensa maioria das notas).
+    # Só é preenchido quando o contrato tem mais de um fornecedor vinculado
+    # (ex.: locação de imóvel — aluguel para uma empresa, condomínio para
+    # outra) e esta nota é para um deles — sempre validado contra os
+    # fornecedores daquele contrato, nunca aceito fora desse conjunto.
+    fornecedor_id: uuid.UUID | None = None
     medicao_id: uuid.UUID | None = None
     fatura_origem_id: uuid.UUID | None = None
     numero_nota_fiscal: str = Field(..., max_length=50)
@@ -172,6 +178,7 @@ class FaturaAtualizar(BaseModel):
     """Edição dos dados cadastrais. O status não entra aqui — muda só por
     evento registrado."""
 
+    fornecedor_id: uuid.UUID | None = None
     numero_nota_fiscal: str | None = Field(None, max_length=50)
     serie: str | None = Field(None, max_length=20)
     numero_processo_sei: str | None = Field(None, max_length=50)
@@ -197,6 +204,9 @@ class FaturaSaida(BaseModel):
     id: uuid.UUID
     contrato_id: uuid.UUID
     contrato_numero: str
+    # Nulo = fornecedor principal do contrato; preenchido só quando esta
+    # nota é de um fornecedor adicional (ex.: administradora do condomínio).
+    fornecedor_id: uuid.UUID | None
     fornecedor_nome: str
     medicao_id: uuid.UUID | None
     numero_nota_fiscal: str

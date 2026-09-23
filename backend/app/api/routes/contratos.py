@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -12,8 +13,10 @@ from app.models.contrato import (
     ContratoFiscal,
     ExcecaoTetoVigencia,
     ExecucaoContrato,
+    FornecedorAdicionalContrato,
     GarantiaContrato,
     ModoExecucao,
+    ModoValorContrato,
     ProcessoContrato,
     StatusContrato,
 )
@@ -26,6 +29,7 @@ from app.models.modelo_ripm import ModeloRipm
 from app.models.usuario import Usuario
 from app.schemas.contrato import (
     CalculoReajusteSaida,
+    CalculoValorMensalSaida,
     CalculoVigenciaSaida,
     ContratoAtualizar,
     ContratoAtualizarPagamento,
@@ -34,6 +38,8 @@ from app.schemas.contrato import (
     ContratoSaida,
     ExecucaoCriar,
     ExecucaoSaida,
+    FornecedorAdicionalCriar,
+    FornecedorAdicionalSaida,
     GarantiaCriar,
     GarantiaSaida,
     LinhaReajusteSaida,
@@ -67,6 +73,7 @@ def _carregar_contrato(db: Session, contrato_id: uuid.UUID) -> Contrato:
             selectinload(Contrato.fiscais).selectinload(ContratoFiscal.fiscal),
             selectinload(Contrato.garantias).selectinload(GarantiaContrato.registrado_por),
             selectinload(Contrato.execucoes).selectinload(ExecucaoContrato.registrado_por),
+            selectinload(Contrato.fornecedores_adicionais).selectinload(FornecedorAdicionalContrato.fornecedor),
             selectinload(Contrato.processos),
         )
         .filter(Contrato.id == contrato_id)
@@ -168,6 +175,18 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
             )
             for e in contrato.execucoes
         ],
+        modo_valor=contrato.modo_valor,
+        valor_mensal=contrato.valor_mensal,
+        carencia_meses=contrato.carencia_meses,
+        fornecedores_adicionais=[
+            FornecedorAdicionalSaida(
+                id=fa.id,
+                fornecedor_id=fa.fornecedor_id,
+                razao_social=fa.fornecedor.razao_social,
+                papel=fa.papel,
+            )
+            for fa in contrato.fornecedores_adicionais
+        ],
         instrumentos=[_instrumento_para_saida(i) for i in contrato.instrumentos],
     )
 
@@ -260,6 +279,27 @@ def calcular_reajuste(
     )
 
 
+@router.get("/calcular-valor-mensal", response_model=CalculoValorMensalSaida)
+def calcular_valor_mensal(
+    valor_mensal: Decimal = Query(..., gt=0),
+    prazo_meses: int = Query(..., ge=1, le=1200),
+    carencia_meses: int = Query(0, ge=0, le=120),
+    _: Usuario = Depends(get_current_user),
+) -> CalculoValorMensalSaida:
+    """Calculadora de valor global a partir da mensalidade (seção sobre
+    locação de imóvel) — pré-visualiza o valor a lançar em "Valor inicial"
+    antes de criar/editar o contrato; o cálculo real é refeito no backend
+    ao salvar, nunca confia num valor pronto do cliente."""
+    meses_cobrados = max(0, prazo_meses - carencia_meses)
+    return CalculoValorMensalSaida(
+        valor_mensal=valor_mensal,
+        prazo_meses=prazo_meses,
+        carencia_meses=carencia_meses,
+        meses_cobrados=meses_cobrados,
+        valor_global=regras.calcular_valor_global_mensal(valor_mensal, prazo_meses, carencia_meses),
+    )
+
+
 @router.get("/{contrato_id}", response_model=ContratoDetalhado)
 def obter_contrato(
     contrato_id: uuid.UUID,
@@ -291,6 +331,16 @@ def criar_contrato(
     contrato = Contrato(
         **dados.model_dump(exclude={"fiscais_ids", "instrumento_origem", "processos"}),
     )
+    # Contrato cotado por mensalidade (ex.: locação de imóvel): o valor
+    # global nunca vem pronto do cliente — é sempre calculado aqui, a partir
+    # do valor mensal, da carência e do prazo do instrumento de origem.
+    if dados.modo_valor == ModoValorContrato.MENSAL:
+        prazo_meses = regras.meses_entre(
+            dados.instrumento_origem.data_inicio_vigencia, dados.instrumento_origem.data_fim_vigencia
+        )
+        contrato.valor_inicial = regras.calcular_valor_global_mensal(
+            dados.valor_mensal, prazo_meses, dados.carencia_meses or 0
+        )
     # Nenhuma fatura existe ainda para um contrato recém-criado — o valor
     # pago total começa igual à parte manual informada (0 para contrato
     # novo; o total já pago, para um contrato antigo entrando no sistema).
@@ -364,8 +414,36 @@ def atualizar_contrato(
     if dados_informados.get("modo_execucao") == ModoExecucao.POR_VIGENCIA:
         dados_informados["quantidade_execucoes_previstas"] = None
 
+    # Voltar para valor global (modo_valor = global) limpa a mensalidade e a
+    # carência — não se aplicam mais nesse modo. O valor_inicial atual (da
+    # última vez que foi calculado no modo mensal) fica como está, editável
+    # direto de novo.
+    if dados_informados.get("modo_valor") == ModoValorContrato.GLOBAL:
+        dados_informados["valor_mensal"] = None
+        dados_informados["carencia_meses"] = None
+
     for campo, valor in dados_informados.items():
         setattr(contrato, campo, valor)
+
+    # Contrato cotado por mensalidade: recalcula o valor global sempre que a
+    # mensalidade, a carência ou o próprio modo mudarem nesta edição — nunca
+    # aceita um valor_inicial pronto do cliente para esse modo (bloqueado já
+    # no schema).
+    if contrato.modo_valor == ModoValorContrato.MENSAL and (
+        "valor_mensal" in dados_informados
+        or "carencia_meses" in dados_informados
+        or "modo_valor" in dados_informados
+    ):
+        vigencia_inicio, vigencia_fim = regras.vigencia_atual(contrato)
+        if vigencia_inicio is None or vigencia_fim is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Contrato sem vigência registrada — não é possível calcular o valor mensal.",
+            )
+        prazo_meses = regras.meses_entre(vigencia_inicio, vigencia_fim)
+        contrato.valor_inicial = regras.calcular_valor_global_mensal(
+            Decimal(str(contrato.valor_mensal)), prazo_meses, contrato.carencia_meses or 0
+        )
 
     registrar_log(
         db,
@@ -493,6 +571,71 @@ def excluir_processo(
         entidade="contrato",
         entidade_id=str(contrato_id),
         detalhes={"processo_id": str(processo_id)},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.post(
+    "/{contrato_id}/fornecedores", response_model=ContratoDetalhado, status_code=status.HTTP_201_CREATED
+)
+def adicionar_fornecedor(
+    contrato_id: uuid.UUID,
+    dados: FornecedorAdicionalCriar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Vincula mais um fornecedor ao contrato, além do principal — caso da
+    locação de imóvel em que uma empresa recebe o aluguel e outra administra
+    o condomínio. Cada fatura desse contrato pode então ser emitida para
+    qualquer um dos fornecedores vinculados, não só o principal."""
+    contrato = _carregar_contrato(db, contrato_id)
+    if db.get(Fornecedor, dados.fornecedor_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fornecedor não encontrado.")
+    if dados.fornecedor_id == contrato.fornecedor_id or any(
+        fa.fornecedor_id == dados.fornecedor_id for fa in contrato.fornecedores_adicionais
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Este fornecedor já está vinculado ao contrato."
+        )
+
+    db.add(
+        FornecedorAdicionalContrato(contrato_id=contrato.id, fornecedor_id=dados.fornecedor_id, papel=dados.papel)
+    )
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="adicionar_fornecedor_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato.id),
+        detalhes={"fornecedor_id": str(dados.fornecedor_id), "papel": dados.papel},
+    )
+    db.commit()
+    return _para_detalhado(_carregar_contrato(db, contrato_id))
+
+
+@router.delete("/{contrato_id}/fornecedores/{vinculo_id}", response_model=ContratoDetalhado)
+def excluir_fornecedor_adicional(
+    contrato_id: uuid.UUID,
+    vinculo_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    # Exclusão definitiva — restrita a administrador, mesmo padrão de todo
+    # vínculo do sistema.
+    usuario: Usuario = Depends(exigir_administrador),
+) -> ContratoDetalhado:
+    contrato = _carregar_contrato(db, contrato_id)
+    vinculo = next((fa for fa in contrato.fornecedores_adicionais if fa.id == vinculo_id), None)
+    if vinculo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fornecedor adicional não encontrado.")
+
+    db.delete(vinculo)
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="excluir_fornecedor_adicional_contrato",
+        entidade="contrato",
+        entidade_id=str(contrato_id),
+        detalhes={"vinculo_id": str(vinculo_id)},
     )
     db.commit()
     return _para_detalhado(_carregar_contrato(db, contrato_id))
