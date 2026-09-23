@@ -6,7 +6,8 @@ import { apiContratos, apiFornecedores } from "../../lib/apiContratos";
 import { apiFaturas, apiMedicoes } from "../../lib/apiFaturas";
 import { mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type { Contrato, ContratoDetalhado, Fornecedor } from "../../lib/tiposContratos";
-import type { Medicao } from "../../lib/tiposFaturas";
+import type { CategoriaDespesaFatura, Medicao } from "../../lib/tiposFaturas";
+import { ROTULOS_CATEGORIA_DESPESA } from "../../lib/tiposFaturas";
 import { useToast } from "../../lib/ToastContext";
 
 export function NovaFatura() {
@@ -21,6 +22,7 @@ export function NovaFatura() {
 
   const [contratoId, setContratoId] = useState(parametros.get("contrato") ?? "");
   const [fornecedorId, setFornecedorId] = useState("");
+  const [categoriaDespesa, setCategoriaDespesa] = useState<CategoriaDespesaFatura>("principal");
   const [medicaoId, setMedicaoId] = useState("");
   const [numeroNotaFiscal, setNumeroNotaFiscal] = useState("");
   const [serie, setSerie] = useState("");
@@ -82,6 +84,7 @@ export function NovaFatura() {
   // recebe o aluguel) — a lista básica não traz esse detalhe.
   useEffect(() => {
     setFornecedorId("");
+    setCategoriaDespesa("principal");
     if (!contratoId) {
       setContratoDetalhado(null);
       return;
@@ -121,6 +124,7 @@ export function NovaFatura() {
       const fatura = await apiFaturas.criar({
         contrato_id: contratoId,
         fornecedor_id: fornecedorId || null,
+        categoria_despesa: categoriaDespesa,
         medicao_id: medicaoId || null,
         numero_nota_fiscal: numeroNotaFiscal,
         serie: serie || null,
@@ -197,6 +201,31 @@ export function NovaFatura() {
               <p className="field-hint">
                 Este contrato tem mais de um fornecedor vinculado (ex.: um recebe o aluguel, outro
                 administra o condomínio) — selecione a quem esta fatura se refere.
+              </p>
+            </div>
+          )}
+
+          {contratoDetalhado && contratoDetalhado.fornecedores_adicionais.length > 0 && (
+            <div>
+              <label className="field-label" htmlFor="categoria_despesa">
+                Categoria da despesa
+              </label>
+              <select
+                id="categoria_despesa"
+                className="field-select"
+                value={categoriaDespesa}
+                onChange={(e) => setCategoriaDespesa(e.target.value as CategoriaDespesaFatura)}
+              >
+                {Object.entries(ROTULOS_CATEGORIA_DESPESA).map(([valor, rotulo]) => (
+                  <option key={valor} value={valor}>
+                    {rotulo}
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">
+                Ex.: administradora do condomínio manda uma cobrança só por mês somando taxa
+                condominial + água/luz + taxa de incêndio — categorize cada fatura para conseguir
+                acompanhar a taxa condominial separada do que é variável.
               </p>
             </div>
           )}

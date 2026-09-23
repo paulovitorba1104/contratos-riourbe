@@ -300,6 +300,11 @@ export interface FornecedorAdicional {
   fornecedor_id: string;
   razao_social: string;
   papel: string;
+  // Média das últimas 6 faturas pagas deste fornecedor, neste contrato,
+  // categorizadas como "taxa condominial" — registro visual (a taxa costuma
+  // ser fixa, mas pode variar se houver serviço extra). Nulo sem faturas
+  // pagas suficientes dessa categoria ainda.
+  media_taxa_condominio_6_meses: string | null;
 }
 
 export interface ContratoDetalhado extends Contrato {

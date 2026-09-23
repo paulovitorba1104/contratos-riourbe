@@ -2483,6 +2483,14 @@ export function ContratoDetalhe() {
                 <div>
                   <span className="font-medium text-slate-900">{fa.razao_social}</span>{" "}
                   <span className="text-xs text-slate-500">({fa.papel})</span>
+                  {fa.media_taxa_condominio_6_meses && (
+                    <p className="text-xs text-slate-500">
+                      Média da taxa condominial (últimas faturas pagas):{" "}
+                      <span className="font-medium text-slate-700">
+                        {formatarMoeda(fa.media_taxa_condominio_6_meses)}/mês
+                      </span>
+                    </p>
+                  )}
                 </div>
                 {ehAdministrador && (
                   <button

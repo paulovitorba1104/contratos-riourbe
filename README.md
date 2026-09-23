@@ -339,6 +339,15 @@ Implementa a seção 4 do plano de desenvolvimento:
   fornecedor do contrato ela se refere (nulo = fornecedor principal, o padrão); o backend valida
   que só é possível faturar para o principal ou para um dos fornecedores adicionais vinculados a
   esse contrato, nunca para fora desse conjunto.
+- **Categoria da despesa e média da taxa condominial**: a administradora do condomínio costuma
+  mandar uma única cobrança mensal somando taxa condominial + água/luz + taxa de incêndio + outras
+  — para não misturar o que costuma ser fixo (a taxa condominial) com o que é genuinamente
+  variável, cada fatura pode ser categorizada (`categoria_despesa`: serviço/objeto do contrato —
+  padrão de quase toda fatura —, taxa condominial, água/luz, taxa de incêndio, outra). Quando o
+  contrato tem fornecedor adicional, a ficha mostra ao lado dele a média das últimas 6 faturas
+  **pagas** categorizadas como taxa condominial — registro visual de referência (a taxa costuma
+  ser fixa, mas pode variar se for pedido algum serviço extra), não um valor usado em nenhum
+  cálculo ou validação.
 - **Painel Kanban** por status macro, com número do contrato e alertas de vigência/garantia já
   visíveis no card, busca (número, processo, tipo de serviço ou objeto) e filtro por forma de
   contratação, e um resumo no topo com a contagem de contratos vencidos/vencendo e com garantia

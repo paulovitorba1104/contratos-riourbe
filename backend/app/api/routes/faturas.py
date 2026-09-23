@@ -111,6 +111,7 @@ def _para_saida(fatura: Fatura, contrato: Contrato, fornecedor_nome: str) -> Fat
         contrato_numero=contrato.numero_contrato,
         fornecedor_id=fatura.fornecedor_id,
         fornecedor_nome=fornecedor_nome,
+        categoria_despesa=fatura.categoria_despesa,
         medicao_id=fatura.medicao_id,
         numero_nota_fiscal=fatura.numero_nota_fiscal,
         serie=fatura.serie,

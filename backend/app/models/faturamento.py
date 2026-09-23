@@ -61,6 +61,23 @@ class SituacaoItemConferencia(str, enum.Enum):
     NAO_APLICAVEL = "nao_aplicavel"
 
 
+class CategoriaDespesaFatura(str, enum.Enum):
+    """A imensa maioria das faturas é do serviço/objeto principal do
+    contrato (PRINCIPAL, o padrão). Em contrato de locação de imóvel com
+    fornecedor adicional administrando o condomínio (ver
+    FornecedorAdicionalContrato), a fatura dele costuma vir como uma única
+    cobrança mensal somando taxa condominial + água/luz + taxa de incêndio
+    + outras — categorizar cada fatura permite acompanhar a taxa
+    condominial (normalmente fixa, mas pode variar) separada do que é
+    genuinamente variável mês a mês."""
+
+    PRINCIPAL = "principal"
+    CONDOMINIO = "condominio"
+    AGUA_LUZ = "agua_luz"
+    TAXA_INCENDIO = "taxa_incendio"
+    OUTRA = "outra"
+
+
 def _valores_enum(enum_cls):
     return [membro.value for membro in enum_cls]
 
@@ -147,6 +164,14 @@ class Fatura(Base):
     data_recebimento: Mapped[date] = mapped_column(Date, nullable=False)
 
     valor_bruto: Mapped[float] = mapped_column(Numeric(16, 2), nullable=False)
+    # PRINCIPAL na imensa maioria — só varia em contrato de locação com
+    # fornecedor adicional administrando condomínio (ver
+    # CategoriaDespesaFatura acima).
+    categoria_despesa: Mapped[CategoriaDespesaFatura] = mapped_column(
+        Enum(CategoriaDespesaFatura, name="categoria_despesa_fatura", schema="faturas", values_callable=_valores_enum),
+        nullable=False,
+        default=CategoriaDespesaFatura.PRINCIPAL,
+    )
 
     status: Mapped[StatusFatura] = mapped_column(
         Enum(StatusFatura, name="status_fatura", schema="faturas", values_callable=_valores_enum),
