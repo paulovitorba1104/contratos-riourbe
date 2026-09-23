@@ -2811,7 +2811,7 @@ export function ContratoDetalhe() {
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div>
                       <label className="mb-0.5 block text-[11px] font-medium text-slate-500">
-                        Data do apostilamento
+                        Data de formalização
                       </label>
                       <input
                         type="date"
