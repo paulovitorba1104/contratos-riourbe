@@ -291,14 +291,19 @@ Implementa a seção 4 do plano de desenvolvimento:
   acréscimos e supressões. O botão "Buscar IPCA-E no Banco Central" preenche sozinho os campos
   "índice na data-base" e "índice atual" a partir da série oficial do IPCA-E no SGS do Banco
   Central (série 10764, dados do IBGE — `GET /api/contratos/consultar-indice-ipca-e`,
-  `app/core/bcb_sgs.py`). O SGS só publica a variação percentual mensal, não um número-índice
-  pronto, então o backend monta um número-índice sintético (base 1000 arbitrária) compondo as
-  variações mês a mês entre as duas datas — a razão entre os dois números-índice sintéticos é
-  idêntica à de uma tabela oficial de número-índice, o ponto de partida não importa, só a
-  variação acumulada entre eles. Consulta de melhor esforço, como a de CNPJ na Receita: se a API
-  do Banco Central estiver fora do ar, os dois campos continuam editáveis à mão, como sempre foi.
-  Hoje só busca o IPCA-E — outros índices comuns em contrato público (IPCA, IGP-M, INPC) usam a
-  mesma API do Banco Central e ficam para quando forem pedidos.
+  `app/core/bcb_sgs.py`), seguindo a cláusula-padrão de reajuste por IPCA-E que aparece nos
+  contratos da Rio-Urbe (`R = Po×[(I-Io)/Io]`): **Io é o índice do mês anterior ao da apresentação
+  da proposta** (na prática, a data de assinatura original do contrato, já cadastrada — não pede
+  de novo) **e I é o índice do mês anterior ao do aniversário do contrato sendo reajustado agora**
+  (a única data que se digita, no campo "Marco do reajuste") — nunca o índice do próprio mês de
+  referência. O SGS só publica a variação percentual mensal, não um número-índice pronto, então o
+  backend monta um número-índice sintético (base 1000 arbitrária) compondo as variações mês a mês
+  entre as duas datas já deslocadas um mês para trás — a razão entre os dois números-índice
+  sintéticos é idêntica à de uma tabela oficial de número-índice, o ponto de partida não importa,
+  só a variação acumulada entre eles. Consulta de melhor esforço, como a de CNPJ na Receita: se a
+  API do Banco Central estiver fora do ar, os dois campos continuam editáveis à mão, como sempre
+  foi. Hoje só busca o IPCA-E — outros índices comuns em contrato público (IPCA, IGP-M, INPC) usam
+  a mesma API do Banco Central e ficam para quando forem pedidos.
 - **Anexos nos instrumentos processuais**: cada instrumento (origem, aditivo, apostilamento etc.)
   aceita anexar arquivos (PDF, Word, Excel, imagem — até 25 MB cada) para consulta rápida sem sair
   do sistema — contrato assinado, termo aditivo, parecer, etc. Ficam salvos em disco

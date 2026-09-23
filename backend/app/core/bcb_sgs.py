@@ -76,3 +76,16 @@ def consultar_indice(nome_indice: str, data_base: date, data_atual: date) -> dic
         indice_atual *= 1 + variacao / 100
 
     return {"indice_base": round(float(INDICE_BASE_SINTETICO), 5), "indice_atual": round(indice_atual, 5)}
+
+
+def consultar_indice_reajuste(nome_indice: str, data_apresentacao_proposta: date, data_aniversario: date) -> dict | None:
+    """Segue a cláusula-padrão de reajuste por IPCA-E (R = Po×[(I-Io)/Io]):
+    Io é o índice do mês ANTERIOR ao da apresentação da proposta, e I é o
+    índice do mês anterior ao do aniversário do contrato sendo reajustado —
+    nunca o índice do próprio mês de referência. Desloca as duas datas um
+    mês para trás e delega para `consultar_indice`."""
+    return consultar_indice(
+        nome_indice,
+        data_apresentacao_proposta + relativedelta(months=-1),
+        data_aniversario + relativedelta(months=-1),
+    )
