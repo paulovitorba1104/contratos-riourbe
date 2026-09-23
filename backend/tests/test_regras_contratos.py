@@ -13,7 +13,6 @@ from app.models.contrato import (
     TipoReajuste,
 )
 from app.models.instrumento_processual import (
-    FundamentacaoLei,
     InstrumentoProcessual,
     TipoInstrumento,
 )
@@ -74,8 +73,7 @@ def _instrumento(tipo: TipoInstrumento, **overrides) -> InstrumentoProcessual:
     padrao = dict(
         tipo=tipo,
         modelo_ripm_id="00000000-0000-0000-0000-000000000000",
-        fundamentacao_lei=FundamentacaoLei.LEI_13303_16,
-        fundamentacao_artigo="art. 1",
+        fundamentacao="Lei 13.303/16, art. 1",
     )
     padrao.update(overrides)
     return InstrumentoProcessual(**padrao)

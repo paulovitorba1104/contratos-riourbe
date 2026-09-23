@@ -24,7 +24,6 @@ import type {
   Fiscal,
   FormaContratacao,
   Fornecedor,
-  FundamentacaoLei,
   LogAuditoria,
   FornecedorAdicionalPayload,
   ModoExecucao,
@@ -108,8 +107,7 @@ function NovoInstrumentoForm({
   aoCriar: (c: ContratoDetalhado) => void;
 }) {
   const [tipo, setTipo] = useState<TipoInstrumento>(tipoInicial ?? "apostilamento");
-  const [fundamentacaoLei, setFundamentacaoLei] = useState<FundamentacaoLei>("lei_13303_16");
-  const [fundamentacaoArtigo, setFundamentacaoArtigo] = useState("");
+  const [fundamentacao, setFundamentacao] = useState("");
   const [numeroDocumentoSei, setNumeroDocumentoSei] = useState("");
   const [dataInicioVigencia, setDataInicioVigencia] = useState("");
   const [dataFimVigencia, setDataFimVigencia] = useState("");
@@ -286,8 +284,7 @@ function NovoInstrumentoForm({
     try {
       const contrato = await apiContratos.criarInstrumento(contratoId, {
         tipo,
-        fundamentacao_lei: fundamentacaoLei,
-        fundamentacao_artigo: fundamentacaoArtigo,
+        fundamentacao,
         numero_documento_sei: numeroDocumentoSei || null,
         data_inicio_vigencia: exigeVigencia ? dataInicioVigencia : null,
         data_fim_vigencia: exigeVigencia ? dataFimVigencia : null,
@@ -307,7 +304,7 @@ function NovoInstrumentoForm({
           : {}),
       });
       aoCriar(contrato);
-      setFundamentacaoArtigo("");
+      setFundamentacao("");
       setNumeroDocumentoSei("");
       setDataInicioVigencia("");
       setDataFimVigencia("");
@@ -334,7 +331,7 @@ function NovoInstrumentoForm({
 
   return (
     <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Tipo</label>
           <select className={campoClasse} value={tipo} onChange={(e) => setTipo(e.target.value as TipoInstrumento)}>
@@ -346,23 +343,12 @@ function NovoInstrumentoForm({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Fundamentação (lei)</label>
-          <select
-            className={campoClasse}
-            value={fundamentacaoLei}
-            onChange={(e) => setFundamentacaoLei(e.target.value as FundamentacaoLei)}
-          >
-            <option value="lei_13303_16">Lei 13.303/16</option>
-            <option value="lei_14133_21">Lei 14.133/21</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Artigo</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600">Fundamentação</label>
           <input
             className={campoClasse}
-            value={fundamentacaoArtigo}
-            onChange={(e) => setFundamentacaoArtigo(e.target.value)}
-            placeholder="ex.: art. 71"
+            value={fundamentacao}
+            onChange={(e) => setFundamentacao(e.target.value)}
+            placeholder="ex.: Lei 13.303/16, art. 71 ou Decreto nº 1234/2020"
           />
         </div>
       </div>
@@ -2795,9 +2781,7 @@ export function ContratoDetalhe() {
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500">
-                    {i.fundamentacao_lei === "lei_13303_16" ? "Lei 13.303/16" : "Lei 14.133/21"}, {i.fundamentacao_artigo}
-                  </p>
+                  <p className="text-xs text-slate-500">{i.fundamentacao}</p>
                   {i.data_inicio_vigencia && i.data_fim_vigencia && (
                     <p className="text-xs text-slate-500">
                       Vigência: {i.data_inicio_vigencia} até {i.data_fim_vigencia}

@@ -233,9 +233,11 @@ Implementa a seção 4 do plano de desenvolvimento:
   gerenciar prazo e renovação dele. Ver detalhe do efeito na seção do módulo Faturamento abaixo.
 - **Instrumentos processuais**: origem + aditivos (prorrogação, acréscimo/supressão de valor,
   alteração qualitativa, reequilíbrio, apostilamento, suspensão, rescisão/extinção), cada um
-  mapeado a um modelo RIPM e com fundamentação legal estruturada (lei + artigo). O instrumento de
-  Origem é criado junto com o contrato — a tela "Novo contrato" já pergunta o prazo inicial de
-  vigência (início/fim), RIPM e fundamentação; as prorrogações seguintes são registradas depois,
+  mapeado a um modelo RIPM e com fundamentação em texto livre (`fundamentacao`) — normalmente uma
+  lei e artigo (ex.: "Lei 13.303/16, art. 71"), mas também decreto, portaria ou outro ato
+  normativo, que não caberia num enum fixo de leis. O instrumento de Origem é criado junto com o
+  contrato — a tela "Novo contrato" já pergunta o prazo inicial de vigência (início/fim), RIPM e
+  fundamentação; as prorrogações seguintes são registradas depois,
   na ficha do contrato, e só são aceitas até completar o teto de 5 anos contado da assinatura
   original (ex.: 2 anos na contratação inicial + 2 anos + 1 ano de prorrogações = 5 anos).
 - **Contador de datas**: no cadastro do contrato (e no formulário de novo instrumento) basta

@@ -14,7 +14,6 @@ from app.models.contrato import (
     TipoProcesso,
     TipoReajuste,
 )
-from app.models.instrumento_processual import FundamentacaoLei
 from app.schemas.fiscal import FiscalVinculoSaida
 from app.schemas.instrumento import InstrumentoProcessualSaida
 
@@ -46,12 +45,11 @@ class InstrumentoOrigemCriar(BaseModel):
     criado junto com o contrato (não depois, como os aditivos). O RIPM aqui é
     só o checklist de apoio administrativo (não é documento jurídico do
     processo como o próprio instrumento), por isso é opcional; a
-    fundamentação legal (lei + artigo) é a mesma exigida de qualquer
-    instrumento que define vigência (seção 4.2)."""
+    fundamentação (texto livre — lei, decreto, portaria etc.) é a mesma
+    exigida de qualquer instrumento que define vigência (seção 4.2)."""
 
     modelo_ripm_id: uuid.UUID | None = None
-    fundamentacao_lei: FundamentacaoLei
-    fundamentacao_artigo: str = Field(..., max_length=100)
+    fundamentacao: str = Field(..., min_length=1, max_length=300)
     numero_documento_sei: str | None = Field(None, max_length=50)
     data_inicio_vigencia: date
     data_fim_vigencia: date

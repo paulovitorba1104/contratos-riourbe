@@ -20,7 +20,6 @@ from app.models.faturamento import (
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
 from app.models.instrumento_processual import (
-    FundamentacaoLei,
     InstrumentoProcessual,
     SubStatusInstrumento,
     TipoInstrumento,
@@ -42,7 +41,6 @@ __all__ = [
     "InstrumentoProcessual",
     "TipoInstrumento",
     "SubStatusInstrumento",
-    "FundamentacaoLei",
     "ModeloRipm",
     "AtaRegistroPreco",
     # Faturamento

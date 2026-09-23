@@ -19,7 +19,6 @@ import type {
   Fiscal,
   Fornecedor,
   FormaContratacao,
-  FundamentacaoLei,
   ModoExecucao,
   ModoValorContrato,
   ProcessoPayload,
@@ -79,8 +78,7 @@ export function NovoContrato() {
   const [observacoes, setObservacoes] = useState("");
   const [fiscaisSelecionados, setFiscaisSelecionados] = useState<string[]>([]);
 
-  const [fundamentacaoLei, setFundamentacaoLei] = useState<FundamentacaoLei>("lei_13303_16");
-  const [fundamentacaoArtigo, setFundamentacaoArtigo] = useState("");
+  const [fundamentacao, setFundamentacao] = useState("");
   const [numeroDocumentoSei, setNumeroDocumentoSei] = useState("");
   const [dataInicioVigencia, setDataInicioVigencia] = useState("");
   const [dataFimVigencia, setDataFimVigencia] = useState("");
@@ -333,8 +331,7 @@ export function NovoContrato() {
           : { valor_inicial: moedaParaNumero(valorInicial) }),
         observacoes: observacoes || null,
         instrumento_origem: {
-          fundamentacao_lei: fundamentacaoLei,
-          fundamentacao_artigo: fundamentacaoArtigo,
+          fundamentacao,
           numero_documento_sei: numeroDocumentoSei || null,
           data_inicio_vigencia: dataInicioVigencia,
           data_fim_vigencia: dataFimVigencia,
@@ -866,31 +863,17 @@ export function NovoContrato() {
             <p className="mb-3 text-sm font-semibold text-slate-800">
               Vigência inicial (instrumento de Origem)
             </p>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={rotuloClasse} htmlFor="fundamentacao_lei">
-                  Fundamentação (lei)
-                </label>
-                <select
-                  id="fundamentacao_lei"
-                  className={campoClasse}
-                  value={fundamentacaoLei}
-                  onChange={(e) => setFundamentacaoLei(e.target.value as FundamentacaoLei)}
-                >
-                  <option value="lei_13303_16">Lei 13.303/16</option>
-                  <option value="lei_14133_21">Lei 14.133/21</option>
-                </select>
-              </div>
-              <div>
-                <label className={rotuloClasse} htmlFor="fundamentacao_artigo">
-                  Artigo
+                <label className={rotuloClasse} htmlFor="fundamentacao">
+                  Fundamentação
                 </label>
                 <input
-                  id="fundamentacao_artigo"
+                  id="fundamentacao"
                   className={campoClasse}
-                  value={fundamentacaoArtigo}
-                  onChange={(e) => setFundamentacaoArtigo(e.target.value)}
-                  placeholder="ex.: art. 71"
+                  value={fundamentacao}
+                  onChange={(e) => setFundamentacao(e.target.value)}
+                  placeholder="ex.: Lei 13.303/16, art. 71 ou Decreto nº 1234/2020"
                   required
                 />
               </div>
