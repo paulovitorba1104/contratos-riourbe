@@ -132,6 +132,9 @@ export interface Fatura {
   id: string;
   contrato_id: string;
   contrato_numero: string;
+  // Nulo = fornecedor principal do contrato; preenchido só quando esta nota
+  // é de um fornecedor adicional (ex.: administradora do condomínio).
+  fornecedor_id: string | null;
   fornecedor_nome: string;
   medicao_id: string | null;
   numero_nota_fiscal: string;
@@ -214,6 +217,7 @@ export interface ModeloChecklist {
 
 export interface NovaFaturaPayload {
   contrato_id: string;
+  fornecedor_id?: string | null;
   medicao_id?: string | null;
   fatura_origem_id?: string | null;
   numero_nota_fiscal: string;
@@ -228,6 +232,7 @@ export interface NovaFaturaPayload {
 }
 
 export interface FaturaAtualizarPayload {
+  fornecedor_id?: string | null;
   numero_nota_fiscal?: string;
   serie?: string | null;
   numero_processo_sei?: string | null;

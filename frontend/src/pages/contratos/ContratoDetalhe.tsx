@@ -18,7 +18,9 @@ import type {
   Fornecedor,
   FundamentacaoLei,
   LogAuditoria,
+  FornecedorAdicionalPayload,
   ModoExecucao,
+  ModoValorContrato,
   Processo,
   SistemaProcesso,
   SubStatusInstrumento,
@@ -32,6 +34,7 @@ import {
   ROTULOS_EXCECAO_TETO,
   ROTULOS_FORMA_CONTRATACAO,
   ROTULOS_MODO_EXECUCAO,
+  ROTULOS_MODO_VALOR,
   ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_STATUS_CONTRATO,
   ROTULOS_SUB_STATUS,
@@ -718,6 +721,72 @@ function NovoVinculoFiscalForm({
   );
 }
 
+function NovoFornecedorAdicionalForm({
+  contratoId,
+  fornecedoresDisponiveis,
+  aoVincular,
+}: {
+  contratoId: string;
+  fornecedoresDisponiveis: Fornecedor[];
+  aoVincular: (c: ContratoDetalhado) => void;
+}) {
+  const [fornecedorId, setFornecedorId] = useState("");
+  const [papel, setPapel] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar() {
+    setErro(null);
+    if (!fornecedorId || !papel.trim()) {
+      setErro("Selecione o fornecedor e informe o papel dele no contrato.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      const dados: FornecedorAdicionalPayload = { fornecedor_id: fornecedorId, papel: papel.trim() };
+      const contrato = await apiContratos.adicionarFornecedor(contratoId, dados);
+      aoVincular(contrato);
+      setFornecedorId("");
+      setPapel("");
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não foi possível vincular o fornecedor.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          id="novo_fornecedor_adicional_id"
+          className={campoClasse}
+          value={fornecedorId}
+          onChange={(e) => setFornecedorId(e.target.value)}
+        >
+          <option value="">Selecione o fornecedor...</option>
+          {fornecedoresDisponiveis.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.razao_social}
+            </option>
+          ))}
+        </select>
+        <input
+          id="novo_fornecedor_adicional_papel"
+          className={campoClasse}
+          value={papel}
+          onChange={(e) => setPapel(e.target.value)}
+          placeholder="Papel — ex.: Administradora do condomínio"
+        />
+      </div>
+      {erro && <p className="text-sm text-red-600">{erro}</p>}
+      <button type="button" onClick={enviar} disabled={enviando} className="btn-primary btn-sm">
+        {enviando ? "Vinculando..." : "Vincular fornecedor"}
+      </button>
+    </div>
+  );
+}
+
 function RegistrarExecucaoForm({
   contratoId,
   aoRegistrar,
@@ -1076,6 +1145,16 @@ function EditarContratoForm({
   const [formaContratacao, setFormaContratacao] = useState<FormaContratacao>(contrato.forma_contratacao);
   const [dataAssinatura, setDataAssinatura] = useState(contrato.data_assinatura_original);
   const [valorInicial, setValorInicial] = useState(formatarMoedaInicial(contrato.valor_inicial));
+  // Valor global (padrão) ou por mensalidade (ex.: locação de imóvel) — o
+  // valor global é recalculado pelo backend a partir da mensalidade, do
+  // prazo já registrado na vigência do contrato e da carência.
+  const [modoValor, setModoValor] = useState<ModoValorContrato>(contrato.modo_valor);
+  const [valorMensal, setValorMensal] = useState(
+    contrato.valor_mensal ? formatarMoedaInicial(contrato.valor_mensal) : "",
+  );
+  const [carenciaMeses, setCarenciaMeses] = useState(
+    contrato.carencia_meses !== null ? String(contrato.carencia_meses) : "0",
+  );
   // Valor pago não se edita aqui — é sempre calculado (histórico + faturas
   // pagas no sistema). Ajuste pelo box dedicado no card "Financeiro".
   const [notaReserva, setNotaReserva] = useState(contrato.nota_reserva ?? "");
@@ -1138,6 +1217,14 @@ function EditarContratoForm({
       setErro("Informe a quantidade de execuções previstas.");
       return;
     }
+    if (modoValor === "mensal" && !valorMensal.trim()) {
+      setErro("Informe o valor mensal do contrato.");
+      return;
+    }
+    if (modoValor === "global" && !valorInicial.trim()) {
+      setErro("Informe o valor inicial do contrato.");
+      return;
+    }
     setEnviando(true);
     try {
       const atualizado = await apiContratos.atualizar(contrato.id, {
@@ -1147,7 +1234,10 @@ function EditarContratoForm({
         fornecedor_id: fornecedorId,
         forma_contratacao: formaContratacao,
         data_assinatura_original: dataAssinatura,
-        valor_inicial: moedaParaNumero(valorInicial),
+        modo_valor: modoValor,
+        ...(modoValor === "mensal"
+          ? { valor_mensal: moedaParaNumero(valorMensal), carencia_meses: Number(carenciaMeses || "0") }
+          : { valor_inicial: moedaParaNumero(valorInicial) }),
         nota_reserva: notaReserva || null,
         nota_empenho: notaEmpenho || null,
         pt: pt || null,
@@ -1283,6 +1373,26 @@ function EditarContratoForm({
           />
         </div>
         <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="editar_modo_valor">
+            Modo do valor
+          </label>
+          <select
+            id="editar_modo_valor"
+            className={campoClasse}
+            value={modoValor}
+            onChange={(e) => setModoValor(e.target.value as ModoValorContrato)}
+          >
+            {Object.entries(ROTULOS_MODO_VALOR).map(([valor, rotulo]) => (
+              <option key={valor} value={valor}>
+                {rotulo}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {modoValor === "global" ? (
+        <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Valor inicial</label>
           <input
             type="text"
@@ -1293,7 +1403,37 @@ function EditarContratoForm({
             onChange={(e) => setValorInicial(mascararMoeda(e.target.value))}
           />
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Valor mensal (R$)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0,00"
+              className={campoClasse}
+              value={valorMensal}
+              onChange={(e) => setValorMensal(mascararMoeda(e.target.value))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Carência (meses)</label>
+            <input
+              type="number"
+              min={0}
+              max={120}
+              className={campoClasse}
+              value={carenciaMeses}
+              onChange={(e) => setCarenciaMeses(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <p className="text-xs text-slate-500 sm:col-span-2">
+            O valor global é recalculado ao salvar, a partir da mensalidade, do prazo já registrado
+            na vigência do contrato e da carência.
+          </p>
+        </div>
+      )}
       <p className="text-xs text-slate-500">
         O valor pago se ajusta no card "Financeiro" da ficha, não aqui.
       </p>
@@ -1644,6 +1784,7 @@ export function ContratoDetalhe() {
   const [instrumentoSalvando, setInstrumentoSalvando] = useState<string | null>(null);
   const [instrumentoSalvo, setInstrumentoSalvo] = useState<string | null>(null);
   const [mostrarFormFiscal, setMostrarFormFiscal] = useState(false);
+  const [mostrarFormFornecedor, setMostrarFormFornecedor] = useState(false);
   const [mostrarFormEditarContrato, setMostrarFormEditarContrato] = useState(false);
   const [mostrarFormGarantia, setMostrarFormGarantia] = useState(false);
   const [mostrarHistoricoGarantia, setMostrarHistoricoGarantia] = useState(false);
@@ -1736,6 +1877,24 @@ export function ContratoDetalhe() {
       mostrarToast("Fiscal removido do contrato.");
     } catch (e) {
       const mensagem = e instanceof ErroApi ? e.message : "Não foi possível excluir o vínculo do fiscal.";
+      setErro(mensagem);
+      mostrarToast(mensagem, "erro");
+    }
+  }
+
+  async function excluirFornecedorAdicional(vinculoId: string, razaoSocial: string) {
+    if (!id) return;
+    if (
+      !window.confirm(`Remover "${razaoSocial}" deste contrato? Essa ação não pode ser desfeita.`)
+    ) {
+      return;
+    }
+    try {
+      const atualizado = await apiContratos.excluirFornecedor(id, vinculoId);
+      setContrato(atualizado);
+      mostrarToast("Fornecedor removido do contrato.");
+    } catch (e) {
+      const mensagem = e instanceof ErroApi ? e.message : "Não foi possível remover o fornecedor.";
       setErro(mensagem);
       mostrarToast(mensagem, "erro");
     }
@@ -2251,6 +2410,67 @@ export function ContratoDetalhe() {
             {contrato.fiscais.length === 0 && (
               <p className="text-sm text-slate-500">Nenhum fiscal designado ainda.</p>
             )}
+          </ul>
+        </section>
+
+        <section className="card p-5">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Fornecedores vinculados</h2>
+            {contrato.status !== "encerrado" && (
+              <button onClick={() => setMostrarFormFornecedor((v) => !v)} className="btn-secondary btn-sm">
+                {mostrarFormFornecedor ? "Cancelar" : "+ Vincular fornecedor"}
+              </button>
+            )}
+          </div>
+          <p className="mb-3 text-xs text-slate-500">
+            Além do fornecedor principal, é possível vincular outros fornecedores ao mesmo contrato
+            — caso da locação de imóvel, em que uma empresa recebe o aluguel e outra administra o
+            condomínio (IPTU, taxa condominial, água/luz etc.). As faturas deste contrato podem ser
+            emitidas para qualquer um deles.
+          </p>
+
+          {mostrarFormFornecedor && (
+            <div className="mb-3">
+              <NovoFornecedorAdicionalForm
+                contratoId={contrato.id}
+                fornecedoresDisponiveis={fornecedores.filter(
+                  (f) =>
+                    f.id !== contrato.fornecedor_id &&
+                    !contrato.fornecedores_adicionais.some((fa) => fa.fornecedor_id === f.id),
+                )}
+                aoVincular={(c) => {
+                  setContrato(c);
+                  setMostrarFormFornecedor(false);
+                  mostrarToast("Fornecedor vinculado ao contrato.");
+                }}
+              />
+            </div>
+          )}
+
+          <ul className="space-y-2">
+            <li className="flex items-center justify-between text-sm">
+              <div>
+                <span className="font-medium text-slate-900">{fornecedor?.razao_social ?? "—"}</span>{" "}
+                <span className="text-xs text-slate-500">(principal)</span>
+              </div>
+            </li>
+            {contrato.fornecedores_adicionais.map((fa) => (
+              <li key={fa.id} className="flex items-center justify-between text-sm">
+                <div>
+                  <span className="font-medium text-slate-900">{fa.razao_social}</span>{" "}
+                  <span className="text-xs text-slate-500">({fa.papel})</span>
+                </div>
+                {ehAdministrador && (
+                  <button
+                    onClick={() => excluirFornecedorAdicional(fa.id, fa.razao_social)}
+                    className="btn-secondary btn-sm border-red-200 text-red-700 hover:bg-red-50"
+                    title="Exclusão definitiva — restrita a administrador"
+                  >
+                    Excluir
+                  </button>
+                )}
+              </li>
+            ))}
           </ul>
         </section>
 

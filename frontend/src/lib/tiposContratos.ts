@@ -18,6 +18,7 @@ export type TipoProcesso = "principal" | "apenso";
 export type ExcecaoTetoVigencia = "art_71_i" | "art_71_ii";
 export type TipoReajuste = "automatico" | "mediante_solicitacao";
 export type ModoExecucao = "por_vigencia" | "por_quantidade";
+export type ModoValorContrato = "global" | "mensal";
 
 export const ROTULOS_FORMA_CONTRATACAO: Record<FormaContratacao, string> = {
   pregao_eletronico: "Pregão Eletrônico",
@@ -76,6 +77,11 @@ export const ROTULOS_MODO_EXECUCAO: Record<ModoExecucao, string> = {
   por_quantidade: "Por quantidade de execuções — ex.: aplicado N vezes no exercício",
 };
 
+export const ROTULOS_MODO_VALOR: Record<ModoValorContrato, string> = {
+  global: "Valor global (padrão) — digitar o valor total do contrato",
+  mensal: "Por mensalidade — ex.: locação de imóvel, calcula o valor global sozinho",
+};
+
 export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
   criar_contrato: "Contrato criado",
   atualizar_contrato: "Dados do contrato atualizados",
@@ -95,6 +101,8 @@ export const ROTULOS_ACAO_AUDITORIA: Record<string, string> = {
   excluir_anexo_instrumento: "Anexo excluído",
   registrar_execucao_contrato: "Execução registrada",
   excluir_execucao_contrato: "Execução excluída",
+  adicionar_fornecedor_contrato: "Fornecedor adicional vinculado",
+  excluir_fornecedor_adicional_contrato: "Fornecedor adicional removido",
 };
 
 export const TIPOS_QUE_DEFINEM_VIGENCIA: TipoInstrumento[] = ["origem", "prorrogacao"];
@@ -268,6 +276,21 @@ export interface ExecucaoHistorico {
   registrado_em: string;
 }
 
+export interface CalculoValorMensal {
+  valor_mensal: string;
+  prazo_meses: number;
+  carencia_meses: number;
+  meses_cobrados: number;
+  valor_global: string;
+}
+
+export interface FornecedorAdicional {
+  id: string;
+  fornecedor_id: string;
+  razao_social: string;
+  papel: string;
+}
+
 export interface ContratoDetalhado extends Contrato {
   fiscais: FiscalVinculo[];
   valor_atualizado: string;
@@ -300,6 +323,13 @@ export interface ContratoDetalhado extends Contrato {
   quantidade_execucoes_previstas: number | null;
   quantidade_execucoes_atingida: boolean;
   execucoes: ExecucaoHistorico[];
+  // Contrato cotado por mensalidade (ex.: locação de imóvel) — global na
+  // imensa maioria dos contratos, que digita o valor direto.
+  modo_valor: ModoValorContrato;
+  valor_mensal: string | null;
+  carencia_meses: number | null;
+  // Fornecedores além do principal — vazio na imensa maioria dos contratos.
+  fornecedores_adicionais: FornecedorAdicional[];
   instrumentos: InstrumentoProcessual[];
 }
 
@@ -325,7 +355,12 @@ export interface NovoContratoPayload {
   fornecedor_id: string;
   forma_contratacao: FormaContratacao;
   data_assinatura_original: string;
-  valor_inicial: string;
+  // Obrigatório só no modo global (padrão) — no modo mensal o backend
+  // calcula sozinho a partir de valor_mensal/carencia_meses.
+  valor_inicial?: string;
+  modo_valor?: ModoValorContrato;
+  valor_mensal?: string;
+  carencia_meses?: number;
   observacoes?: string | null;
   instrumento_origem: InstrumentoOrigemPayload;
   processos: ProcessoPayload[];
@@ -377,11 +412,19 @@ export interface ContratoAtualizarPayload {
   indice_reajuste_padrao?: string | null;
   modo_execucao?: ModoExecucao;
   quantidade_execucoes_previstas?: number | null;
+  modo_valor?: ModoValorContrato;
+  valor_mensal?: string | null;
+  carencia_meses?: number | null;
 }
 
 export interface ExecucaoPayload {
   data_execucao: string;
   observacao?: string | null;
+}
+
+export interface FornecedorAdicionalPayload {
+  fornecedor_id: string;
+  papel: string;
 }
 
 export interface NovoInstrumentoPayload {

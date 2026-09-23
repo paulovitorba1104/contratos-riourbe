@@ -203,6 +203,70 @@ def test_contrato_atualizar_nao_mexer_em_modo_execucao_nao_exige_nada():
     assert atualizacao.modo_execucao is None
 
 
+def test_contrato_criar_modo_global_e_o_padrao():
+    contrato = ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE)
+    assert contrato.modo_valor == "global"
+    assert contrato.valor_mensal is None
+
+
+def test_contrato_criar_modo_mensal_exige_valor_mensal():
+    dados_sem_valor_inicial = {k: v for k, v in DADOS_BASE.items() if k != "valor_inicial"}
+    with pytest.raises(ValidationError):
+        ContratoCriar(**dados_sem_valor_inicial, instrumento_origem=INSTRUMENTO_ORIGEM_BASE, modo_valor="mensal")
+
+
+def test_contrato_criar_modo_mensal_rejeita_valor_inicial():
+    """No modo mensal o valor global é calculado pelo backend — o cliente
+    não pode mandar um valor_inicial pronto (mesmo racional do valor_delta
+    calculado do reajuste)."""
+    with pytest.raises(ValidationError):
+        ContratoCriar(
+            **DADOS_BASE,
+            instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+            modo_valor="mensal",
+            valor_mensal=Decimal("1000.00"),
+        )
+
+
+def test_contrato_criar_modo_mensal_aceita_com_valor_mensal():
+    dados_sem_valor_inicial = {k: v for k, v in DADOS_BASE.items() if k != "valor_inicial"}
+    contrato = ContratoCriar(
+        **dados_sem_valor_inicial,
+        instrumento_origem=INSTRUMENTO_ORIGEM_BASE,
+        modo_valor="mensal",
+        valor_mensal=Decimal("109774.35"),
+        carencia_meses=9,
+    )
+    assert contrato.valor_inicial is None
+    assert contrato.valor_mensal == Decimal("109774.35")
+    assert contrato.carencia_meses == 9
+
+
+def test_contrato_criar_modo_global_rejeita_valor_mensal():
+    with pytest.raises(ValidationError):
+        ContratoCriar(**DADOS_BASE, instrumento_origem=INSTRUMENTO_ORIGEM_BASE, valor_mensal=Decimal("1000.00"))
+
+
+def test_contrato_atualizar_modo_mensal_exige_valor_mensal():
+    with pytest.raises(ValidationError):
+        ContratoAtualizar(modo_valor="mensal")
+
+
+def test_contrato_atualizar_modo_mensal_rejeita_valor_inicial():
+    with pytest.raises(ValidationError):
+        ContratoAtualizar(modo_valor="mensal", valor_mensal=Decimal("1000.00"), valor_inicial=Decimal("50000.00"))
+
+
+def test_contrato_atualizar_modo_global_rejeita_valor_mensal():
+    with pytest.raises(ValidationError):
+        ContratoAtualizar(modo_valor="global", valor_mensal=Decimal("1000.00"))
+
+
+def test_contrato_atualizar_nao_mexer_em_modo_valor_nao_exige_nada():
+    atualizacao = ContratoAtualizar(objeto="Objeto revisado")
+    assert atualizacao.modo_valor is None
+
+
 def test_tempo_restante_do_servico_vira_schema():
     """O serviço devolve um dataclass e a ficha do contrato o serializa — sem
     `from_attributes` isso quebra o GET do contrato inteiro, não só o campo."""

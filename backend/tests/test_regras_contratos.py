@@ -398,3 +398,37 @@ def test_quantidade_execucoes_atingida_tambem_quando_passa_do_previsto():
     contrato = _contrato(modo_execucao=ModoExecucao.POR_QUANTIDADE, quantidade_execucoes_previstas=2)
     contrato.execucoes = [_execucao(), _execucao(), _execucao()]
     assert regras.quantidade_execucoes_atingida(contrato) is True
+
+
+# --------------------------------------------------------------------------
+# Contrato cotado por mensalidade (ex.: locação de imóvel)
+# --------------------------------------------------------------------------
+def test_meses_entre_inverte_calcular_fim_vigencia():
+    """13/06/2022 por 24 meses termina em 12/06/2024 — o inverso disso é
+    24 meses de novo, contando o dia de início como primeiro dia."""
+    inicio = date(2022, 6, 13)
+    fim = regras.calcular_fim_vigencia(inicio, 24)
+    assert regras.meses_entre(inicio, fim) == 24
+
+
+def test_meses_entre_prazo_curto():
+    inicio = date(2026, 1, 1)
+    fim = date(2026, 1, 31)  # 1 mês
+    assert regras.meses_entre(inicio, fim) == 1
+
+
+def test_calcular_valor_global_mensal_sem_carencia():
+    valor = regras.calcular_valor_global_mensal(Decimal("109774.35"), 60, 0)
+    assert valor == Decimal("6586461.00")
+
+
+def test_calcular_valor_global_mensal_com_carencia():
+    """Exemplo real: aluguel de R$ 109.774,35/mês, 60 meses de contrato,
+    9 meses de carência — só 51 meses são efetivamente cobrados."""
+    valor = regras.calcular_valor_global_mensal(Decimal("109774.35"), 60, 9)
+    assert valor == Decimal("109774.35") * 51
+
+
+def test_calcular_valor_global_mensal_carencia_maior_que_prazo_nao_fica_negativo():
+    valor = regras.calcular_valor_global_mensal(Decimal("1000.00"), 12, 24)
+    assert valor == Decimal("0.00")

@@ -123,6 +123,24 @@ def calcular_fim_vigencia(data_inicio: date, meses: int) -> date:
     return data_inicio + relativedelta(months=meses) - timedelta(days=1)
 
 
+def meses_entre(data_inicio: date, data_fim: date) -> int:
+    """Inverso de `calcular_fim_vigencia`: quantos meses cheios cabem entre
+    início e fim de uma vigência já registrada (13/06/2022 até 12/06/2024 →
+    24). Usado para saber o prazo total sem depender do usuário digitar de
+    novo um número que a vigência já responde."""
+    delta = relativedelta(data_fim + timedelta(days=1), data_inicio)
+    return delta.years * 12 + delta.months
+
+
+def calcular_valor_global_mensal(valor_mensal: Decimal, prazo_meses: int, carencia_meses: int) -> Decimal:
+    """Contrato cotado por mensalidade (ex.: locação de imóvel): o valor
+    global é a mensalidade multiplicada pelos meses efetivamente cobrados —
+    o prazo total menos a carência (meses de aluguel gratuito no início),
+    nunca negativo."""
+    meses_cobrados = max(0, prazo_meses - carencia_meses)
+    return (valor_mensal * meses_cobrados).quantize(Decimal("0.01"))
+
+
 @dataclass
 class TempoRestante:
     """Contagem regressiva até uma data-limite. Quando já passou, os mesmos

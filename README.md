@@ -313,6 +313,27 @@ Implementa a seção 4 do plano de desenvolvimento:
   instrumento, o mesmo mecanismo usado para encerrar qualquer outro contrato. Licenças de
   software (pagas por período fixo, sem execução por quantidade) já são atendidas pelo modelo
   padrão — não precisam desse modo.
+- **Valor global ou por mensalidade, com calculadora embutida**: a maioria dos contratos já nasce
+  com o valor total (global) definido — é o que se digita direto em `valor_inicial`. Alguns (o
+  caso típico é locação de imóvel) são cotados por mensalidade: a proposta traz o aluguel mensal,
+  o prazo e, às vezes, uma carência (meses de aluguel gratuito no início) — não um valor global
+  pronto. O contrato marca `modo_valor` (`global`, padrão, ou `mensal`); no modo mensal,
+  informa-se `valor_mensal` e `carencia_meses`, e o `valor_inicial` é **sempre calculado pelo
+  backend** — mensalidade × (prazo em meses da vigência do instrumento de Origem − carência),
+  nunca aceito pronto do cliente (mesmo racional do valor de reajuste/apostilamento). A tela
+  mostra uma prévia ao vivo do valor global antes de salvar
+  (`GET /api/contratos/calcular-valor-mensal`), e o cálculo final roda de novo no backend ao
+  criar ou editar o contrato.
+- **Múltiplos fornecedores no mesmo contrato**: continuando o exemplo da locação de imóvel — é
+  comum o contrato ter uma empresa que recebe o aluguel e **outra**, a administradora do prédio,
+  que recebe o condomínio (IPTU, taxa condominial, água/luz, taxa de incêndio etc.). Em vez de
+  abrir um segundo contrato, o mesmo contrato aceita vincular fornecedores adicionais, cada um com
+  um papel em texto livre (ex.: "Administradora do condomínio") — o fornecedor principal
+  (`Contrato.fornecedor_id`) continua obrigatório e sem mudança de comportamento para a
+  esmagadora maioria dos contratos, que tem só um. Ao lançar uma fatura, escolhe-se a qual
+  fornecedor do contrato ela se refere (nulo = fornecedor principal, o padrão); o backend valida
+  que só é possível faturar para o principal ou para um dos fornecedores adicionais vinculados a
+  esse contrato, nunca para fora desse conjunto.
 - **Painel Kanban** por status macro, com número do contrato e alertas de vigência/garantia já
   visíveis no card, busca (número, processo, tipo de serviço ou objeto) e filtro por forma de
   contratação, e um resumo no topo com a contagem de contratos vencidos/vencendo e com garantia

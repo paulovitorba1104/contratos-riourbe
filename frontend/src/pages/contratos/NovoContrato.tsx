@@ -3,14 +3,23 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
-import { mascararCnpj, mascararCpf, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
+import {
+  formatarMoedaInicial,
+  mascararCnpj,
+  mascararCpf,
+  mascararMatricula,
+  mascararMoeda,
+  moedaParaNumero,
+} from "../../lib/mascaras";
 import type {
+  CalculoValorMensal,
   ExcecaoTetoVigencia,
   Fiscal,
   Fornecedor,
   FormaContratacao,
   FundamentacaoLei,
   ModoExecucao,
+  ModoValorContrato,
   ProcessoPayload,
   SistemaProcesso,
   TipoProcesso,
@@ -20,6 +29,7 @@ import {
   ROTULOS_EXCECAO_TETO,
   ROTULOS_FORMA_CONTRATACAO,
   ROTULOS_MODO_EXECUCAO,
+  ROTULOS_MODO_VALOR,
   ROTULOS_SISTEMA_PROCESSO,
   ROTULOS_TIPO_PROCESSO,
   ROTULOS_TIPO_REAJUSTE,
@@ -101,6 +111,15 @@ export function NovoContrato() {
   const [modoExecucao, setModoExecucao] = useState<ModoExecucao>("por_vigencia");
   const [quantidadeExecucoesPrevistas, setQuantidadeExecucoesPrevistas] = useState("");
 
+  // Valor global (padrão, digitado direto) ou por mensalidade — caso da
+  // locação de imóvel, em que o valor global do contrato é calculado a
+  // partir do aluguel mensal, do prazo (já informado na vigência abaixo) e
+  // da carência (meses de aluguel gratuito no início, se houver).
+  const [modoValor, setModoValor] = useState<ModoValorContrato>("global");
+  const [valorMensal, setValorMensal] = useState("");
+  const [carenciaMeses, setCarenciaMeses] = useState("0");
+  const [previaValorGlobal, setPreviaValorGlobal] = useState<CalculoValorMensal | null>(null);
+
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -149,6 +168,39 @@ export function NovoContrato() {
       cancelado = true;
     };
   }, [dataInicioVigencia, prazoMeses, dataAssinatura, temExcecaoTeto, excecaoTeto]);
+
+  /** Prévia ao vivo do valor global a partir da mensalidade — mesmo cálculo
+   * que o backend refaz de verdade ao salvar. Usa o prazo já digitado na
+   * vigência acima, sem pedir de novo. */
+  useEffect(() => {
+    const meses = Number(prazoMeses);
+    const carencia = Number(carenciaMeses || "0");
+    if (
+      modoValor !== "mensal" ||
+      !valorMensal.trim() ||
+      !Number.isInteger(meses) ||
+      meses < 1 ||
+      !Number.isInteger(carencia) ||
+      carencia < 0
+    ) {
+      setPreviaValorGlobal(null);
+      return;
+    }
+
+    let cancelado = false;
+    apiContratos
+      .calcularValorMensal(moedaParaNumero(valorMensal), meses, carencia)
+      .then((calculo) => {
+        if (!cancelado) setPreviaValorGlobal(calculo);
+      })
+      .catch(() => {
+        if (!cancelado) setPreviaValorGlobal(null);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [modoValor, valorMensal, carenciaMeses, prazoMeses]);
 
   async function criarFornecedor() {
     setErro(null);
@@ -238,6 +290,14 @@ export function NovoContrato() {
       setErro("Informe a quantidade de execuções previstas.");
       return;
     }
+    if (modoValor === "mensal" && !valorMensal.trim()) {
+      setErro("Informe o valor mensal do contrato.");
+      return;
+    }
+    if (modoValor === "global" && !valorInicial.trim()) {
+      setErro("Informe o valor inicial do contrato.");
+      return;
+    }
     setEnviando(true);
     try {
       const contrato = await apiContratos.criar({
@@ -247,7 +307,13 @@ export function NovoContrato() {
         fornecedor_id: fornecedorId,
         forma_contratacao: formaContratacao,
         data_assinatura_original: dataAssinatura,
-        valor_inicial: moedaParaNumero(valorInicial),
+        ...(modoValor === "mensal"
+          ? {
+              modo_valor: modoValor,
+              valor_mensal: moedaParaNumero(valorMensal),
+              carencia_meses: Number(carenciaMeses || "0"),
+            }
+          : { valor_inicial: moedaParaNumero(valorInicial) }),
         observacoes: observacoes || null,
         instrumento_origem: {
           fundamentacao_lei: fundamentacaoLei,
@@ -524,6 +590,29 @@ export function NovoContrato() {
           </div>
 
           <div>
+            <label className={rotuloClasse} htmlFor="modo_valor">
+              Modo do valor
+            </label>
+            <select
+              id="modo_valor"
+              className={campoClasse}
+              value={modoValor}
+              onChange={(e) => setModoValor(e.target.value as ModoValorContrato)}
+            >
+              {Object.entries(ROTULOS_MODO_VALOR).map(([valor, rotulo]) => (
+                <option key={valor} value={valor}>
+                  {rotulo}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Use "por mensalidade" para contrato cotado por aluguel mensal (ex.: locação de
+              imóvel) — o valor global é calculado a partir da mensalidade, do prazo informado na
+              vigência acima e da carência, se houver.
+            </p>
+          </div>
+
+          <div>
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
                 id="faturamento_gerido_pela_gct"
@@ -576,22 +665,82 @@ export function NovoContrato() {
                 </p>
               )}
             </div>
-            <div>
-              <label className={rotuloClasse} htmlFor="valor_inicial">
-                Valor inicial (R$)
-              </label>
-              <input
-                id="valor_inicial"
-                type="text"
-                inputMode="numeric"
-                placeholder="0,00"
-                className={campoClasse}
-                value={valorInicial}
-                onChange={(e) => setValorInicial(mascararMoeda(e.target.value))}
-                required
-              />
-            </div>
+            {modoValor === "global" ? (
+              <div>
+                <label className={rotuloClasse} htmlFor="valor_inicial">
+                  Valor inicial (R$)
+                </label>
+                <input
+                  id="valor_inicial"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0,00"
+                  className={campoClasse}
+                  value={valorInicial}
+                  onChange={(e) => setValorInicial(mascararMoeda(e.target.value))}
+                  required
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={rotuloClasse} htmlFor="valor_mensal">
+                    Valor mensal (R$)
+                  </label>
+                  <input
+                    id="valor_mensal"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0,00"
+                    className={campoClasse}
+                    value={valorMensal}
+                    onChange={(e) => setValorMensal(mascararMoeda(e.target.value))}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={rotuloClasse} htmlFor="carencia_meses">
+                    Carência (meses)
+                  </label>
+                  <input
+                    id="carencia_meses"
+                    type="number"
+                    min={0}
+                    max={120}
+                    className={campoClasse}
+                    value={carenciaMeses}
+                    onChange={(e) => setCarenciaMeses(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            )}
           </div>
+
+          {modoValor === "mensal" && (
+            <div className="rounded-lg border border-institucional-200 bg-institucional-50 p-4 text-sm">
+              {previaValorGlobal ? (
+                <>
+                  <p className="font-medium text-institucional-900">
+                    Valor global calculado: R$ {formatarMoedaInicial(previaValorGlobal.valor_global)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {previaValorGlobal.meses_cobrados} meses cobrados de{" "}
+                    {previaValorGlobal.prazo_meses} meses de prazo
+                    {previaValorGlobal.carencia_meses > 0
+                      ? ` (${previaValorGlobal.carencia_meses} de carência)`
+                      : ""}
+                    .
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Informe o valor mensal e o prazo da vigência (acima) para ver o valor global
+                  calculado.
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className={rotuloClasse} htmlFor="valor_pago_anterior_sistema">

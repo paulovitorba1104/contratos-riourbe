@@ -2,10 +2,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ErroApi } from "../../lib/api";
-import { apiContratos } from "../../lib/apiContratos";
+import { apiContratos, apiFornecedores } from "../../lib/apiContratos";
 import { apiFaturas, apiMedicoes } from "../../lib/apiFaturas";
 import { mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
-import type { Contrato } from "../../lib/tiposContratos";
+import type { Contrato, ContratoDetalhado, Fornecedor } from "../../lib/tiposContratos";
 import type { Medicao } from "../../lib/tiposFaturas";
 import { useToast } from "../../lib/ToastContext";
 
@@ -16,8 +16,11 @@ export function NovaFatura() {
 
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [medicoes, setMedicoes] = useState<Medicao[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [contratoDetalhado, setContratoDetalhado] = useState<ContratoDetalhado | null>(null);
 
   const [contratoId, setContratoId] = useState(parametros.get("contrato") ?? "");
+  const [fornecedorId, setFornecedorId] = useState("");
   const [medicaoId, setMedicaoId] = useState("");
   const [numeroNotaFiscal, setNumeroNotaFiscal] = useState("");
   const [serie, setSerie] = useState("");
@@ -70,6 +73,42 @@ export function NovaFatura() {
       .catch(() => setMedicoes([]));
   }, [contratoId]);
 
+  useEffect(() => {
+    apiFornecedores.listar().then(setFornecedores).catch(() => {});
+  }, []);
+
+  // Contrato completo só é necessário para saber se há fornecedores
+  // adicionais vinculados (ex.: administradora do condomínio, além de quem
+  // recebe o aluguel) — a lista básica não traz esse detalhe.
+  useEffect(() => {
+    setFornecedorId("");
+    if (!contratoId) {
+      setContratoDetalhado(null);
+      return;
+    }
+    apiContratos
+      .obter(contratoId)
+      .then(setContratoDetalhado)
+      .catch(() => setContratoDetalhado(null));
+  }, [contratoId]);
+
+  const fornecedoresDoContrato = contratoDetalhado
+    ? [
+        {
+          id: contratoDetalhado.fornecedor_id,
+          nome:
+            fornecedores.find((f) => f.id === contratoDetalhado.fornecedor_id)?.razao_social ??
+            "Fornecedor principal",
+          papel: "Principal",
+        },
+        ...contratoDetalhado.fornecedores_adicionais.map((fa) => ({
+          id: fa.fornecedor_id,
+          nome: fa.razao_social,
+          papel: fa.papel,
+        })),
+      ]
+    : [];
+
   async function aoEnviar(evento: FormEvent) {
     evento.preventDefault();
     setErro(null);
@@ -81,6 +120,7 @@ export function NovaFatura() {
     try {
       const fatura = await apiFaturas.criar({
         contrato_id: contratoId,
+        fornecedor_id: fornecedorId || null,
         medicao_id: medicaoId || null,
         numero_nota_fiscal: numeroNotaFiscal,
         serie: serie || null,
@@ -136,6 +176,30 @@ export function NovaFatura() {
               ))}
             </select>
           </div>
+
+          {contratoDetalhado && contratoDetalhado.fornecedores_adicionais.length > 0 && (
+            <div>
+              <label className="field-label" htmlFor="fornecedor_fatura">
+                Fornecedor desta fatura
+              </label>
+              <select
+                id="fornecedor_fatura"
+                className="field-select"
+                value={fornecedorId}
+                onChange={(e) => setFornecedorId(e.target.value)}
+              >
+                {fornecedoresDoContrato.map((f) => (
+                  <option key={f.id} value={f.id === contratoDetalhado.fornecedor_id ? "" : f.id}>
+                    {f.nome} ({f.papel})
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">
+                Este contrato tem mais de um fornecedor vinculado (ex.: um recebe o aluguel, outro
+                administra o condomínio) — selecione a quem esta fatura se refere.
+              </p>
+            </div>
+          )}
 
           {medicoes.length > 0 && (
             <div>

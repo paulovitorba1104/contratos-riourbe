@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.deps import exigir_administrador, get_current_user
 from app.core.tempo import hoje_brasilia
 from app.db.session import get_db
-from app.models.contrato import Contrato, ContratoFiscal
+from app.models.contrato import Contrato, ContratoFiscal, FornecedorAdicionalContrato
 from app.models.faturamento import (
     ConferenciaFatura,
     EventoFatura,
@@ -70,7 +70,11 @@ def _carregar_fatura(db: Session, fatura_id: uuid.UUID) -> Fatura:
 def _contrato_com_instrumentos(db: Session, contrato_id: uuid.UUID) -> Contrato:
     contrato = (
         db.query(Contrato)
-        .options(selectinload(Contrato.instrumentos), selectinload(Contrato.fiscais))
+        .options(
+            selectinload(Contrato.instrumentos),
+            selectinload(Contrato.fiscais),
+            selectinload(Contrato.fornecedores_adicionais),
+        )
         .filter(Contrato.id == contrato_id)
         .first()
     )
@@ -79,8 +83,23 @@ def _contrato_com_instrumentos(db: Session, contrato_id: uuid.UUID) -> Contrato:
     return contrato
 
 
-def _nome_fornecedor(db: Session, contrato: Contrato) -> str:
-    fornecedor = db.get(Fornecedor, contrato.fornecedor_id)
+def _fornecedores_validos_do_contrato(contrato: Contrato) -> set[uuid.UUID]:
+    """O conjunto de fornecedores para quem uma fatura deste contrato pode
+    ser emitida — o principal e qualquer um dos adicionais vinculados
+    (ex.: locação de imóvel com administradora de condomínio à parte)."""
+    return {contrato.fornecedor_id} | {fa.fornecedor_id for fa in contrato.fornecedores_adicionais}
+
+
+def _validar_fornecedor_da_fatura(contrato: Contrato, fornecedor_id: uuid.UUID | None) -> None:
+    if fornecedor_id is not None and fornecedor_id not in _fornecedores_validos_do_contrato(contrato):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Este fornecedor não está vinculado a este contrato.",
+        )
+
+
+def _nome_fornecedor(db: Session, contrato: Contrato, fornecedor_id: uuid.UUID | None = None) -> str:
+    fornecedor = db.get(Fornecedor, fornecedor_id or contrato.fornecedor_id)
     return fornecedor.razao_social if fornecedor else "—"
 
 
@@ -90,6 +109,7 @@ def _para_saida(fatura: Fatura, contrato: Contrato, fornecedor_nome: str) -> Fat
         id=fatura.id,
         contrato_id=fatura.contrato_id,
         contrato_numero=contrato.numero_contrato,
+        fornecedor_id=fatura.fornecedor_id,
         fornecedor_nome=fornecedor_nome,
         medicao_id=fatura.medicao_id,
         numero_nota_fiscal=fatura.numero_nota_fiscal,
@@ -115,7 +135,7 @@ def _para_saida(fatura: Fatura, contrato: Contrato, fornecedor_nome: str) -> Fat
 
 def _para_detalhada(db: Session, fatura: Fatura) -> FaturaDetalhada:
     contrato = _contrato_com_instrumentos(db, fatura.contrato_id)
-    base = _para_saida(fatura, contrato, _nome_fornecedor(db, contrato))
+    base = _para_saida(fatura, contrato, _nome_fornecedor(db, contrato, fatura.fornecedor_id))
     return FaturaDetalhada(
         **base.model_dump(),
         fatura_origem_id=fatura.fatura_origem_id,
@@ -209,7 +229,7 @@ def listar_faturas(
         contrato = contratos.get(f.contrato_id)
         if contrato is None:
             continue
-        saidas.append(_para_saida(f, contrato, fornecedores.get(contrato.fornecedor_id, "—")))
+        saidas.append(_para_saida(f, contrato, fornecedores.get(f.fornecedor_id or contrato.fornecedor_id, "—")))
     return saidas
 
 
@@ -274,6 +294,7 @@ def criar_fatura(
         regras.validar_contrato_aceita_fatura(contrato)
     except regras.RegraFaturamentoError as exc:
         raise _erro_regra(exc) from exc
+    _validar_fornecedor_da_fatura(contrato, dados.fornecedor_id)
 
     medicao = None
     if dados.medicao_id is not None:
@@ -336,23 +357,26 @@ def atualizar_fatura(
     fatura = _carregar_fatura(db, fatura_id)
     alteracoes = dados.model_dump(exclude_unset=True)
 
-    if "valor_bruto" in alteracoes:
+    if "valor_bruto" in alteracoes or "fornecedor_id" in alteracoes:
         contrato = _contrato_com_instrumentos(db, fatura.contrato_id)
-        outras = (
-            db.query(Fatura)
-            .options(selectinload(Fatura.glosas))
-            .filter(Fatura.contrato_id == contrato.id, Fatura.id != fatura.id)
-            .all()
-        )
-        try:
-            regras.validar_saldo_disponivel(
-                contrato,
-                outras,
-                alteracoes["valor_bruto"],
-                regras_contratos.calcular_valor_atualizado(contrato),
+        if "fornecedor_id" in alteracoes:
+            _validar_fornecedor_da_fatura(contrato, alteracoes["fornecedor_id"])
+        if "valor_bruto" in alteracoes:
+            outras = (
+                db.query(Fatura)
+                .options(selectinload(Fatura.glosas))
+                .filter(Fatura.contrato_id == contrato.id, Fatura.id != fatura.id)
+                .all()
             )
-        except regras.RegraFaturamentoError as exc:
-            raise _erro_regra(exc) from exc
+            try:
+                regras.validar_saldo_disponivel(
+                    contrato,
+                    outras,
+                    alteracoes["valor_bruto"],
+                    regras_contratos.calcular_valor_atualizado(contrato),
+                )
+            except regras.RegraFaturamentoError as exc:
+                raise _erro_regra(exc) from exc
 
     for campo, valor in alteracoes.items():
         setattr(fatura, campo, valor)

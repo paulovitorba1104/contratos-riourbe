@@ -11,6 +11,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.contrato import Contrato
+    from app.models.fornecedor import Fornecedor
     from app.models.usuario import Usuario
 
 
@@ -120,6 +121,12 @@ class Fatura(Base):
     contrato_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("contratos.contratos.id", ondelete="CASCADE"), nullable=False
     )
+    # Nulo = fornecedor principal do contrato (comportamento de sempre).
+    # Preenchido só quando o contrato tem mais de um fornecedor vinculado
+    # (ex.: locação de imóvel — uma empresa recebe o aluguel, outra
+    # administra o condomínio) e esta nota é para um dos outros, não o
+    # principal. Sempre um dos fornecedores do contrato — nunca fora dele.
+    fornecedor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("core.fornecedores.id"), nullable=True)
     # Preenchida quando o contrato exige medição — a nota nasce de um período medido.
     medicao_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("faturas.medicoes.id", ondelete="SET NULL"), nullable=True
@@ -164,6 +171,7 @@ class Fatura(Base):
 
     contrato: Mapped["Contrato"] = relationship()
     medicao: Mapped["MedicaoContrato | None"] = relationship()
+    fornecedor: Mapped["Fornecedor | None"] = relationship()
 
     glosas: Mapped[list["GlosaFatura"]] = relationship(
         back_populates="fatura", order_by="GlosaFatura.registrado_em", cascade="all, delete-orphan"

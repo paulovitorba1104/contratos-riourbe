@@ -2,6 +2,7 @@ import { requisicao, requisicaoComArquivo } from "./api";
 import type {
   AtaRegistroPreco,
   CalculoReajuste,
+  CalculoValorMensal,
   CalculoVigencia,
   Contrato,
   ContratoAtualizarPayload,
@@ -9,6 +10,7 @@ import type {
   ExcecaoTetoVigencia,
   ExecucaoPayload,
   Fiscal,
+  FornecedorAdicionalPayload,
   Fornecedor,
   LogAuditoria,
   ModeloRipm,
@@ -123,6 +125,24 @@ export const apiContratos = {
     }),
   excluirExecucao: (contratoId: string, execucaoId: string) =>
     requisicao<ContratoDetalhado>(`/contratos/${contratoId}/execucoes/${execucaoId}`, { method: "DELETE" }),
+  /** Calculadora de valor global a partir da mensalidade (ex.: locação de
+   * imóvel) — pré-visualiza o valor a lançar antes de criar/editar o
+   * contrato; o backend recalcula de novo ao salvar. */
+  calcularValorMensal: (valorMensal: string, prazoMeses: number, carenciaMeses: number) =>
+    requisicao<CalculoValorMensal>(
+      `/contratos/calcular-valor-mensal?valor_mensal=${valorMensal}` +
+        `&prazo_meses=${prazoMeses}&carencia_meses=${carenciaMeses}`,
+    ),
+  /** Vincula mais um fornecedor ao contrato, além do principal — caso da
+   * locação de imóvel em que uma empresa recebe o aluguel e outra
+   * administra o condomínio. */
+  adicionarFornecedor: (contratoId: string, dados: FornecedorAdicionalPayload) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/fornecedores`, {
+      method: "POST",
+      body: JSON.stringify(dados),
+    }),
+  excluirFornecedor: (contratoId: string, vinculoId: string) =>
+    requisicao<ContratoDetalhado>(`/contratos/${contratoId}/fornecedores/${vinculoId}`, { method: "DELETE" }),
   anexarArquivo: (contratoId: string, instrumentoId: string, arquivo: File) => {
     const formData = new FormData();
     formData.append("arquivo", arquivo);

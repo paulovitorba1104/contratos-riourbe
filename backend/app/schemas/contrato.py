@@ -8,6 +8,7 @@ from app.models.contrato import (
     ExcecaoTetoVigencia,
     FormaContratacao,
     ModoExecucao,
+    ModoValorContrato,
     SistemaProcesso,
     StatusContrato,
     TipoProcesso,
@@ -71,7 +72,17 @@ class ContratoCriar(BaseModel):
     fornecedor_id: uuid.UUID
     forma_contratacao: FormaContratacao
     data_assinatura_original: date
-    valor_inicial: Decimal = Field(..., gt=0)
+    # Obrigatório só no modo global (padrão) — no modo mensal o backend
+    # calcula e ignora qualquer valor mandado aqui (ver modo_valor abaixo).
+    valor_inicial: Decimal | None = Field(None, gt=0)
+    # Contrato cotado por mensalidade (ex.: locação de imóvel) em vez de
+    # valor global direto — ver ModoValorContrato. No modo mensal, o valor
+    # global (valor_inicial) é sempre calculado pelo backend a partir de
+    # valor_mensal, carência e o prazo do instrumento de origem — nunca
+    # aceito pronto do cliente, mesmo racional do valor_delta de reajuste.
+    modo_valor: ModoValorContrato = ModoValorContrato.GLOBAL
+    valor_mensal: Decimal | None = Field(None, gt=0)
+    carencia_meses: int | None = Field(None, ge=0, le=120)
     # Contratos antigos que estão entrando no sistema agora, não vale a pena
     # lançar fatura por fatura do que já foi pago — lança-se esse total de
     # uma vez aqui, e o faturamento (módulo Faturamento) passa a valer só
@@ -151,6 +162,22 @@ class ContratoCriar(BaseModel):
             raise ValueError("Quantidade de execuções previstas só se aplica a contrato controlado por quantidade.")
         return self
 
+    @model_validator(mode="after")
+    def _valor_condiz_com_modo(self):
+        if self.modo_valor == ModoValorContrato.GLOBAL:
+            if self.valor_inicial is None:
+                raise ValueError("Informe o valor inicial do contrato.")
+            if self.valor_mensal is not None or self.carencia_meses is not None:
+                raise ValueError("Valor mensal e carência só se aplicam a contrato cotado por mensalidade.")
+        else:
+            if self.valor_mensal is None:
+                raise ValueError("Informe o valor mensal quando o contrato é cotado por mensalidade.")
+            if self.valor_inicial is not None:
+                raise ValueError(
+                    "O valor global é calculado pelo sistema a partir do valor mensal — não envie valor_inicial."
+                )
+        return self
+
     # Prazo de vigência inicial (Relógio 1) — o teto de 5 anos (Relógio 2) só
     # funciona corretamente se o contrato já nascer com esse marco zero;
     # prorrogações depois entram como novos instrumentos na ficha do contrato.
@@ -178,6 +205,12 @@ class ContratoAtualizar(BaseModel):
     forma_contratacao: FormaContratacao | None = None
     data_assinatura_original: date | None = None
     valor_inicial: Decimal | None = Field(None, gt=0)
+    # Mesma classificação de ContratoCriar — ver ModoValorContrato. No modo
+    # mensal, valor_inicial é sempre recalculado pelo backend (nunca aceito
+    # pronto do cliente).
+    modo_valor: ModoValorContrato | None = None
+    valor_mensal: Decimal | None = Field(None, gt=0)
+    carencia_meses: int | None = Field(None, ge=0, le=120)
     # valor_pago não é editável aqui — ele é sempre calculado (nunca digitado
     # direto), soma de valor_pago_anterior_sistema com o que as faturas pagas
     # no sistema cobrem. Ajuste pelo endpoint dedicado `/pagamento`.
@@ -250,6 +283,20 @@ class ContratoAtualizar(BaseModel):
             raise ValueError("Quantidade de execuções previstas só se aplica a contrato controlado por quantidade.")
         return self
 
+    @model_validator(mode="after")
+    def _valor_condiz_com_modo(self):
+        if self.modo_valor == ModoValorContrato.GLOBAL:
+            if self.valor_mensal is not None or self.carencia_meses is not None:
+                raise ValueError("Valor mensal e carência só se aplicam a contrato cotado por mensalidade.")
+        elif self.modo_valor == ModoValorContrato.MENSAL:
+            if self.valor_mensal is None:
+                raise ValueError("Informe o valor mensal quando o contrato é cotado por mensalidade.")
+            if self.valor_inicial is not None:
+                raise ValueError(
+                    "O valor global é calculado pelo sistema a partir do valor mensal — não envie valor_inicial."
+                )
+        return self
+
 
 class ExecucaoCriar(BaseModel):
     """Registra uma execução do serviço, para contrato controlado por
@@ -266,6 +313,36 @@ class ExecucaoSaida(BaseModel):
     observacao: str | None
     registrado_por_nome: str
     registrado_em: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CalculoValorMensalSaida(BaseModel):
+    """Resposta da calculadora de valor global a partir da mensalidade —
+    prévia antes de salvar (o backend recalcula de novo ao criar/atualizar
+    o contrato, nunca confia num valor global mandado pronto)."""
+
+    valor_mensal: Decimal
+    prazo_meses: int
+    carencia_meses: int
+    meses_cobrados: int
+    valor_global: Decimal
+
+
+class FornecedorAdicionalCriar(BaseModel):
+    """Vincula mais um fornecedor ao contrato, além do principal — caso da
+    locação de imóvel em que uma empresa recebe o aluguel e outra administra
+    o condomínio (IPTU, taxa condominial, água/luz etc.)."""
+
+    fornecedor_id: uuid.UUID
+    papel: str = Field(..., max_length=100)
+
+
+class FornecedorAdicionalSaida(BaseModel):
+    id: uuid.UUID
+    fornecedor_id: uuid.UUID
+    razao_social: str
+    papel: str
 
     model_config = {"from_attributes": True}
 
@@ -436,4 +513,11 @@ class ContratoDetalhado(ContratoSaida):
     quantidade_execucoes_previstas: int | None
     quantidade_execucoes_atingida: bool = False
     execucoes: list[ExecucaoSaida]
+    # Contrato cotado por mensalidade (ex.: locação de imóvel) — global na
+    # imensa maioria dos contratos, que digita o valor direto.
+    modo_valor: ModoValorContrato
+    valor_mensal: Decimal | None
+    carencia_meses: int | None
+    # Fornecedores além do principal — vazio na imensa maioria dos contratos.
+    fornecedores_adicionais: list[FornecedorAdicionalSaida]
     instrumentos: list[InstrumentoProcessualSaida]
