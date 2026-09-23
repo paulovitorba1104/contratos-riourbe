@@ -5,6 +5,7 @@ import type {
   CalculoValorMensal,
   CalculoVigencia,
   ConsultaCnpj,
+  ConsultaIndice,
   Contrato,
   ContratoAtualizarPayload,
   ContratoDetalhado,
@@ -115,6 +116,14 @@ export const apiContratos = {
       `/contratos/calcular-reajuste?valor_mensal_antigo=${valorMensalAntigo}` +
         `&indice_atual=${indiceAtual}&indice_base=${indiceBase}` +
         `&data_inicio=${dataInicio}&data_fim=${dataFim}`,
+    ),
+  /** Busca o IPCA-E direto no Banco Central (SGS, dados do IBGE) para
+   * autopreencher "índice na data-base" e "índice atual" da calculadora de
+   * reajuste — prévia de melhor esforço, nunca bloqueia: se falhar, os
+   * campos continuam editáveis à mão. */
+  consultarIndiceIpcaE: (dataBase: string, dataAtual: string) =>
+    requisicao<ConsultaIndice>(
+      `/contratos/consultar-indice-ipca-e?data_base=${dataBase}&data_atual=${dataAtual}`,
     ),
   /** Registra uma execução do serviço (contrato controlado por quantidade —
    * ex.: limpeza de carpete). Cada aplicação é uma linha nova, nunca
