@@ -46,6 +46,8 @@ def gerar_pdf_distribuicao_reajuste(
     data_inicio: date,
     data_fim: date,
     distribuicao: DistribuicaoReajuste,
+    data_formalizacao: date | None = None,
+    data_publicacao: date | None = None,
 ) -> bytes:
     """Monta o PDF da distribuição do apostilamento — cabeçalho institucional,
     período do reajuste, tabela mês a mês (mesmas colunas e ordem da planilha
@@ -81,8 +83,14 @@ def gerar_pdf_distribuicao_reajuste(
         Paragraph(f"<b>Índice:</b> {indice_nome}", estilo_info),
         Paragraph(f"<b>Início do Reajuste:</b> A partir de {_formatar_data_br(data_inicio)}", estilo_info),
         Paragraph(f"<b>Final do Reajuste:</b> {_formatar_data_br(data_fim)}", estilo_info),
-        Spacer(1, 0.4 * cm),
     ]
+    if data_formalizacao is not None:
+        elementos.append(
+            Paragraph(f"<b>Data do Apostilamento:</b> {_formatar_data_br(data_formalizacao)}", estilo_info)
+        )
+    if data_publicacao is not None:
+        elementos.append(Paragraph(f"<b>Data de Publicação:</b> {_formatar_data_br(data_publicacao)}", estilo_info))
+    elementos.append(Spacer(1, 0.4 * cm))
 
     cabecalho = ["MÊS", "Valor Reajustado", "Valor antigo", "Diferença Mensal"]
     linhas_tabela = [cabecalho]

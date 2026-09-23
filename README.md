@@ -306,7 +306,22 @@ Implementa a seção 4 do plano de desenvolvimento:
   só a variação acumulada entre eles. Consulta de melhor esforço, como a de CNPJ na Receita: se a
   API do Banco Central estiver fora do ar, os dois campos continuam editáveis à mão, como sempre
   foi. Hoje só busca o IPCA-E — outros índices comuns em contrato público (IPCA, IGP-M, INPC) usam
-  a mesma API do Banco Central e ficam para quando forem pedidos.
+  a mesma API do Banco Central e ficam para quando forem pedidos. Cada apostilamento de reajuste já
+  registrado ganha um link "Baixar distribuição do apostilamento (PDF)" — mesmo formato da planilha
+  de controle "Distribuição do Apostilamento" que a Gerência de Contratos já usa: cabeçalho
+  institucional, período do reajuste, tabela mês a mês (mês, valor reajustado, valor antigo,
+  diferença mensal), linha de totais e notas de rodapé para os meses com pro-rata (marco no meio do
+  mês, ou fim do período antes do fim do mês comercial de 30 dias) — gerado com `reportlab`
+  (`app/services/relatorio_reajuste.py`, `GET .../instrumentos/{id}/distribuicao-reajuste.pdf`),
+  sempre recalculado a partir dos campos `reajuste_*` já salvos no instrumento, nunca com números
+  diferentes do que foi formalizado.
+- **Data de formalização e data de publicação em cada instrumento**: além do sub-status de
+  tramitação (Elaboração → Parecer jurídico → Assinatura → Publicado), todo instrumento processual
+  (origem, aditivo, apostilamento etc.) tem dois campos de data independentes — quando foi de fato
+  assinado/formalizado e quando saiu publicado (ex.: Diário Oficial) —, editáveis a qualquer momento
+  na própria ficha do contrato (`PATCH .../instrumentos/{id}/datas`), já que normalmente ainda não
+  são conhecidos no momento em que o instrumento é cadastrado no sistema. Quando preenchidas no
+  apostilamento de reajuste, aparecem também no cabeçalho do PDF da distribuição.
 - **Anexos nos instrumentos processuais**: cada instrumento (origem, aditivo, apostilamento etc.)
   aceita anexar arquivos (PDF, Word, Excel, imagem — até 25 MB cada) para consulta rápida sem sair
   do sistema — contrato assinado, termo aditivo, parecer, etc. Ficam salvos em disco

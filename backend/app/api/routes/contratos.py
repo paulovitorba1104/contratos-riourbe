@@ -52,6 +52,7 @@ from app.schemas.contrato import (
 from app.schemas.fiscal import FiscalEncerrarVinculo, FiscalVincular, FiscalVinculoSaida
 from app.schemas.instrumento import (
     AnexoInstrumentoSaida,
+    InstrumentoDatasAtualizar,
     InstrumentoProcessualCriar,
     InstrumentoProcessualSaida,
     InstrumentoSubStatusAtualizar,
@@ -1007,6 +1008,45 @@ def atualizar_sub_status_instrumento(
     return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
+@router.patch(
+    "/{contrato_id}/instrumentos/{instrumento_id}/datas",
+    response_model=ContratoDetalhado,
+)
+def atualizar_datas_instrumento(
+    contrato_id: uuid.UUID,
+    instrumento_id: uuid.UUID,
+    dados: InstrumentoDatasAtualizar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> ContratoDetalhado:
+    """Data de formalização/assinatura e data de publicação do instrumento —
+    normalmente preenchidas depois de o instrumento já ter sido criado, à
+    medida que o processo avança e essas datas ficam conhecidas."""
+    instrumento = (
+        db.query(InstrumentoProcessual)
+        .filter(InstrumentoProcessual.id == instrumento_id, InstrumentoProcessual.contrato_id == contrato_id)
+        .first()
+    )
+    if instrumento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrumento não encontrado.")
+
+    instrumento.data_formalizacao = dados.data_formalizacao
+    instrumento.data_publicacao = dados.data_publicacao
+    registrar_log(
+        db,
+        usuario_id=usuario.id,
+        acao="atualizar_datas_instrumento",
+        entidade="instrumento_processual",
+        entidade_id=str(instrumento.id),
+        detalhes={
+            "data_formalizacao": str(dados.data_formalizacao) if dados.data_formalizacao else None,
+            "data_publicacao": str(dados.data_publicacao) if dados.data_publicacao else None,
+        },
+    )
+    db.commit()
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
+
+
 @router.delete(
     "/{contrato_id}/instrumentos/{instrumento_id}",
     response_model=ContratoDetalhado,
@@ -1141,13 +1181,16 @@ def baixar_distribuicao_reajuste_pdf(
         )
     except regras_reajuste.PeriodoReajusteInvalido as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    fornecedor = db.get(Fornecedor, contrato.fornecedor_id)
     pdf = gerar_pdf_distribuicao_reajuste(
         numero_contrato=contrato.numero_contrato,
-        fornecedor_razao_social=contrato.fornecedor.razao_social,
+        fornecedor_razao_social=fornecedor.razao_social if fornecedor else "—",
         indice_nome=instrumento.reajuste_indice_nome or "—",
         data_inicio=instrumento.reajuste_data_inicio,
         data_fim=instrumento.reajuste_data_fim,
         distribuicao=distribuicao,
+        data_formalizacao=instrumento.data_formalizacao,
+        data_publicacao=instrumento.data_publicacao,
     )
     nome_arquivo = f"distribuicao-apostilamento-{contrato.numero_contrato}.pdf".replace("/", "-")
     return Response(

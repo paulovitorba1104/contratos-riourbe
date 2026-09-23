@@ -94,6 +94,14 @@ class InstrumentoProcessual(Base):
 
     numero_documento_sei: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # Datas do próprio instrumento (não confundir com criado_em, que é só
+    # quando alguém cadastrou no sistema) — preenchidas à mão, geralmente
+    # depois, conforme o processo avança: quando foi de fato assinado/
+    # formalizado, e quando saiu publicado (ex.: Diário Oficial). Nenhuma
+    # das duas é obrigatória nem amarrada ao sub_status abaixo.
+    data_formalizacao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_publicacao: Mapped[date | None] = mapped_column(Date, nullable=True)
+
     # Preenchidos conforme o tipo: origem/prorrogação definem vigência;
     # acréscimo/supressão/apostilamento (quando é de reajuste) definem valor_delta;
     # demais tipos podem deixar em branco.
