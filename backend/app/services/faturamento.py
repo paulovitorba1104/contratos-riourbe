@@ -12,6 +12,7 @@ from decimal import Decimal
 from app.core.tempo import hoje_brasilia
 from app.models.contrato import Contrato, StatusContrato
 from app.models.faturamento import (
+    CategoriaDespesaFatura,
     Fatura,
     MedicaoContrato,
     RegraTributaria,
@@ -125,6 +126,22 @@ def total_pago(faturas: list[Fatura]) -> Decimal:
     é a parte automática do valor pago do contrato. Não é o total: some com
     `calcular_valor_pago_total` para chegar no valor pago de verdade."""
     return sum((valor_executado(f) for f in faturas if f.status == StatusFatura.PAGA), Decimal("0"))
+
+
+def media_categoria(faturas: list[Fatura], categoria: CategoriaDespesaFatura, quantidade: int = 6) -> Decimal | None:
+    """Média mensal de uma categoria de despesa (ex.: taxa condominial) a
+    partir das últimas `quantidade` faturas PAGAS dessa categoria — registro
+    visual, não um cálculo que trava nada. `None` quando não há faturas
+    pagas suficientes para formar uma média (ex.: nenhuma ainda)."""
+    relevantes = sorted(
+        (f for f in faturas if f.categoria_despesa == categoria and f.status == StatusFatura.PAGA),
+        key=lambda f: f.competencia,
+        reverse=True,
+    )[:quantidade]
+    if not relevantes:
+        return None
+    total = sum((_dec(f.valor_bruto) for f in relevantes), Decimal("0"))
+    return (total / len(relevantes)).quantize(Decimal("0.01"))
 
 
 def calcular_valor_pago_total(valor_pago_anterior_sistema: Decimal, faturas: list[Fatura]) -> Decimal:

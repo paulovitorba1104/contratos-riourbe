@@ -349,6 +349,11 @@ class FornecedorAdicionalSaida(BaseModel):
     fornecedor_id: uuid.UUID
     razao_social: str
     papel: str
+    # Média das últimas 6 faturas PAGAS deste fornecedor, neste contrato,
+    # categorizadas como "taxa condominial" — registro visual (a taxa
+    # costuma ser fixa, mas pode variar se houver serviço extra). Nulo
+    # quando ainda não há fatura paga dessa categoria.
+    media_taxa_condominio_6_meses: Decimal | None = None
 
     model_config = {"from_attributes": True}
 

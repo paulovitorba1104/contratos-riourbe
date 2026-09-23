@@ -18,6 +18,11 @@ export type TipoEventoFatura =
 export type Tributo = "irrf" | "inss" | "iss" | "pis" | "cofins" | "csll";
 export type SituacaoItemConferencia = "conforme" | "nao_conforme" | "nao_aplicavel";
 export type AlertaVencimento = "vencido" | "1_semana" | "1_mes";
+// PRINCIPAL (padrão) na imensa maioria — só varia quando a nota é de um
+// fornecedor adicional que fatura por categoria (ex.: administradora de
+// condomínio, cuja cobrança mensal soma taxa condominial + água/luz + taxa
+// de incêndio + outras).
+export type CategoriaDespesaFatura = "principal" | "condominio" | "agua_luz" | "taxa_incendio" | "outra";
 
 export const ROTULOS_STATUS_FATURA: Record<StatusFatura, string> = {
   recebida: "Recebida",
@@ -27,6 +32,14 @@ export const ROTULOS_STATUS_FATURA: Record<StatusFatura, string> = {
   paga: "Paga",
   devolvida: "Devolvida",
   cancelada: "Cancelada",
+};
+
+export const ROTULOS_CATEGORIA_DESPESA: Record<CategoriaDespesaFatura, string> = {
+  principal: "Serviço/objeto do contrato",
+  condominio: "Taxa condominial",
+  agua_luz: "Água e luz",
+  taxa_incendio: "Taxa de incêndio",
+  outra: "Outra despesa do imóvel",
 };
 
 export const ROTULOS_STATUS_MEDICAO: Record<StatusMedicao, string> = {
@@ -136,6 +149,7 @@ export interface Fatura {
   // é de um fornecedor adicional (ex.: administradora do condomínio).
   fornecedor_id: string | null;
   fornecedor_nome: string;
+  categoria_despesa: CategoriaDespesaFatura;
   medicao_id: string | null;
   numero_nota_fiscal: string;
   serie: string | null;
@@ -218,6 +232,7 @@ export interface ModeloChecklist {
 export interface NovaFaturaPayload {
   contrato_id: string;
   fornecedor_id?: string | null;
+  categoria_despesa?: CategoriaDespesaFatura;
   medicao_id?: string | null;
   fatura_origem_id?: string | null;
   numero_nota_fiscal: string;

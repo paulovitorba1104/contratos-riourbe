@@ -22,7 +22,7 @@ from app.models.contrato import (
 )
 from app.models.fiscal import Fiscal
 from app.models.fornecedor import Fornecedor
-from app.models.faturamento import Fatura
+from app.models.faturamento import CategoriaDespesaFatura, Fatura
 from app.models.instrumento_processual import AnexoInstrumento, InstrumentoProcessual, TipoInstrumento
 from app.models.log_auditoria import LogAuditoria
 from app.models.modelo_ripm import ModeloRipm
@@ -119,7 +119,16 @@ def _instrumento_para_saida(instrumento: InstrumentoProcessual) -> InstrumentoPr
     )
 
 
-def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
+def _media_taxa_condominio(db: Session, contrato_id: uuid.UUID, fornecedor_id: uuid.UUID) -> Decimal | None:
+    faturas = (
+        db.query(Fatura)
+        .filter(Fatura.contrato_id == contrato_id, Fatura.fornecedor_id == fornecedor_id)
+        .all()
+    )
+    return regras_faturamento.media_categoria(faturas, CategoriaDespesaFatura.CONDOMINIO)
+
+
+def _para_detalhado(db: Session, contrato: Contrato) -> ContratoDetalhado:
     vigencia_inicio, vigencia_fim = regras.vigencia_atual(contrato)
     garantia_inicio, garantia_fim = regras.garantia_atual(contrato)
     return ContratoDetalhado(
@@ -185,6 +194,7 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
                 fornecedor_id=fa.fornecedor_id,
                 razao_social=fa.fornecedor.razao_social,
                 papel=fa.papel,
+                media_taxa_condominio_6_meses=_media_taxa_condominio(db, contrato.id, fa.fornecedor_id),
             )
             for fa in contrato.fornecedores_adicionais
         ],
@@ -308,7 +318,7 @@ def obter_contrato(
     _: Usuario = Depends(get_current_user),
 ) -> ContratoDetalhado:
     contrato = _carregar_contrato(db, contrato_id)
-    return _para_detalhado(contrato)
+    return _para_detalhado(db, contrato)
 
 
 @router.post("", response_model=ContratoDetalhado, status_code=status.HTTP_201_CREATED)
@@ -379,7 +389,7 @@ def criar_contrato(
     )
     db.commit()
 
-    return _para_detalhado(_carregar_contrato(db, contrato.id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato.id))
 
 
 @router.patch("/{contrato_id}", response_model=ContratoDetalhado)
@@ -455,7 +465,7 @@ def atualizar_contrato(
         detalhes={"campos_alterados": list(dados_informados.keys())},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.delete("/{contrato_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -504,7 +514,7 @@ def adicionar_processo(
         detalhes={"numero_processo": dados.numero_processo, "tipo": dados.tipo.value},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.patch(
@@ -539,7 +549,7 @@ def atualizar_processo(
         detalhes={"processo_id": str(processo_id), "campos_alterados": list(dados_informados.keys())},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.delete(
@@ -574,7 +584,7 @@ def excluir_processo(
         detalhes={"processo_id": str(processo_id)},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.post(
@@ -612,7 +622,7 @@ def adicionar_fornecedor(
         detalhes={"fornecedor_id": str(dados.fornecedor_id), "papel": dados.papel},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.delete("/{contrato_id}/fornecedores/{vinculo_id}", response_model=ContratoDetalhado)
@@ -639,7 +649,7 @@ def excluir_fornecedor_adicional(
         detalhes={"vinculo_id": str(vinculo_id)},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.post("/{contrato_id}/garantia", response_model=ContratoDetalhado, status_code=status.HTTP_201_CREATED)
@@ -670,7 +680,7 @@ def registrar_garantia(
         entidade_id=str(contrato.id),
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.post(
@@ -715,7 +725,7 @@ def registrar_execucao(
         entidade_id=str(contrato.id),
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.delete(
@@ -744,7 +754,7 @@ def excluir_execucao(
         detalhes={"execucao_id": str(execucao_id)},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.patch("/{contrato_id}/pagamento", response_model=ContratoDetalhado)
@@ -775,7 +785,7 @@ def atualizar_pagamento(
         entidade_id=str(contrato.id),
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.post(
@@ -806,7 +816,7 @@ def adicionar_fiscal(
         detalhes={"fiscal_id": str(dados.fiscal_id)},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.patch(
@@ -843,7 +853,7 @@ def encerrar_vinculo_fiscal(
         detalhes={"vinculo_id": str(vinculo_id)},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.delete(
@@ -880,7 +890,7 @@ def excluir_vinculo_fiscal(
         detalhes={"vinculo_id": str(vinculo_id)},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.post(
@@ -936,7 +946,7 @@ def criar_instrumento(
         detalhes={"tipo_instrumento": instrumento.tipo.value},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.patch(
@@ -968,7 +978,7 @@ def atualizar_sub_status_instrumento(
         detalhes={"novo_sub_status": dados.sub_status.value},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.delete(
@@ -1004,7 +1014,7 @@ def excluir_instrumento(
         armazenamento.remover_arquivo(anexo.caminho_relativo)
     db.delete(instrumento)
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.post(
@@ -1061,7 +1071,7 @@ async def anexar_arquivo(
         detalhes={"nome_arquivo": nome_sanitizado},
     )
     db.commit()
-    return _para_detalhado(_carregar_contrato(db, contrato_id))
+    return _para_detalhado(db, _carregar_contrato(db, contrato_id))
 
 
 @router.get("/{contrato_id}/auditoria", response_model=list[LogAuditoriaSaida])

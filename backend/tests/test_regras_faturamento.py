@@ -5,6 +5,7 @@ import pytest
 
 from app.models.contrato import Contrato, FormaContratacao, StatusContrato
 from app.models.faturamento import (
+    CategoriaDespesaFatura,
     ConferenciaFatura,
     Fatura,
     GlosaFatura,
@@ -128,6 +129,59 @@ def test_fatura_cancelada_ou_devolvida_nao_consome_contrato():
     cancelada = _fatura(valor_bruto=Decimal("5000.00"), status=StatusFatura.CANCELADA)
     devolvida = _fatura(valor_bruto=Decimal("7000.00"), status=StatusFatura.DEVOLVIDA)
     assert regras.faturas_consomem_contrato([ativa, cancelada, devolvida]) == Decimal("1000.00")
+
+
+def test_media_categoria_considera_so_pagas_da_categoria():
+    condominio_paga_1 = _fatura(
+        competencia="2026-01",
+        valor_bruto=Decimal("1200.00"),
+        status=StatusFatura.PAGA,
+        categoria_despesa=CategoriaDespesaFatura.CONDOMINIO,
+    )
+    condominio_paga_2 = _fatura(
+        competencia="2026-02",
+        valor_bruto=Decimal("1300.00"),
+        status=StatusFatura.PAGA,
+        categoria_despesa=CategoriaDespesaFatura.CONDOMINIO,
+    )
+    condominio_nao_paga = _fatura(
+        competencia="2026-03",
+        valor_bruto=Decimal("9999.00"),
+        status=StatusFatura.RECEBIDA,
+        categoria_despesa=CategoriaDespesaFatura.CONDOMINIO,
+    )
+    agua_luz_paga = _fatura(
+        competencia="2026-01",
+        valor_bruto=Decimal("500.00"),
+        status=StatusFatura.PAGA,
+        categoria_despesa=CategoriaDespesaFatura.AGUA_LUZ,
+    )
+    media = regras.media_categoria(
+        [condominio_paga_1, condominio_paga_2, condominio_nao_paga, agua_luz_paga],
+        CategoriaDespesaFatura.CONDOMINIO,
+    )
+    assert media == Decimal("1250.00")
+
+
+def test_media_categoria_considera_so_as_ultimas_seis_por_competencia():
+    faturas = [
+        _fatura(
+            competencia=f"2026-{mes:02d}",
+            valor_bruto=Decimal(valor),
+            status=StatusFatura.PAGA,
+            categoria_despesa=CategoriaDespesaFatura.CONDOMINIO,
+        )
+        for mes, valor in enumerate(
+            ["100.00", "100.00", "100.00", "100.00", "100.00", "100.00", "700.00"], start=1
+        )
+    ]
+    # As 6 mais recentes (fev a jul) somam 1200 (100x5 + 700), exclui janeiro (100.00) — média 200.00.
+    media = regras.media_categoria(faturas, CategoriaDespesaFatura.CONDOMINIO, quantidade=6)
+    assert media == Decimal("200.00")
+
+
+def test_media_categoria_none_quando_sem_faturas_pagas_da_categoria():
+    assert regras.media_categoria([], CategoriaDespesaFatura.CONDOMINIO) is None
 
 
 # --------------------------------------------------------------------------

@@ -5,6 +5,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 from app.models.faturamento import (
+    CategoriaDespesaFatura,
     SituacaoItemConferencia,
     StatusFatura,
     StatusMedicao,
@@ -161,6 +162,11 @@ class FaturaCriar(BaseModel):
     # outra) e esta nota é para um deles — sempre validado contra os
     # fornecedores daquele contrato, nunca aceito fora desse conjunto.
     fornecedor_id: uuid.UUID | None = None
+    # PRINCIPAL (padrão) na imensa maioria — só varia quando esta nota é de
+    # um fornecedor adicional que fatura por categoria (ex.: administradora
+    # de condomínio, cuja cobrança mensal soma taxa condominial + água/luz +
+    # taxa de incêndio + outras, cada uma lançada em nota própria).
+    categoria_despesa: CategoriaDespesaFatura = CategoriaDespesaFatura.PRINCIPAL
     medicao_id: uuid.UUID | None = None
     fatura_origem_id: uuid.UUID | None = None
     numero_nota_fiscal: str = Field(..., max_length=50)
@@ -179,6 +185,7 @@ class FaturaAtualizar(BaseModel):
     evento registrado."""
 
     fornecedor_id: uuid.UUID | None = None
+    categoria_despesa: CategoriaDespesaFatura | None = None
     numero_nota_fiscal: str | None = Field(None, max_length=50)
     serie: str | None = Field(None, max_length=20)
     numero_processo_sei: str | None = Field(None, max_length=50)
@@ -208,6 +215,7 @@ class FaturaSaida(BaseModel):
     # nota é de um fornecedor adicional (ex.: administradora do condomínio).
     fornecedor_id: uuid.UUID | None
     fornecedor_nome: str
+    categoria_despesa: CategoriaDespesaFatura
     medicao_id: uuid.UUID | None
     numero_nota_fiscal: str
     serie: str | None
