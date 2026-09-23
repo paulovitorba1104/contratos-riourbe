@@ -114,6 +114,17 @@ export interface Fornecedor {
   ativo: boolean;
 }
 
+/** Prévia da consulta do CNPJ na Receita Federal (via BrasilAPI) antes de
+ * salvar — autopreenche a razão social e mostra a situação cadastral.
+ * `encontrado=false` quando a consulta não pôde ser feita; não bloqueia o
+ * cadastro, o formulário só não autopreenche. */
+export interface ConsultaCnpj {
+  encontrado: boolean;
+  razao_social: string | null;
+  situacao_cadastral: string | null;
+  ativo: boolean | null;
+}
+
 export interface Fiscal {
   id: string;
   nome: string;
@@ -312,6 +323,8 @@ export interface ContratoDetalhado extends Contrato {
   garantia_inicio: string | null;
   garantia_fim: string | null;
   garantias: GarantiaHistorico[];
+  // Falso na exceção — nem todo contrato exige garantia contratual.
+  exige_garantia: boolean;
   // Reajuste — nulo quando o contrato não tem cláusula de reajuste.
   tipo_reajuste: TipoReajuste | null;
   periodicidade_reajuste_meses: number | null;
@@ -370,6 +383,9 @@ export interface NovoContratoPayload {
   excecao_teto_documento_sei?: string | null;
   faturamento_gerido_pela_gct?: boolean;
   setor_responsavel_faturamento?: string | null;
+  // Falso quando o contrato não exige garantia (ex.: valor baixo dispensado
+  // por lei). Padrão do backend é verdadeiro.
+  exige_garantia?: boolean;
   // Contrato antigo entrando no sistema agora: total já pago lançado de uma
   // vez, sem fatura por fatura. Fica 0 (padrão do backend) em contrato novo.
   valor_pago_anterior_sistema?: string;
@@ -407,6 +423,7 @@ export interface ContratoAtualizarPayload {
   excecao_teto_documento_sei?: string | null;
   faturamento_gerido_pela_gct?: boolean;
   setor_responsavel_faturamento?: string | null;
+  exige_garantia?: boolean;
   tipo_reajuste?: TipoReajuste | null;
   periodicidade_reajuste_meses?: number | null;
   indice_reajuste_padrao?: string | null;

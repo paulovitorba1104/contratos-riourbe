@@ -22,6 +22,11 @@ export function mascararMatricula(valor: string): string {
   return resultado;
 }
 
+/** Extrai só os dígitos de um CNPJ mascarado — usado para consultar a Receita Federal. */
+export function normalizarCnpj(valor: string): string {
+  return apenasDigitos(valor).slice(0, 14);
+}
+
 /** Formato padrão: 00.000.000/0000-00 (14 dígitos). */
 export function mascararCnpj(valor: string): string {
   const d = apenasDigitos(valor).slice(0, 14);

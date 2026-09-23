@@ -196,6 +196,12 @@ class Contrato(Base):
     # fornecedor emitir a nota; compra pontual não. Quando marcado, o módulo
     # de Faturamento só aceita fatura vinculada a uma medição aprovada.
     exige_medicao: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # A maioria dos contratos exige garantia contratual — nem todos (ex.:
+    # contratação de valor baixo dispensada de garantia pela lei, ou
+    # modalidade que não a exige). Falso remove o card de garantia da
+    # urgência de alerta (calcular_alertas nulifica alerta_garantia) — segue
+    # sendo possível registrar mesmo assim, só deixa de cobrar.
+    exige_garantia: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     nota_reserva: Mapped[str | None] = mapped_column(String(50), nullable=True)
     nota_empenho: Mapped[str | None] = mapped_column(String(50), nullable=True)
 

@@ -147,6 +147,7 @@ def _para_detalhado(contrato: Contrato) -> ContratoDetalhado:
         tempo_restante_vigencia=regras.tempo_restante(vigencia_fim),
         garantia_inicio=garantia_inicio,
         garantia_fim=garantia_fim,
+        exige_garantia=contrato.exige_garantia,
         garantias=[
             GarantiaSaida(
                 id=g.id,

@@ -39,3 +39,16 @@ class FornecedorSaida(BaseModel):
     ativo: bool
 
     model_config = {"from_attributes": True}
+
+
+class ConsultaCnpjSaida(BaseModel):
+    """Prévia da consulta à Receita Federal (via BrasilAPI) antes de salvar
+    — usada para autopreencher a razão social e mostrar a situação
+    cadastral enquanto o CNPJ é digitado. `encontrado=False` quando a
+    consulta não pôde ser feita (API fora do ar, CNPJ não encontrado) — não
+    bloqueia o cadastro, o formulário simplesmente não autopreenche."""
+
+    encontrado: bool
+    razao_social: str | None = None
+    situacao_cadastral: str | None = None
+    ativo: bool | None = None
