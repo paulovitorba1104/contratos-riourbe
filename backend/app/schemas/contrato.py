@@ -109,6 +109,10 @@ class ContratoCriar(BaseModel):
     # não entra no módulo de Faturamento — a GCT só gerencia prazo/renovação.
     faturamento_gerido_pela_gct: bool = True
     setor_responsavel_faturamento: str | None = Field(None, max_length=100)
+    # A maioria dos contratos exige garantia contratual — alguns não (ex.:
+    # valor baixo dispensado por lei). Falso não impede registrar garantia
+    # mesmo assim, só tira o card da urgência de alerta (Kanban e ficha).
+    exige_garantia: bool = True
     # Reajuste — nulo quando o contrato não tem cláusula de reajuste (ex.:
     # compra pontual, licença de software sem previsão de correção).
     # `tipo_reajuste` distingue cláusula obrigatória (a Rio-Urbe aplica assim
@@ -235,6 +239,8 @@ class ContratoAtualizar(BaseModel):
     # rota também limpa setor_responsavel_faturamento nesse caso).
     faturamento_gerido_pela_gct: bool | None = None
     setor_responsavel_faturamento: str | None = Field(None, max_length=100)
+    # Mesma flag de ContratoCriar.
+    exige_garantia: bool | None = None
     # Mesma classificação de reajuste de ContratoCriar — envie
     # tipo_reajuste=null para remover a cláusula (a rota também limpa
     # periodicidade e índice padrão nesse caso).
@@ -502,6 +508,8 @@ class ContratoDetalhado(ContratoSaida):
     garantia_inicio: date | None
     garantia_fim: date | None
     garantias: list[GarantiaSaida]
+    # Falso na exceção — nem todo contrato exige garantia contratual.
+    exige_garantia: bool
     # Reajuste — nulo quando o contrato não tem cláusula de reajuste.
     tipo_reajuste: TipoReajuste | None
     periodicidade_reajuste_meses: int | None

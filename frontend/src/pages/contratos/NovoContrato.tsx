@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { SeloSituacaoCnpj } from "../../components/SeloSituacaoCnpj";
 import { apiContratos, apiFiscais, apiFornecedores } from "../../lib/apiContratos";
 import { ErroApi } from "../../lib/api";
 import {
@@ -11,6 +12,7 @@ import {
   mascararMoeda,
   moedaParaNumero,
 } from "../../lib/mascaras";
+import { useConsultaCnpj } from "../../lib/useConsultaCnpj";
 import type {
   CalculoValorMensal,
   ExcecaoTetoVigencia,
@@ -47,6 +49,16 @@ export function NovoContrato() {
   const [mostrarNovoFornecedor, setMostrarNovoFornecedor] = useState(false);
   const [novoFornecedorNome, setNovoFornecedorNome] = useState("");
   const [novoFornecedorCnpj, setNovoFornecedorCnpj] = useState("");
+  const { consulta: consultaNovoFornecedorCnpj, consultando: consultandoNovoFornecedorCnpj } =
+    useConsultaCnpj(novoFornecedorCnpj);
+
+  // Autopreenche a razão social a partir da Receita Federal — só quando o
+  // campo ainda está vazio, nunca sobrescreve o que a pessoa já digitou.
+  useEffect(() => {
+    if (consultaNovoFornecedorCnpj?.encontrado && consultaNovoFornecedorCnpj.razao_social && !novoFornecedorNome.trim()) {
+      setNovoFornecedorNome(consultaNovoFornecedorCnpj.razao_social);
+    }
+  }, [consultaNovoFornecedorCnpj]);
 
   const [fiscais, setFiscais] = useState<Fiscal[]>([]);
   const [mostrarNovoFiscal, setMostrarNovoFiscal] = useState(false);
@@ -90,6 +102,11 @@ export function NovoContrato() {
   // Faturamento, a GCT só gerencia prazo e renovação dele.
   const [faturamentoPelaGct, setFaturamentoPelaGct] = useState(true);
   const [setorResponsavelFaturamento, setSetorResponsavelFaturamento] = useState("");
+
+  // A maioria dos contratos exige garantia contratual — alguns não (ex.:
+  // valor baixo dispensado pela lei). Desmarcado, o card de garantia sai
+  // da urgência de alerta na ficha e no Kanban.
+  const [exigeGarantia, setExigeGarantia] = useState(true);
 
   // Contrato antigo entrando no sistema agora: total já pago até hoje,
   // lançado de uma vez — não vale a pena lançar fatura por fatura do
@@ -326,6 +343,7 @@ export function NovoContrato() {
         fiscais_ids: fiscaisSelecionados,
         faturamento_gerido_pela_gct: faturamentoPelaGct,
         setor_responsavel_faturamento: faturamentoPelaGct ? null : setorResponsavelFaturamento,
+        exige_garantia: exigeGarantia,
         valor_pago_anterior_sistema: valorPagoAnteriorSistema
           ? moedaParaNumero(valorPagoAnteriorSistema)
           : undefined,
@@ -523,6 +541,7 @@ export function NovoContrato() {
                   value={novoFornecedorCnpj}
                   onChange={(e) => setNovoFornecedorCnpj(mascararCnpj(e.target.value))}
                 />
+                <SeloSituacaoCnpj consulta={consultaNovoFornecedorCnpj} consultando={consultandoNovoFornecedorCnpj} />
                 <button type="button" onClick={criarFornecedor} className="btn-primary btn-sm">
                   Cadastrar fornecedor
                 </button>
@@ -641,6 +660,23 @@ export function NovoContrato() {
                 />
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                id="exige_garantia"
+                type="checkbox"
+                checked={exigeGarantia}
+                onChange={(e) => setExigeGarantia(e.target.checked)}
+              />
+              Este contrato exige garantia contratual
+            </label>
+            <p className="mt-1 text-xs text-slate-500">
+              Desmarque para contrato dispensado de garantia (ex.: valor baixo dispensado pela
+              lei) — o card de garantia deixa de entrar na urgência de alerta na ficha e no
+              Kanban.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

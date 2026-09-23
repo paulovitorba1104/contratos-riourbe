@@ -1182,6 +1182,9 @@ function EditarContratoForm({
     contrato.setor_responsavel_faturamento ?? "",
   );
 
+  // Exige garantia contratual — semeado do que o contrato já tem.
+  const [exigeGarantia, setExigeGarantia] = useState(contrato.exige_garantia);
+
   // Cláusula de reajuste — semeada do que o contrato já tem registrado.
   const [temClausulaReajuste, setTemClausulaReajuste] = useState(contrato.tipo_reajuste !== null);
   const [tipoReajuste, setTipoReajuste] = useState<TipoReajuste>(contrato.tipo_reajuste ?? "automatico");
@@ -1252,6 +1255,7 @@ function EditarContratoForm({
         excecao_teto_documento_sei: temExcecaoTeto ? excecaoDocumentoSei : null,
         faturamento_gerido_pela_gct: faturamentoPelaGct,
         setor_responsavel_faturamento: faturamentoPelaGct ? null : setorResponsavelFaturamento,
+        exige_garantia: exigeGarantia,
         tipo_reajuste: temClausulaReajuste ? tipoReajuste : null,
         periodicidade_reajuste_meses: temClausulaReajuste ? Number(periodicidadeReajusteMeses) : null,
         indice_reajuste_padrao: temClausulaReajuste ? indiceReajustePadrao || null : null,
@@ -1466,6 +1470,22 @@ function EditarContratoForm({
             />
           </div>
         )}
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            id="exige_garantia"
+            type="checkbox"
+            checked={exigeGarantia}
+            onChange={(e) => setExigeGarantia(e.target.checked)}
+          />
+          Este contrato exige garantia contratual
+        </label>
+        <p className="mt-1 text-xs text-slate-500">
+          Desmarque para contrato dispensado de garantia (ex.: valor baixo dispensado pela lei) —
+          o card de garantia deixa de entrar na urgência de alerta na ficha e no Kanban.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -2187,18 +2207,22 @@ export function ContratoDetalhe() {
           <div className="card p-5">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-900">Garantia contratual</h2>
-              <button
-                onClick={() => {
-                  setMostrarHistoricoGarantia(false);
-                  setMostrarFormGarantia((v) => !v);
-                }}
-                className="btn-secondary btn-sm"
-              >
-                {mostrarFormGarantia ? "Cancelar" : "Registrar garantia"}
-              </button>
+              {(contrato.exige_garantia || contrato.garantia_inicio) && (
+                <button
+                  onClick={() => {
+                    setMostrarHistoricoGarantia(false);
+                    setMostrarFormGarantia((v) => !v);
+                  }}
+                  className="btn-secondary btn-sm"
+                >
+                  {mostrarFormGarantia ? "Cancelar" : "Registrar garantia"}
+                </button>
+              )}
             </div>
 
-            {mostrarFormGarantia ? (
+            {!contrato.exige_garantia && !contrato.garantia_inicio ? (
+              <p className="text-sm text-slate-500">Este contrato não exige garantia contratual.</p>
+            ) : mostrarFormGarantia ? (
               <RegistrarGarantiaForm
                 contratoId={contrato.id}
                 aoRegistrar={(c) => {

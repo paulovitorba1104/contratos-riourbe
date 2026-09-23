@@ -211,7 +211,12 @@ def calcular_alertas(contrato: Contrato, hoje: date | None = None) -> AlertasCon
         vigencia_fim=vigencia_fim,
         alerta_vigencia=_nivel_alerta(vigencia_fim, hoje, LIMITES_ALERTA_VIGENCIA_MESES),
         garantia_fim=garantia_fim,
-        alerta_garantia=_nivel_alerta(garantia_fim, hoje, LIMITES_ALERTA_GARANTIA_MESES),
+        # Contrato que não exige garantia não entra na urgência de alerta —
+        # continua sendo possível registrar (garantia_fim acima não muda),
+        # só deixa de cobrar/badge.
+        alerta_garantia=(
+            _nivel_alerta(garantia_fim, hoje, LIMITES_ALERTA_GARANTIA_MESES) if contrato.exige_garantia else None
+        ),
         proximo_marco_reajuste=marco_reajuste,
         # "Vencido" aqui não é um problema (diferente de vigência/garantia) —
         # é exatamente o sinal de que o reajuste já pode ser calculado.

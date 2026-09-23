@@ -269,7 +269,12 @@ Implementa a seção 4 do plano de desenvolvimento:
   (definição inicial ou correção) entra como uma linha nova com quem registrou e quando, e a
   garantia "atual" é sempre a mais recente; a tela só mostra os dois campos de data quando o
   usuário clica em "Registrar garantia". Alertas calculados em 6/3/1 mês (vigência) e 3/1 mês
-  (garantia) — visíveis tanto na ficha do contrato quanto nos cards do Kanban.
+  (garantia) — visíveis tanto na ficha do contrato quanto nos cards do Kanban. Nem todo contrato
+  exige garantia (ex.: valor baixo dispensado pela lei) — desmarcando `exige_garantia` (padrão
+  verdadeiro) no cadastro/edição, o card de garantia na ficha mostra só "Este contrato não exige
+  garantia contratual" (sem o botão de registrar) e o alerta de garantia sai da urgência tanto na
+  ficha quanto no Kanban; continua sendo possível registrar garantia mesmo assim se algum dia for
+  preciso — a marcação só tira a cobrança, nunca apaga um registro já feito.
 - **Reajuste e apostilamento com calculadora embutida**: o contrato marca se tem cláusula de
   reajuste (`tipo_reajuste`: `automatico` — obrigatório, reajusta assim que completa o prazo, sem
   precisar de pedido; ou `mediante_solicitacao` — só se a contratada pedir), a periodicidade em
@@ -349,7 +354,13 @@ Implementa a seção 4 do plano de desenvolvimento:
   quando o fiscal foi designado por engano naquele contrato.
 - **Fornecedores**: cadastro próprio (`core.fornecedores`) com validação de CNPJ (dígito
   verificador e situação cadastral ativa na Receita Federal via BrasilAPI), mesma lógica de
-  cadastro dos fiscais (tela dedicada, com edição, + criação inline ao criar um contrato).
+  cadastro dos fiscais (tela dedicada, com edição, + criação inline ao criar um contrato). Ao
+  digitar os 14 dígitos do CNPJ (nos dois lugares onde se cadastra fornecedor), o sistema já
+  consulta a Receita Federal na hora (`GET /api/fornecedores/consulta-cnpj/{cnpj}`) — autopreenche
+  a razão social (só quando o campo ainda está vazio, nunca sobrescreve o que a pessoa já digitou)
+  e mostra um selo com a situação cadastral. Essa consulta é só prévia visual, de melhor esforço —
+  se a API externa estiver fora do ar não bloqueia nada; a verificação que de fato recusa CNPJ
+  inativo continua sendo a que roda ao salvar.
 
 A tabela `contratos.modelos_ripm` reaproveita o padrão `modelos_checklist`/`conferencias` do
 sistema de Faturas, mas fica **vazia até a lista oficial dos 32 modelos RIPM da PGM-Rio ser

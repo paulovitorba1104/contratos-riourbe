@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 
+import { SeloSituacaoCnpj } from "../../components/SeloSituacaoCnpj";
 import { ErroApi } from "../../lib/api";
 import { apiFornecedores } from "../../lib/apiContratos";
 import { useAuth } from "../../lib/AuthContext";
 import { mascararCnpj } from "../../lib/mascaras";
 import type { Fornecedor } from "../../lib/tiposContratos";
+import { useConsultaCnpj } from "../../lib/useConsultaCnpj";
 import { useToast } from "../../lib/ToastContext";
 
 const campoClasse = "field-input";
@@ -23,6 +25,15 @@ function FormularioFornecedor({
   const [cnpj, setCnpj] = useState(inicial ? mascararCnpj(inicial.cnpj) : "");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const { consulta, consultando } = useConsultaCnpj(cnpj);
+
+  // Autopreenche a razão social a partir da Receita Federal — só quando o
+  // campo ainda está vazio, nunca sobrescreve o que a pessoa já digitou.
+  useEffect(() => {
+    if (consulta?.encontrado && consulta.razao_social && !razaoSocial.trim()) {
+      setRazaoSocial(consulta.razao_social);
+    }
+  }, [consulta]);
 
   async function aoEnviar(evento: FormEvent) {
     evento.preventDefault();
@@ -63,6 +74,7 @@ function FormularioFornecedor({
           placeholder="00.000.000/0000-00"
           required
         />
+        <SeloSituacaoCnpj consulta={consulta} consultando={consultando} />
         <p className="mt-1 text-xs text-slate-500">
           Ao salvar, o CNPJ é conferido na Receita Federal — só é aceito se estiver com situação ativa.
         </p>

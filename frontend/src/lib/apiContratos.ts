@@ -4,6 +4,7 @@ import type {
   CalculoReajuste,
   CalculoValorMensal,
   CalculoVigencia,
+  ConsultaCnpj,
   Contrato,
   ContratoAtualizarPayload,
   ContratoDetalhado,
@@ -170,6 +171,10 @@ export const apiFornecedores = {
   atualizar: (id: string, dados: { razao_social?: string; cnpj?: string; ativo?: boolean }) =>
     requisicao<Fornecedor>(`/fornecedores/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
   excluir: (id: string) => requisicao<void>(`/fornecedores/${id}`, { method: "DELETE" }),
+  /** Prévia ao vivo na Receita Federal (via BrasilAPI) enquanto o CNPJ é
+   * digitado — autopreenche a razão social e mostra a situação cadastral
+   * antes de salvar. `cnpjDigitos` são só os 14 dígitos, sem máscara. */
+  consultarCnpj: (cnpjDigitos: string) => requisicao<ConsultaCnpj>(`/fornecedores/consulta-cnpj/${cnpjDigitos}`),
 };
 
 export const apiFiscais = {

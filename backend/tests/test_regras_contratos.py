@@ -39,6 +39,7 @@ def _contrato(**overrides) -> Contrato:
         # Mesmo motivo do faturamento_gerido_pela_gct acima — sem isto o
         # default da coluna não é aplicado em memória.
         modo_execucao=ModoExecucao.POR_VIGENCIA,
+        exige_garantia=True,
     )
     padrao.update(overrides)
     contrato = Contrato(**padrao)
@@ -163,6 +164,15 @@ def test_calcular_alertas_garantia_usa_registro_mais_recente():
     contrato.garantias = [_garantia(data_fim_garantia=date(2026, 2, 1), registrado_em=datetime(2024, 1, 1))]
     alertas = regras.calcular_alertas(contrato, hoje=date(2026, 1, 5))
     assert alertas.alerta_garantia == "1_meses"
+
+
+def test_calcular_alertas_garantia_nao_exigida_nao_alerta():
+    contrato = _contrato(exige_garantia=False)
+    contrato.garantias = [_garantia(data_fim_garantia=date(2026, 2, 1), registrado_em=datetime(2024, 1, 1))]
+    alertas = regras.calcular_alertas(contrato, hoje=date(2026, 1, 5))
+    assert alertas.alerta_garantia is None
+    # garantia_fim continua disponível — não exigir não apaga um registro já feito.
+    assert alertas.garantia_fim == date(2026, 2, 1)
 
 
 def test_teto_vigencia_e_cinco_anos_apos_assinatura():

@@ -4,17 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import exigir_administrador, get_current_user
-from app.core.cnpj_lookup import consultar_situacao_cnpj
+from app.core.cnpj_lookup import consultar_cnpj
+from app.core.validadores import cnpj_valido, normalizar_cnpj
 from app.db.session import get_db
 from app.models.fornecedor import Fornecedor
 from app.models.usuario import Usuario
-from app.schemas.fornecedor import FornecedorAtualizar, FornecedorCriar, FornecedorSaida
+from app.schemas.fornecedor import ConsultaCnpjSaida, FornecedorAtualizar, FornecedorCriar, FornecedorSaida
 
 router = APIRouter(prefix="/fornecedores", tags=["fornecedores"])
 
 
 def _verificar_cnpj_ativo(cnpj: str) -> None:
-    situacao = consultar_situacao_cnpj(cnpj)
+    resultado = consultar_cnpj(cnpj)
+    situacao = resultado["situacao_cadastral"] if resultado else None
     if situacao is not None and situacao.strip().upper() != "ATIVA":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -31,6 +33,30 @@ def listar_fornecedores(
     _: Usuario = Depends(get_current_user),
 ) -> list[Fornecedor]:
     return db.query(Fornecedor).order_by(Fornecedor.razao_social).all()
+
+
+@router.get("/consulta-cnpj/{cnpj}", response_model=ConsultaCnpjSaida)
+def consultar_cnpj_receita(
+    cnpj: str,
+    _: Usuario = Depends(get_current_user),
+) -> ConsultaCnpjSaida:
+    """Prévia ao vivo (enquanto o CNPJ é digitado) — autopreenche a razão
+    social e mostra a situação cadastral antes de salvar. Nunca bloqueia:
+    CNPJ com formato inválido ou consulta indisponível só volta
+    `encontrado=False`, a verificação que de fato recusa o cadastro é a de
+    "CNPJ ativo" ao salvar (`_verificar_cnpj_ativo`)."""
+    if not cnpj_valido(cnpj):
+        return ConsultaCnpjSaida(encontrado=False)
+    resultado = consultar_cnpj(normalizar_cnpj(cnpj))
+    if resultado is None:
+        return ConsultaCnpjSaida(encontrado=False)
+    situacao = resultado["situacao_cadastral"]
+    return ConsultaCnpjSaida(
+        encontrado=True,
+        razao_social=resultado["razao_social"],
+        situacao_cadastral=situacao,
+        ativo=situacao is not None and situacao.strip().upper() == "ATIVA",
+    )
 
 
 @router.post("", response_model=FornecedorSaida, status_code=status.HTTP_201_CREATED)
