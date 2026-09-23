@@ -11,7 +11,6 @@ export type TipoInstrumento =
   | "suspensao"
   | "rescisao_extincao";
 export type SubStatusInstrumento = "elaboracao" | "parecer_juridico" | "assinatura" | "publicado";
-export type FundamentacaoLei = "lei_13303_16" | "lei_14133_21";
 export type NivelAlerta = "1_meses" | "3_meses" | "6_meses" | "vencido";
 export type SistemaProcesso = "sicop" | "processo_rio" | "sei_rio";
 export type TipoProcesso = "principal" | "apenso";
@@ -174,8 +173,9 @@ export interface InstrumentoProcessual {
   contrato_id: string;
   tipo: TipoInstrumento;
   modelo_ripm_id: string | null;
-  fundamentacao_lei: FundamentacaoLei;
-  fundamentacao_artigo: string;
+  // Texto livre — normalmente lei + artigo, mas pode ser decreto, portaria
+  // ou outro ato normativo.
+  fundamentacao: string;
   sub_status: SubStatusInstrumento;
   numero_documento_sei: string | null;
   // Datas do próprio instrumento — quando foi de fato assinado/formalizado
@@ -367,8 +367,7 @@ export interface ContratoDetalhado extends Contrato {
 
 export interface InstrumentoOrigemPayload {
   modelo_ripm_id?: string | null;
-  fundamentacao_lei: FundamentacaoLei;
-  fundamentacao_artigo: string;
+  fundamentacao: string;
   numero_documento_sei?: string | null;
   data_inicio_vigencia: string;
   data_fim_vigencia: string;
@@ -466,8 +465,7 @@ export interface FornecedorAdicionalPayload {
 export interface NovoInstrumentoPayload {
   tipo: TipoInstrumento;
   modelo_ripm_id?: string | null;
-  fundamentacao_lei: FundamentacaoLei;
-  fundamentacao_artigo: string;
+  fundamentacao: string;
   numero_documento_sei?: string | null;
   // Geralmente ainda não conhecidas na criação — dá para preencher depois
   // via apiContratos.atualizarDatasInstrumento.

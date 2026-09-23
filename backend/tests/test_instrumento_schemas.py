@@ -7,8 +7,7 @@ from app.schemas.instrumento import InstrumentoProcessualCriar
 
 DADOS_ORIGEM = dict(
     tipo="origem",
-    fundamentacao_lei="lei_13303_16",
-    fundamentacao_artigo="art. 1",
+    fundamentacao="Lei 13.303/16, art. 1",
     data_inicio_vigencia=date(2024, 1, 10),
     data_fim_vigencia=date(2026, 1, 10),
 )
@@ -29,7 +28,7 @@ def test_instrumento_origem_aceita_modelo_ripm_quando_informado():
 
 
 def test_instrumento_origem_ainda_exige_fundamentacao_legal():
-    dados_sem_fundamentacao = {k: v for k, v in DADOS_ORIGEM.items() if k != "fundamentacao_artigo"}
+    dados_sem_fundamentacao = {k: v for k, v in DADOS_ORIGEM.items() if k != "fundamentacao"}
     with pytest.raises(ValidationError):
         InstrumentoProcessualCriar(**dados_sem_fundamentacao)
 
@@ -42,8 +41,7 @@ def test_instrumento_origem_ainda_exige_datas_de_vigencia():
 
 DADOS_APOSTILAMENTO_BASE = dict(
     tipo="apostilamento",
-    fundamentacao_lei="lei_13303_16",
-    fundamentacao_artigo="art. 71",
+    fundamentacao="Lei 13.303/16, art. 71",
 )
 
 DADOS_REAJUSTE = dict(
@@ -100,8 +98,7 @@ def test_acrescimo_valor_nao_aceita_campos_de_reajuste():
     with pytest.raises(ValidationError):
         InstrumentoProcessualCriar(
             tipo="acrescimo_valor",
-            fundamentacao_lei="lei_13303_16",
-            fundamentacao_artigo="art. 81",
+            fundamentacao="Lei 13.303/16, art. 81",
             valor_delta="1000.00",
             reajuste_indice_nome="IPCA-E",
         )

@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.models.instrumento_processual import (
     TIPOS_QUE_DEFINEM_VIGENCIA,
-    FundamentacaoLei,
     SubStatusInstrumento,
     TipoInstrumento,
 )
@@ -30,8 +29,9 @@ class InstrumentoProcessualCriar(BaseModel):
     # RIPM é só um checklist de apoio administrativo (não documento jurídico
     # do processo) — opcional.
     modelo_ripm_id: uuid.UUID | None = None
-    fundamentacao_lei: FundamentacaoLei
-    fundamentacao_artigo: str = Field(..., max_length=100)
+    # Texto livre — normalmente uma lei e artigo, mas pode ser decreto,
+    # portaria ou outro ato normativo.
+    fundamentacao: str = Field(..., min_length=1, max_length=300)
     numero_documento_sei: str | None = Field(None, max_length=50)
     # Datas do próprio instrumento — geralmente ainda não conhecidas na
     # criação (o processo é registrado antes de ser assinado/publicado);
@@ -143,8 +143,7 @@ class InstrumentoProcessualSaida(BaseModel):
     contrato_id: uuid.UUID
     tipo: TipoInstrumento
     modelo_ripm_id: uuid.UUID | None
-    fundamentacao_lei: FundamentacaoLei
-    fundamentacao_artigo: str
+    fundamentacao: str
     sub_status: SubStatusInstrumento
     numero_documento_sei: str | None
     data_formalizacao: date | None = None

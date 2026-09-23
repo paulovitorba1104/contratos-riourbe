@@ -44,17 +44,11 @@ class SubStatusInstrumento(str, enum.Enum):
     PUBLICADO = "publicado"
 
 
-class FundamentacaoLei(str, enum.Enum):
-    LEI_13303_16 = "lei_13303_16"
-    LEI_14133_21 = "lei_14133_21"
-
-
 class InstrumentoProcessual(Base):
     """Instrumento processual — origem ou aditivo de um contrato (seção 4.2).
 
     Cada instrumento é mapeado a 1 dos 32 modelos RIPM da PGM-Rio, com
-    fundamentação legal estruturada (não texto livre) e sub-status próprio
-    de tramitação.
+    sub-status próprio de tramitação.
     """
 
     __tablename__ = "instrumentos_processuais"
@@ -75,11 +69,10 @@ class InstrumentoProcessual(Base):
         ForeignKey("contratos.modelos_ripm.id"), nullable=True
     )
 
-    fundamentacao_lei: Mapped[FundamentacaoLei] = mapped_column(
-        Enum(FundamentacaoLei, name="fundamentacao_lei", schema="contratos", values_callable=_valores_enum),
-        nullable=False,
-    )
-    fundamentacao_artigo: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Texto livre (não estruturado) — normalmente uma lei e artigo (ex.:
+    # "Lei 13.303/16, art. 71"), mas pode ser um decreto, portaria ou outro
+    # ato normativo, então não vale a pena travar num enum de leis fixas.
+    fundamentacao: Mapped[str] = mapped_column(String(300), nullable=False)
 
     sub_status: Mapped[SubStatusInstrumento] = mapped_column(
         Enum(

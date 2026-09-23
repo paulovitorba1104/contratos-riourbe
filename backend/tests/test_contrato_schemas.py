@@ -22,8 +22,7 @@ DADOS_BASE = dict(
 
 INSTRUMENTO_ORIGEM_BASE = dict(
     modelo_ripm_id="00000000-0000-0000-0000-000000000000",
-    fundamentacao_lei="lei_13303_16",
-    fundamentacao_artigo="art. 1",
+    fundamentacao="Lei 13.303/16, art. 1",
     data_inicio_vigencia=date(2024, 1, 10),
     data_fim_vigencia=date(2026, 1, 10),
 )
