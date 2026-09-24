@@ -277,6 +277,19 @@ Implementa a seção 4 do plano de desenvolvimento:
   garantia contratual" (sem o botão de registrar) e o alerta de garantia sai da urgência tanto na
   ficha quanto no Kanban; continua sendo possível registrar garantia mesmo assim se algum dia for
   preciso — a marcação só tira a cobrança, nunca apaga um registro já feito.
+- **Modalidade, valor e limite legal da garantia (art. 70 da Lei 13.303/16)**: cada registro de
+  garantia pode, opcionalmente, informar a modalidade (caução em dinheiro, seguro-garantia ou
+  fiança bancária — as 3 previstas no §1º do art. 70; a lei das estatais não tem a modalidade
+  "título da dívida pública" da Lei 14.133/21) e o valor. Quando um valor é informado, o backend
+  calcula o percentual sobre o valor atualizado do contrato (`calcular_valor_atualizado` — inicial
+  mais os acréscimos/supressões/apostilamentos já registrados, não só o valor de assinatura) e
+  recusa (HTTP 422) se ultrapassar 5%, ou 10% quando a garantia é marcada como contratação de
+  grande vulto (alta complexidade técnica e riscos financeiros elevados). Marcar grande vulto
+  exige justificativa e o número do documento (parecer jurídico/SEI) que a formaliza — mesmo
+  mecanismo de "exceção com lastro" da exceção ao teto de vigência, acima. Este limite é para bens
+  e serviços; a lei permite um teto maior para obras, fora do escopo atual do sistema. A ficha do
+  contrato mostra o percentual calculado ao vivo enquanto o valor é digitado, para o usuário ver
+  antes de tentar salvar; o backend sempre recalcula e é quem de fato recusa.
 - **Reajuste e apostilamento com calculadora embutida**: o contrato marca se tem cláusula de
   reajuste (`tipo_reajuste`: `automatico` — obrigatório, reajusta assim que completa o prazo, sem
   precisar de pedido; ou `mediante_solicitacao` — só se a contratada pedir), a periodicidade em

@@ -36,6 +36,43 @@ class ContratoEncerradoError(Exception):
     """Contrato encerrado/extinto é terminal — não aceita novos instrumentos."""
 
 
+class GarantiaAcimaDoLimiteLegal(Exception):
+    """Valor da garantia ultrapassa o limite do art. 70 da Lei 13.303/16."""
+
+
+# Limites do art. 70 da Lei 13.303/16 — a garantia não pode passar de 5% do
+# valor do contrato; até 10% quando a contratação é de grande vulto (alta
+# complexidade técnica e riscos financeiros elevados), com justificativa e
+# documento formal, mesmo mecanismo da exceção ao teto de 5 anos de vigência.
+LIMITE_GARANTIA_PADRAO = Decimal("0.05")
+LIMITE_GARANTIA_GRANDE_VULTO = Decimal("0.10")
+
+
+def validar_valor_garantia(contrato: Contrato, valor_garantia: Decimal, grande_vulto: bool) -> None:
+    """None quando não há valor de contrato para comparar (defensivo — não
+    deveria acontecer, `valor_inicial` é sempre obrigatório). Levanta
+    `GarantiaAcimaDoLimiteLegal` quando o valor ultrapassa 5% do valor
+    atualizado do contrato (10% se `grande_vulto`)."""
+    valor_contrato = calcular_valor_atualizado(contrato)
+    if valor_contrato <= 0:
+        return
+    limite_percentual = LIMITE_GARANTIA_GRANDE_VULTO if grande_vulto else LIMITE_GARANTIA_PADRAO
+    limite_valor = (valor_contrato * limite_percentual).quantize(Decimal("0.01"))
+    if valor_garantia > limite_valor:
+        percentual_informado = (valor_garantia / valor_contrato * 100).quantize(Decimal("0.01"))
+        limite_exibicao = "10%" if grande_vulto else "5%"
+        raise GarantiaAcimaDoLimiteLegal(
+            f"O valor da garantia ({_formatar_moeda_br(valor_garantia)}, {percentual_informado}% do "
+            f"valor do contrato) ultrapassa o limite de {limite_exibicao} do art. 70 da Lei "
+            f"13.303/16 (limite: {_formatar_moeda_br(limite_valor)})."
+        )
+
+
+def _formatar_moeda_br(valor: Decimal) -> str:
+    inteiro, _, centavos = f"{valor:,.2f}".partition(".")
+    return f"R$ {inteiro.replace(',', '.')},{centavos}"
+
+
 def calcular_valor_atualizado(contrato: Contrato) -> Decimal:
     total = Decimal(str(contrato.valor_inicial))
     for instrumento in contrato.instrumentos:

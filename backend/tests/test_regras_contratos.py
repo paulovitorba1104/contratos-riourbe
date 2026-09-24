@@ -440,3 +440,41 @@ def test_calcular_valor_global_mensal_com_carencia():
 def test_calcular_valor_global_mensal_carencia_maior_que_prazo_nao_fica_negativo():
     valor = regras.calcular_valor_global_mensal(Decimal("1000.00"), 12, 24)
     assert valor == Decimal("0.00")
+
+
+# --------------------------------------------------------------------------
+# Limite legal da garantia (art. 70, Lei 13.303/16) — 5% do valor do
+# contrato, até 10% em contratação de grande vulto.
+# --------------------------------------------------------------------------
+def test_garantia_ate_5_por_cento_e_aceita():
+    contrato = _contrato(valor_inicial=Decimal("100000.00"))
+    regras.validar_valor_garantia(contrato, Decimal("5000.00"), grande_vulto=False)  # não levanta
+
+
+def test_garantia_acima_de_5_por_cento_sem_grande_vulto_e_recusada():
+    contrato = _contrato(valor_inicial=Decimal("100000.00"))
+    with pytest.raises(regras.GarantiaAcimaDoLimiteLegal):
+        regras.validar_valor_garantia(contrato, Decimal("5000.01"), grande_vulto=False)
+
+
+def test_garantia_entre_5_e_10_por_cento_exige_grande_vulto():
+    contrato = _contrato(valor_inicial=Decimal("100000.00"))
+    with pytest.raises(regras.GarantiaAcimaDoLimiteLegal):
+        regras.validar_valor_garantia(contrato, Decimal("8000.00"), grande_vulto=False)
+    regras.validar_valor_garantia(contrato, Decimal("8000.00"), grande_vulto=True)  # não levanta
+
+
+def test_garantia_acima_de_10_por_cento_e_recusada_mesmo_com_grande_vulto():
+    contrato = _contrato(valor_inicial=Decimal("100000.00"))
+    with pytest.raises(regras.GarantiaAcimaDoLimiteLegal):
+        regras.validar_valor_garantia(contrato, Decimal("10000.01"), grande_vulto=True)
+
+
+def test_garantia_considera_valor_atualizado_nao_so_o_inicial():
+    """Acréscimo já contabilizado no valor_atualizado também entra na base
+    do percentual — 10% de acréscimo sobe também o teto de 5%/10% da garantia."""
+    contrato = _contrato(valor_inicial=Decimal("100000.00"))
+    contrato.instrumentos = [_instrumento(TipoInstrumento.ACRESCIMO_VALOR, valor_delta=Decimal("10000.00"))]
+    # valor atualizado = 110000.00 — 5% = 5500.00, então 5200 já é aceito
+    # mesmo não sendo aceito sobre o valor inicial sozinho (5000.00 seria o teto).
+    regras.validar_valor_garantia(contrato, Decimal("5200.00"), grande_vulto=False)  # não levanta

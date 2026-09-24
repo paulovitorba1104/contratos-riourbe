@@ -26,6 +26,7 @@ import type {
   Fornecedor,
   LogAuditoria,
   FornecedorAdicionalPayload,
+  ModalidadeGarantia,
   ModoExecucao,
   ModoValorContrato,
   Processo,
@@ -40,6 +41,7 @@ import {
   ROTULOS_ACAO_AUDITORIA,
   ROTULOS_EXCECAO_TETO,
   ROTULOS_FORMA_CONTRATACAO,
+  ROTULOS_MODALIDADE_GARANTIA,
   ROTULOS_MODO_EXECUCAO,
   ROTULOS_MODO_VALOR,
   ROTULOS_SISTEMA_PROCESSO,
@@ -957,18 +959,36 @@ function RegistrarExecucaoForm({
 
 function RegistrarGarantiaForm({
   contratoId,
+  valorAtualizadoContrato,
   aoRegistrar,
   aoCancelar,
 }: {
   contratoId: string;
+  valorAtualizadoContrato: string;
   aoRegistrar: (c: ContratoDetalhado) => void;
   aoCancelar: () => void;
 }) {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [modalidade, setModalidade] = useState<ModalidadeGarantia | "">("");
+  const [valorGarantia, setValorGarantia] = useState("");
+  const [grandeVulto, setGrandeVulto] = useState(false);
+  const [grandeVultoJustificativa, setGrandeVultoJustificativa] = useState("");
+  const [grandeVultoDocumentoSei, setGrandeVultoDocumentoSei] = useState("");
   const [observacao, setObservacao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  // Prévia do percentual sobre o valor atualizado do contrato — o limite do
+  // art. 70 da Lei 13.303/16 é 5% (10% se for grande vulto); quem preenche
+  // vê antes de tentar salvar, o backend recalcula e recusa de verdade.
+  // valorAtualizadoContrato já vem como número puro da API ("100000.00"),
+  // diferente de valorGarantia (texto mascarado, digitado pelo usuário).
+  const valorAtualizadoNumero = Number(valorAtualizadoContrato) || 0;
+  const valorGarantiaNumero = Number(moedaParaNumero(valorGarantia)) || 0;
+  const percentual = valorAtualizadoNumero > 0 ? (valorGarantiaNumero / valorAtualizadoNumero) * 100 : null;
+  const limitePercentual = grandeVulto ? 10 : 5;
+  const acimaDoLimite = percentual !== null && valorGarantiaNumero > 0 && percentual > limitePercentual;
 
   async function enviar() {
     setErro(null);
@@ -977,6 +997,11 @@ function RegistrarGarantiaForm({
       const atualizado = await apiContratos.registrarGarantia(contratoId, {
         data_inicio_garantia: dataInicio || null,
         data_fim_garantia: dataFim || null,
+        modalidade: modalidade || null,
+        valor_garantia: valorGarantia ? moedaParaNumero(valorGarantia) : null,
+        grande_vulto: grandeVulto,
+        grande_vulto_justificativa: grandeVulto ? grandeVultoJustificativa : null,
+        grande_vulto_documento_sei: grandeVulto ? grandeVultoDocumentoSei : null,
         observacao: observacao || null,
       });
       aoRegistrar(atualizado);
@@ -1015,6 +1040,85 @@ function RegistrarGarantiaForm({
           />
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="garantia_modalidade">
+            Modalidade da garantia (opcional)
+          </label>
+          <select
+            id="garantia_modalidade"
+            className={campoClasse}
+            value={modalidade}
+            onChange={(e) => setModalidade(e.target.value as ModalidadeGarantia | "")}
+          >
+            <option value="">Selecione...</option>
+            {Object.entries(ROTULOS_MODALIDADE_GARANTIA).map(([valor, rotulo]) => (
+              <option key={valor} value={valor}>
+                {rotulo}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="garantia_valor">
+            Valor da garantia (opcional)
+          </label>
+          <input
+            id="garantia_valor"
+            className={campoClasse}
+            value={valorGarantia}
+            onChange={(e) => setValorGarantia(mascararMoeda(e.target.value))}
+            placeholder="R$ 0,00"
+          />
+        </div>
+      </div>
+      {valorGarantiaNumero > 0 && percentual !== null && (
+        <p className={`text-xs ${acimaDoLimite ? "font-medium text-red-600" : "text-slate-500"}`}>
+          Equivale a {percentual.toFixed(2).replace(".", ",")}% do valor atualizado do contrato (limite:{" "}
+          {limitePercentual}% — art. 70 da Lei 13.303/16
+          {grandeVulto ? ", contratação de grande vulto" : ""}).
+          {acimaDoLimite ? " Valor acima do limite legal; o registro será recusado." : ""}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        <input
+          id="garantia_grande_vulto"
+          type="checkbox"
+          checked={grandeVulto}
+          onChange={(e) => setGrandeVulto(e.target.checked)}
+        />
+        <label className="text-xs font-medium text-slate-600" htmlFor="garantia_grande_vulto">
+          Contratação de grande vulto (eleva o limite de 5% para 10%)
+        </label>
+      </div>
+      {grandeVulto && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="garantia_grande_vulto_justificativa">
+              Justificativa da grande vulto
+            </label>
+            <input
+              id="garantia_grande_vulto_justificativa"
+              className={campoClasse}
+              value={grandeVultoJustificativa}
+              onChange={(e) => setGrandeVultoJustificativa(e.target.value)}
+              placeholder="ex.: alta complexidade técnica e riscos financeiros elevados"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="garantia_grande_vulto_documento">
+              Documento SEI que fundamenta
+            </label>
+            <input
+              id="garantia_grande_vulto_documento"
+              className={campoClasse}
+              value={grandeVultoDocumentoSei}
+              onChange={(e) => setGrandeVultoDocumentoSei(e.target.value)}
+              placeholder="ex.: SEI-04/000123/2026"
+            />
+          </div>
+        </div>
+      )}
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-600">Observação (opcional)</label>
         <input
@@ -2346,6 +2450,7 @@ export function ContratoDetalhe() {
             ) : mostrarFormGarantia ? (
               <RegistrarGarantiaForm
                 contratoId={contrato.id}
+                valorAtualizadoContrato={contrato.valor_atualizado}
                 aoRegistrar={(c) => {
                   setContrato(c);
                   setMostrarFormGarantia(false);
@@ -2384,6 +2489,22 @@ export function ContratoDetalhe() {
                         </span>{" "}
                         — registrado por {g.registrado_por_nome} em{" "}
                         {new Date(g.registrado_em).toLocaleString("pt-BR")}
+                        {(g.modalidade || g.valor_garantia) && (
+                          <p className="text-slate-600">
+                            {g.modalidade && ROTULOS_MODALIDADE_GARANTIA[g.modalidade]}
+                            {g.modalidade && g.valor_garantia ? " — " : ""}
+                            {g.valor_garantia &&
+                              Number(g.valor_garantia).toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              })}
+                            {g.grande_vulto && (
+                              <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[10px] font-medium text-amber-800">
+                                grande vulto
+                              </span>
+                            )}
+                          </p>
+                        )}
                         {g.observacao && <p className="italic text-slate-500">{g.observacao}</p>}
                       </li>
                     ))}
