@@ -14,6 +14,7 @@ import type {
   Fiscal,
   FornecedorAdicionalPayload,
   Fornecedor,
+  GarantiaPayload,
   InstrumentoDatasPayload,
   LogAuditoria,
   ModeloRipm,
@@ -33,10 +34,7 @@ export const apiContratos = {
   atualizar: (id: string, dados: ContratoAtualizarPayload) =>
     requisicao<ContratoDetalhado>(`/contratos/${id}`, { method: "PATCH", body: JSON.stringify(dados) }),
   excluir: (id: string) => requisicao<void>(`/contratos/${id}`, { method: "DELETE" }),
-  registrarGarantia: (
-    id: string,
-    dados: { data_inicio_garantia: string | null; data_fim_garantia: string | null; observacao?: string | null },
-  ) =>
+  registrarGarantia: (id: string, dados: GarantiaPayload) =>
     requisicao<ContratoDetalhado>(`/contratos/${id}/garantia`, {
       method: "POST",
       body: JSON.stringify(dados),

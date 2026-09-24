@@ -166,6 +166,11 @@ def _para_detalhado(db: Session, contrato: Contrato) -> ContratoDetalhado:
                 id=g.id,
                 data_inicio_garantia=g.data_inicio_garantia,
                 data_fim_garantia=g.data_fim_garantia,
+                modalidade=g.modalidade,
+                valor_garantia=g.valor_garantia,
+                grande_vulto=g.grande_vulto,
+                grande_vulto_justificativa=g.grande_vulto_justificativa,
+                grande_vulto_documento_sei=g.grande_vulto_documento_sei,
                 observacao=g.observacao,
                 registrado_por_nome=g.registrado_por.nome,
                 registrado_em=g.registrado_em,
@@ -688,13 +693,25 @@ def registrar_garantia(
 ) -> ContratoDetalhado:
     """Registra uma nova entrada no histórico de garantia — nunca sobrescreve
     a anterior, então fica auditável quem mudou o quê e quando (mesmo
-    princípio da vigência via instrumentos processuais)."""
+    princípio da vigência via instrumentos processuais). Quando um valor de
+    garantia é informado, recusa acima do limite do art. 70 da Lei 13.303/16
+    (5% do valor do contrato, 10% se marcado como grande vulto)."""
     contrato = _carregar_contrato(db, contrato_id)
+    if dados.valor_garantia is not None:
+        try:
+            regras.validar_valor_garantia(contrato, dados.valor_garantia, dados.grande_vulto)
+        except regras.GarantiaAcimaDoLimiteLegal as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     db.add(
         GarantiaContrato(
             contrato_id=contrato.id,
             data_inicio_garantia=dados.data_inicio_garantia,
             data_fim_garantia=dados.data_fim_garantia,
+            modalidade=dados.modalidade,
+            valor_garantia=dados.valor_garantia,
+            grande_vulto=dados.grande_vulto,
+            grande_vulto_justificativa=dados.grande_vulto_justificativa,
+            grande_vulto_documento_sei=dados.grande_vulto_documento_sei,
             observacao=dados.observacao,
             registrado_por_id=usuario.id,
         )

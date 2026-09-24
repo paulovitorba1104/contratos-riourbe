@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.contrato import ContratoAtualizar, ContratoCriar, InstrumentoOrigemCriar, ProcessoCriar
+from app.schemas.contrato import ContratoAtualizar, ContratoCriar, GarantiaCriar, InstrumentoOrigemCriar, ProcessoCriar
 
 PROCESSO_BASE = dict(numero_processo="SEI-1", sistema_origem="sei_rio", tipo="principal")
 
@@ -264,6 +264,41 @@ def test_contrato_atualizar_modo_global_rejeita_valor_mensal():
 def test_contrato_atualizar_nao_mexer_em_modo_valor_nao_exige_nada():
     atualizacao = ContratoAtualizar(objeto="Objeto revisado")
     assert atualizacao.modo_valor is None
+
+
+def test_garantia_criar_aceita_sem_valor_nem_modalidade():
+    """A maioria das datas de garantia registradas hoje não vem com valor
+    algum ainda — continua funcionando sem quebrar nada existente."""
+    garantia = GarantiaCriar(data_inicio_garantia=date(2024, 1, 10), data_fim_garantia=date(2025, 1, 10))
+    assert garantia.valor_garantia is None
+    assert garantia.modalidade is None
+
+
+def test_garantia_grande_vulto_exige_justificativa_e_documento():
+    with pytest.raises(ValidationError):
+        GarantiaCriar(valor_garantia=Decimal("8000.00"), grande_vulto=True)
+    with pytest.raises(ValidationError):
+        GarantiaCriar(
+            valor_garantia=Decimal("8000.00"),
+            grande_vulto=True,
+            grande_vulto_justificativa="Contratação de grande vulto.",
+        )
+
+
+def test_garantia_grande_vulto_aceita_com_justificativa_e_documento():
+    garantia = GarantiaCriar(
+        valor_garantia=Decimal("8000.00"),
+        grande_vulto=True,
+        grande_vulto_justificativa="Contratação de grande vulto, alta complexidade técnica.",
+        grande_vulto_documento_sei="SEI-99999",
+    )
+    assert garantia.grande_vulto is True
+
+
+def test_garantia_modalidade_aceita_as_3_do_art_70():
+    for modalidade in ("caucao_dinheiro", "seguro_garantia", "fianca_bancaria"):
+        garantia = GarantiaCriar(modalidade=modalidade)
+        assert garantia.modalidade == modalidade
 
 
 def test_tempo_restante_do_servico_vira_schema():

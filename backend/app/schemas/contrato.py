@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.models.contrato import (
     ExcecaoTetoVigencia,
     FormaContratacao,
+    ModalidadeGarantia,
     ModoExecucao,
     ModoValorContrato,
     SistemaProcesso,
@@ -362,6 +363,14 @@ class GarantiaCriar(BaseModel):
 
     data_inicio_garantia: date | None = None
     data_fim_garantia: date | None = None
+    modalidade: ModalidadeGarantia | None = None
+    valor_garantia: Decimal | None = Field(None, gt=0)
+    # Grande vulto (art. 70, §2º, Lei 13.303/16) — sobe o limite de 5% para
+    # 10% do valor do contrato; exige justificativa e documento, mesmo
+    # mecanismo da exceção ao teto de 5 anos de vigência.
+    grande_vulto: bool = False
+    grande_vulto_justificativa: str | None = None
+    grande_vulto_documento_sei: str | None = Field(None, max_length=50)
     observacao: str | None = None
 
     @field_validator("data_fim_garantia")
@@ -372,11 +381,25 @@ class GarantiaCriar(BaseModel):
             raise ValueError("A data de fim da garantia deve ser posterior à data de início.")
         return v
 
+    @model_validator(mode="after")
+    def _grande_vulto_exige_justificativa_e_documento(self) -> "GarantiaCriar":
+        if self.grande_vulto and (not self.grande_vulto_justificativa or not self.grande_vulto_documento_sei):
+            raise ValueError(
+                "Marcar garantia de grande vulto exige justificativa e o número do documento "
+                "(parecer jurídico/SEI) que a formaliza."
+            )
+        return self
+
 
 class GarantiaSaida(BaseModel):
     id: uuid.UUID
     data_inicio_garantia: date | None
     data_fim_garantia: date | None
+    modalidade: ModalidadeGarantia | None = None
+    valor_garantia: Decimal | None = None
+    grande_vulto: bool = False
+    grande_vulto_justificativa: str | None = None
+    grande_vulto_documento_sei: str | None = None
     observacao: str | None
     registrado_por_nome: str
     registrado_em: datetime

@@ -317,6 +317,15 @@ class ContratoFiscal(Base):
     fiscal: Mapped["Fiscal"] = relationship()
 
 
+class ModalidadeGarantia(str, enum.Enum):
+    """As 3 modalidades do art. 70, §1º, da Lei 13.303/16 — a lei não inclui
+    título da dívida pública, que é modalidade específica da Lei 14.133/21."""
+
+    CAUCAO_DINHEIRO = "caucao_dinheiro"
+    SEGURO_GARANTIA = "seguro_garantia"
+    FIANCA_BANCARIA = "fianca_bancaria"
+
+
 class GarantiaContrato(Base):
     """Registro histórico de garantia contratual (Relógio 3). Cada alteração
     (definição inicial ou correção) cria uma nova linha em vez de sobrescrever
@@ -333,6 +342,19 @@ class GarantiaContrato(Base):
     )
     data_inicio_garantia: Mapped[date | None] = mapped_column(Date, nullable=True)
     data_fim_garantia: Mapped[date | None] = mapped_column(Date, nullable=True)
+    modalidade: Mapped[ModalidadeGarantia | None] = mapped_column(
+        Enum(ModalidadeGarantia, name="modalidade_garantia", schema="contratos", values_callable=_valores_enum),
+        nullable=True,
+    )
+    valor_garantia: Mapped[float | None] = mapped_column(Numeric(16, 2), nullable=True)
+    # Limite legal (art. 70, Lei 13.303/16): 5% do valor do contrato, até 10%
+    # para contratação de grande vulto com alta complexidade técnica e riscos
+    # financeiros elevados — mesmo mecanismo da exceção ao teto de 5 anos de
+    # vigência (Contrato.excecao_teto_vigencia): exige justificativa e
+    # documento para valer, nunca é uma marcação sem lastro.
+    grande_vulto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    grande_vulto_justificativa: Mapped[str | None] = mapped_column(Text, nullable=True)
+    grande_vulto_documento_sei: Mapped[str | None] = mapped_column(String(50), nullable=True)
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     registrado_por_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.usuarios.id"), nullable=False)

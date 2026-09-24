@@ -15,6 +15,9 @@ export type NivelAlerta = "1_meses" | "3_meses" | "6_meses" | "vencido";
 export type SistemaProcesso = "sicop" | "processo_rio" | "sei_rio";
 export type TipoProcesso = "principal" | "apenso";
 export type ExcecaoTetoVigencia = "art_71_i" | "art_71_ii";
+// As 3 modalidades do art. 70, §1º, da Lei 13.303/16 — não inclui título da
+// dívida pública, que é modalidade específica da Lei 14.133/21.
+export type ModalidadeGarantia = "caucao_dinheiro" | "seguro_garantia" | "fianca_bancaria";
 export type TipoReajuste = "automatico" | "mediante_solicitacao";
 export type ModoExecucao = "por_vigencia" | "por_quantidade";
 export type ModoValorContrato = "global" | "mensal";
@@ -64,6 +67,12 @@ export const ROTULOS_TIPO_PROCESSO: Record<TipoProcesso, string> = {
 export const ROTULOS_EXCECAO_TETO: Record<ExcecaoTetoVigencia, string> = {
   art_71_i: "Art. 71, I — projeto do plano de negócios e investimentos",
   art_71_ii: "Art. 71, II — prazo maior é prática rotineira de mercado",
+};
+
+export const ROTULOS_MODALIDADE_GARANTIA: Record<ModalidadeGarantia, string> = {
+  caucao_dinheiro: "Caução em dinheiro",
+  seguro_garantia: "Seguro-garantia",
+  fianca_bancaria: "Fiança bancária",
 };
 
 export const ROTULOS_TIPO_REAJUSTE: Record<TipoReajuste, string> = {
@@ -279,9 +288,25 @@ export interface GarantiaHistorico {
   id: string;
   data_inicio_garantia: string | null;
   data_fim_garantia: string | null;
+  modalidade: ModalidadeGarantia | null;
+  valor_garantia: string | null;
+  grande_vulto: boolean;
+  grande_vulto_justificativa: string | null;
+  grande_vulto_documento_sei: string | null;
   observacao: string | null;
   registrado_por_nome: string;
   registrado_em: string;
+}
+
+export interface GarantiaPayload {
+  data_inicio_garantia: string | null;
+  data_fim_garantia: string | null;
+  modalidade?: ModalidadeGarantia | null;
+  valor_garantia?: string | null;
+  grande_vulto?: boolean;
+  grande_vulto_justificativa?: string | null;
+  grande_vulto_documento_sei?: string | null;
+  observacao?: string | null;
 }
 
 export interface ExecucaoHistorico {
