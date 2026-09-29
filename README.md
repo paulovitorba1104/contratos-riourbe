@@ -531,6 +531,17 @@ Pré-requisitos e pontos a decidir quando for implementar:
 - **Registro do envio**: o e-mail enviado deve ficar registrado (quando, para quem), para o
   processo poder comprovar que o fiscal foi comunicado.
 
+**Checklist de conferência documental da fatura — CNPJ via API gov.br (a decidir quando
+elaborarmos o checklist de Faturamento)**: quando formos definir os itens do checklist de
+conferência documental (`faturas.modelos_checklist`, ver seção "Conferência documental" acima),
+avaliar o uso da API oficial de consulta de CNPJ do Conecta gov.br
+(https://www.gov.br/conecta/catalogo/apis/consulta-cnpj) como item de conferência — verificar a
+situação cadastral do fornecedor na Receita Federal no momento da fatura, não só no cadastro do
+fornecedor. Diferente da BrasilAPI já usada hoje (seção "Fornecedores"), essa é a API oficial do
+governo federal e provavelmente exige credenciamento/autenticação — checar isso antes de decidir
+se substitui ou complementa a BrasilAPI, e se entra como item do checklist da fatura, verificação
+automática ao registrar/atestar, ou as duas coisas.
+
 **RIPM em PDF (planejado, não implementado)**: hoje o RIPM é só um cadastro de referência
 (`contratos.modelos_ripm`, opcionalmente vinculado a um instrumento). A ideia é o RIPM virar um
 formulário preenchível dentro do sistema — a pessoa preenche a instrução processual passo a
