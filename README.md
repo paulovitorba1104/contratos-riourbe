@@ -638,6 +638,34 @@ publicar, na mesma linha da "verificação automática de completude/conformidad
 acima. Levantar primeiro se o ALICE expõe API pública ou é só ferramenta interna do governo
 federal (nesse caso, a ideia é replicar o conceito, não integrar com o sistema deles).
 
+**Assistente virtual com RAG, transversal a todos os módulos (registrado, a detalhar)**: botão
+flutuante visível em qualquer tela do sistema, que abre um assistente de perguntas e respostas
+treinado (RAG — *retrieval-augmented generation*) sobre decretos, manuais e outros documentos de
+referência que forem fornecidos — não é específico de um módulo, é transversal como o
+`log_auditoria`. Depende diretamente da decisão de **provedor de IA**, já listada nas pendências
+gerais acima (necessária tanto para gerar os embeddings quanto para a geração das respostas) — sem
+isso definido, não há como avançar além do desenho.
+
+Pontos a decidir quando o assunto for retomado:
+
+- **Acervo de origem**: os decretos da Prefeitura do Rio e as orientações da PGM-Rio já citados ao
+  longo deste README são o primeiro conjunto natural de documentos a indexar, além dos manuais que
+  forem fornecidos (ex.: o manual de fiscalização já citado como pendente de insumo, acima). Cada
+  documento precisa de um cadastro (nome, tipo, data, versão/vigência) — não só o arquivo solto —
+  para a resposta do assistente poder citar a fonte exata.
+- **Natureza do dado**: decreto e norma são documento público; manual interno da Rio-Urbe pode não
+  ser. Vale confirmar se há alguma restrição de uso de provedor externo de IA para esse segundo
+  tipo antes de decidir a arquitetura (self-hosted vs. API de terceiro).
+- **Armazenamento vetorial**: o sistema já roda em PostgreSQL — `pgvector` evita introduzir um
+  banco novo só para isso, mas vale comparar com alternativas dedicadas antes de decidir.
+- **Escopo da resposta**: o assistente responde só com base nos documentos indexados (e cita a
+  fonte), ou também enxerga dados do próprio contrato/fatura que está na tela quando o botão é
+  aberto? A segunda opção é mais útil, mas aumenta bastante o escopo do RAG (deixa de ser só
+  "biblioteca de normas" e passa a precisar de contexto da sessão/contrato atual).
+- **Onde mora o botão**: sendo transversal, entra no layout raiz do frontend (mesmo nível da barra
+  lateral), não em cada módulo — para não precisar repetir a integração a cada módulo novo que for
+  construído.
+
 ---
 
 Since 2026 — Desenvolvido por Paulo Vitor Barbosa Araújo
