@@ -626,6 +626,18 @@ análise processual do contrato e na Licitação), se os resultados ficam em cac
 depender do tribunal estar no ar, e como citar a fonte e a data da consulta — jurisprudência muda,
 e um parecer precisa registrar em que precedente se apoiou e quando.
 
+**Módulo Licitação — analisar o ALICE do Compras.gov para desenvolver algo parecido (registrado,
+a pesquisar)**: quando formos desenhar o futuro módulo de Licitação (que substitui o item "em
+breve" do hub hoje — ver seção do Kanban acima — e cobre licitação, dispensa, inexigibilidade e as
+demais formas de contratar da Lei 13.303/16, inclusive a matriz de riscos do art. 69, X, já
+registrada como pendência daquele módulo), estudar o **ALICE** (Análise de Licitações e Editais),
+ferramenta da CGU/Compras.gov que varre editais e minutas de contrato em busca de cláusulas
+restritivas, direcionamento e outras irregularidades, para avaliar se algo equivalente cabe no
+sistema — ex.: uma verificação automática sobre o texto do edital/termo de referência antes de
+publicar, na mesma linha da "verificação automática de completude/conformidade" já registrada
+acima. Levantar primeiro se o ALICE expõe API pública ou é só ferramenta interna do governo
+federal (nesse caso, a ideia é replicar o conceito, não integrar com o sistema deles).
+
 ---
 
 Since 2026 — Desenvolvido por Paulo Vitor Barbosa Araújo
