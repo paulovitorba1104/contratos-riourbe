@@ -666,6 +666,40 @@ Pontos a decidir quando o assunto for retomado:
   lateral), não em cada módulo — para não precisar repetir a integração a cada módulo novo que for
   construído.
 
+**Módulo de histórico/due diligence de empresa — CEIS, CNEP e processos judiciais por CNPJ
+(registrado, a pesquisar)**: hoje a pesquisa de risco de um fornecedor (sanções e processo
+judicial) é toda manual, fora do sistema. A ideia é um módulo novo que, a partir do CNPJ, rastreia
+o histórico da empresa e sinaliza risco para a administração pública — natural evoluir a partir do
+que já existe no cadastro de Fornecedores (consulta de CNPJ via BrasilAPI, seção "Fornecedores"
+acima) e do Radar CNPJ já registrado como pendência, mas o escopo aqui é maior: não é só situação
+cadastral, é sanção e processo judicial.
+
+Como nos outros itens de API de governo registrados neste README, o primeiro passo é levantamento,
+não implementação — e aqui já dá pra adiantar o que foi encontrado:
+
+- **CEIS e CNEP (sanções administrativas) — API oficial existe**: o Portal da Transparência da
+  CGU expõe uma API REST oficial (`https://api.portaldatransparencia.gov.br`, documentação Swagger
+  em `/swagger-ui/index.html`) com consulta por CNPJ (ou CPF) ao CEIS (Cadastro Nacional de
+  Empresas Inidôneas e Suspensas), ao CNEP (Cadastro Nacional de Empresas Punidas, Lei
+  12.846/13 — Lei Anticorrupção), ao CEPIM (entidades sem fins lucrativos impedidas) e a acordos de
+  leniência. Exige cadastro/chave de API — confirmar o procedimento de credenciamento antes de
+  integrar.
+- **Processos judiciais — mais complexo, exige mais levantamento**: o CNJ mantém o DataJud, API
+  pública oficial (`https://api-publica.datajud.cnj.jus.br`) com um índice por tribunal (cada
+  tribunal tem seu próprio *alias*, ex. `api_publica_tjrj`), consultado via Elasticsearch (POST com
+  corpo JSON de query). Dá metadados do processo (número, classe, órgão julgador, movimentações) e
+  tem um campo `partes` com nome da parte — mas a documentação pública não confirma CNPJ como
+  atributo pesquisável, e a varredura precisaria rodar tribunal por tribunal (não existe uma busca
+  nacional única). Antes de integrar: testar se a busca por nome/CNPJ da parte funciona de forma
+  confiável nos tribunais que interessam à Rio-Urbe (pelo menos TJRJ e TRF2, dado que o trabalho é
+  no Rio), e avaliar se vale a pena dado o esforço (alternativa: serviço privado de consulta
+  processual, caso exista orçamento).
+
+Definido o que dá para integrar, decidir o encaixe: provavelmente uma aba/seção nova na ficha do
+fornecedor (ou tela própria de consulta por CNPJ), com os resultados registrados com data da
+consulta (mesma lógica de citar fonte e data já prevista para a jurisprudência do TCU/TCM-RJ,
+acima) — para o "sem risco" de hoje não ser lido como garantia permanente.
+
 ---
 
 Since 2026 — Desenvolvido por Paulo Vitor Barbosa Araújo
