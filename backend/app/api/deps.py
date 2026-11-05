@@ -14,11 +14,19 @@ CREDENCIAIS_INVALIDAS = HTTPException(
 )
 
 
-def get_current_user(
+TROCA_DE_SENHA_PENDENTE = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="Troque a sua senha temporária antes de continuar.",
+)
+
+
+def get_usuario_autenticado(
     riourbe_session: str | None = Cookie(default=None),
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> Usuario:
+    """Sessão válida, mesmo com troca de senha pendente. Só para as rotas que o
+    usuário precisa alcançar para fazer a troca (me, trocar-senha, logout)."""
     if not riourbe_session:
         raise CREDENCIAIS_INVALIDAS
 
@@ -39,6 +47,12 @@ def get_current_user(
     if not token_emitido_apos_corte(int(payload["iat"]), usuario.sessoes_validas_apos):
         raise CREDENCIAIS_INVALIDAS
 
+    return usuario
+
+
+def get_current_user(usuario: Usuario = Depends(get_usuario_autenticado)) -> Usuario:
+    if usuario.trocar_senha_obrigatorio:
+        raise TROCA_DE_SENHA_PENDENTE
     return usuario
 
 

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
+from sqlalchemy.sql import false, func
 
 from app.db.base import Base
 
@@ -37,6 +37,11 @@ class Usuario(Base):
         default=PapelUsuario.OPERADOR,
     )
     ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Ligado quando a senha atual é uma temporária gerada por terceiro (admin ou
+    # script de resgate): até o próprio usuário trocar, a API só aceita trocar a senha.
+    trocar_senha_obrigatorio: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
 
     # Corte de revogação server-side: qualquer token com iat anterior é rejeitado.
     sessoes_validas_apos: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

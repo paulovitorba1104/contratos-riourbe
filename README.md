@@ -164,9 +164,36 @@ painel deles (ou via `railway` CLI, se preferir automatizar depois):
    pode ser configurado depois em "Settings → Networking" do serviço.
 
 **Depois do primeiro deploy**, entre com a matrícula/senha do administrador inicial e troque a
-senha o quanto antes — este MVP ainda não tem uma tela de troca de senha própria (fica para
-antes da Fase 1, é um gap real: hoje só é possível recriar o usuário via `PATCH`/endpoints de
-administração).
+senha o quanto antes, pelo link "Trocar senha" abaixo do seu nome no menu lateral.
+
+### Esqueci a senha (redefinição sem e-mail)
+
+O sistema não manda e-mail de recuperação: a senha é redefinida por quem tem autoridade para
+isso, e quem recebe uma senha temporária é obrigado a trocá-la no primeiro acesso.
+
+- **Um usuário esqueceu a senha**: um administrador entra em "Usuários" (link abaixo do nome, no
+  menu lateral) e clica em "Redefinir senha". O sistema gera uma senha temporária
+  (`xxxx-xxxx-xxxx`, sem caracteres ambíguos como 0/O e 1/l) que aparece **uma única vez** na
+  tela — o banco só guarda o hash. O administrador repassa ao usuário pessoalmente ou por um canal
+  seguro. Na hora, a senha antiga para de funcionar e as sessões abertas do usuário caem.
+- **O administrador esqueceu a própria senha** (ou não há nenhum administrador que consiga
+  entrar): quem tem acesso ao servidor roda o script de resgate. No Railway, abra um terminal
+  dentro do serviço do backend com `railway ssh` (CLI do Railway) e rode:
+
+  ```bash
+  python -m scripts.redefinir_senha <matricula-ou-cpf>
+  ```
+
+  Localmente, o mesmo comando dentro de `backend/` com o virtualenv ativo. O script imprime a
+  senha temporária no terminal, com o mesmo efeito do botão do administrador.
+
+Enquanto a senha temporária não é trocada, a API recusa qualquer rota com 403, exceto ver o
+próprio usuário, trocar a senha e sair — e a tela leva direto para "Crie uma senha nova", sem
+menu. A troca exige a senha atual e passa pelo mesmo limite de tentativas do login. Tudo fica no
+log de auditoria: `redefinir_senha_usuario` (com o administrador que gerou),
+`redefinir_senha_via_servidor` (sem usuário, porque veio do script) e `trocar_senha`. Um
+administrador não redefine a própria senha pela tela de Usuários — para isso existe "Trocar
+senha".
 
 ## Estrutura do repositório
 
@@ -198,8 +225,9 @@ Conforme a seção 13 do plano de desenvolvimento:
   dígito verificador do CPF.
 - Sessão via JWT único (`{sub, iat, exp}`) em cookie `httpOnly`, `samesite=lax`, `secure` em
   produção, expiração de 12h.
-- Revogação server-side de sessão (`sessoes_validas_apos`): logout e troca de senha invalidam
-  tokens já emitidos, mesmo antes de expirarem.
+- Revogação server-side de sessão (`sessoes_validas_apos`): logout, troca de senha e senha
+  temporária gerada por administrador invalidam tokens já emitidos, mesmo antes de expirarem (na
+  troca feita pelo próprio usuário, a sessão atual recebe um token novo e continua).
 - Hash de senha com bcrypt; comparação em tempo constante mesmo para usuário inexistente.
 - Política de senha: mínimo 10 caracteres, teto de 72 bytes, mínimo 3 de 4 classes de caractere,
   lista de senhas óbvias proibidas.
@@ -485,7 +513,8 @@ com nota explicativa, quando o faturamento não é gerido pela GCT).
 ## Pendências (ver seção 16 do plano)
 
 Itens abaixo **não são bloqueio para a Fase 0**, mas precisam de decisão antes das fases que
-dependem deles: e-mail transacional via Brevo (redefinição de senha), provedor de IA, layout
+dependem deles: e-mail transacional via Brevo (avisos; a redefinição de senha já funciona sem
+e-mail, ver "Esqueci a senha"), provedor de IA, layout
 final do hub com Almoxarifado/Fiscalização, entre outros listados no plano de desenvolvimento.
 
 Específico da Fase 1: a lista oficial dos 32 modelos RIPM da PGM-Rio ainda não foi fornecida —
@@ -549,9 +578,7 @@ passo e o sistema gera um PDF do documento preenchido, como qualquer outro docum
 administrativo do processo (não é documento jurídico do processo em si).
 
 **Timeout de sessão logada (planejado, não implementado)**: hoje a sessão dura o tempo fixo do
-JWT (`JWT_EXPIRA_HORAS`, 12h por padrão), sem expirar por inatividade. Fica para ser feito junto
-com a tela de "esqueci minha senha"/recuperação de senha (e-mail transacional via Brevo, já
-citado nas pendências gerais), já que as duas mexem no mesmo fluxo de autenticação.
+JWT (`JWT_EXPIRA_HORAS`, 12h por padrão), sem expirar por inatividade.
 
 **Exclusão de registros**: restrita a administrador (`papel = administrador`) em todos os
 cadastros do módulo Contratos — contrato (exclusão em cascata: instrumentos, vínculos de fiscal,

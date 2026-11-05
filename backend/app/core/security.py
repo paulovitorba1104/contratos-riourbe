@@ -4,6 +4,7 @@ Ver seção 13 do plano de desenvolvimento (Autenticação e sessão / Política
 """
 
 import re
+import secrets
 import time
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -66,7 +67,9 @@ def cpf_valido(cpf: str) -> bool:
     return digitos[-2:] == dv1 + dv2
 
 
-class SenhaInvalida(Exception):
+# ValueError para o Pydantic converter em 422 quando a política é checada num
+# field_validator (qualquer outra exceção escapa como erro 500).
+class SenhaInvalida(ValueError):
     def __init__(self, motivos: list[str]):
         self.motivos = motivos
         super().__init__("; ".join(motivos))
@@ -99,6 +102,22 @@ def validar_politica_senha(senha: str) -> None:
 
     if motivos:
         raise SenhaInvalida(motivos)
+
+
+# Sem caracteres que se confundem lidos em voz alta ou na tela (0/O, 1/l/I).
+_ALFABETO_TEMPORARIA = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def gerar_senha_temporaria() -> str:
+    """Senha aleatória no formato xxxx-xxxx-xxxx, sempre dentro da política."""
+    while True:
+        grupos = ["".join(secrets.choice(_ALFABETO_TEMPORARIA) for _ in range(4)) for _ in range(3)]
+        senha = "-".join(grupos)
+        try:
+            validar_politica_senha(senha)
+        except SenhaInvalida:
+            continue
+        return senha
 
 
 def hash_senha(senha: str) -> str:

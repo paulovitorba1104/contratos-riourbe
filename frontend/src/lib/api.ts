@@ -6,6 +6,7 @@ export interface Usuario {
   email: string;
   papel: "administrador" | "operador";
   ativo: boolean;
+  trocar_senha_obrigatorio: boolean;
 }
 
 class ErroApi extends Error {
@@ -28,7 +29,11 @@ function extrairMensagemErro(corpo: unknown, padrao: string): string {
     }
     if (Array.isArray(detail)) {
       const mensagens = detail
-        .map((item) => (item && typeof item === "object" && "msg" in item ? String(item.msg) : null))
+        .map((item) =>
+          item && typeof item === "object" && "msg" in item
+            ? String(item.msg).replace(/^Value error, /, "")
+            : null,
+        )
         .filter((m): m is string => Boolean(m));
       if (mensagens.length > 0) {
         return mensagens.join(" ");
@@ -85,6 +90,19 @@ export const api = {
     }),
   logout: () => requisicao<void>("/auth/logout", { method: "POST" }),
   me: () => requisicao<Usuario>("/auth/me"),
+  trocarSenha: (senha_atual: string, nova_senha: string) =>
+    requisicao<Usuario>("/auth/trocar-senha", {
+      method: "POST",
+      body: JSON.stringify({ senha_atual, nova_senha }),
+    }),
+};
+
+export const apiUsuarios = {
+  listar: () => requisicao<Usuario[]>("/usuarios"),
+  redefinirSenha: (id: string) =>
+    requisicao<{ usuario: Usuario; senha_temporaria: string }>(`/usuarios/${id}/redefinir-senha`, {
+      method: "POST",
+    }),
 };
 
 export { ErroApi };
