@@ -1,4 +1,4 @@
-import { Landmark, LogOut, X } from "lucide-react";
+import { KeyRound, Landmark, LogOut, Users, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../lib/AuthContext";
@@ -111,6 +111,26 @@ export function Sidebar({ aberto, aoFechar }: { aberto: boolean; aoFechar: () =>
             >
               <LogOut size={16} />
             </button>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 px-2 pb-1">
+            <Link
+              to="/trocar-senha"
+              onClick={aoFechar}
+              className="flex items-center gap-1.5 text-xs text-institucional-300 transition hover:text-white"
+            >
+              <KeyRound size={13} />
+              Trocar senha
+            </Link>
+            {usuario.papel === "administrador" && (
+              <Link
+                to="/usuarios"
+                onClick={aoFechar}
+                className="flex items-center gap-1.5 text-xs text-institucional-300 transition hover:text-white"
+              >
+                <Users size={13} />
+                Usuários
+              </Link>
+            )}
           </div>
           <p className="mt-2 px-2 text-[10px] text-institucional-400/60">
             Since 2026 — Desenvolvido por Paulo Vitor Barbosa Araújo

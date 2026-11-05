@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { AppShell } from "./components/AppShell";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
@@ -17,15 +17,22 @@ import { NovaFatura } from "./pages/faturas/NovaFatura";
 import { PainelAnual } from "./pages/faturas/PainelAnual";
 import { Hub } from "./pages/Hub";
 import { Login } from "./pages/Login";
+import { TrocarSenha } from "./pages/TrocarSenha";
+import { Usuarios } from "./pages/Usuarios";
 
 function RotaProtegida({ children }: { children: React.ReactNode }) {
   const { usuario, carregando } = useAuth();
+  const { pathname } = useLocation();
 
   if (carregando) {
     return <div className="flex min-h-screen items-center justify-center">Carregando...</div>;
   }
   if (!usuario) {
     return <Navigate to="/login" replace />;
+  }
+  // Senha temporária: a API recusa tudo até a troca, então a tela também.
+  if (usuario.trocar_senha_obrigatorio) {
+    return pathname === "/trocar-senha" ? <TrocarSenha /> : <Navigate to="/trocar-senha" replace />;
   }
   return <AppShell>{children}</AppShell>;
 }
@@ -39,6 +46,22 @@ function Rotas() {
         element={
           <RotaProtegida>
             <Hub />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/trocar-senha"
+        element={
+          <RotaProtegida>
+            <TrocarSenha />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/usuarios"
+        element={
+          <RotaProtegida>
+            <Usuarios />
           </RotaProtegida>
         }
       />

@@ -40,5 +40,11 @@ class UsuarioSaida(BaseModel):
     email: str
     papel: PapelUsuario
     ativo: bool
+    trocar_senha_obrigatorio: bool
 
     model_config = {"from_attributes": True}
+
+
+class SenhaTemporariaSaida(BaseModel):
+    usuario: UsuarioSaida
+    senha_temporaria: str

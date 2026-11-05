@@ -7,8 +7,9 @@ from app.api.deps import exigir_administrador
 from app.core.security import hash_senha
 from app.db.session import get_db
 from app.models.usuario import PapelUsuario, Usuario
-from app.schemas.usuario import UsuarioAtualizarPapel, UsuarioCriar, UsuarioSaida
+from app.schemas.usuario import SenhaTemporariaSaida, UsuarioAtualizarPapel, UsuarioCriar, UsuarioSaida
 from app.services.auditoria import registrar_log
+from app.services.senhas import aplicar_senha_temporaria
 
 router = APIRouter(prefix="/usuarios", tags=["usuários"])
 
@@ -90,6 +91,39 @@ def atualizar_papel(
     db.commit()
     db.refresh(usuario)
     return usuario
+
+
+@router.post("/{usuario_id}/redefinir-senha", response_model=SenhaTemporariaSaida)
+def redefinir_senha(
+    usuario_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    administrador: Usuario = Depends(exigir_administrador),
+) -> SenhaTemporariaSaida:
+    """Redefinição sem e-mail: gera uma senha temporária, devolvida só nesta
+    resposta para o administrador repassar ao usuário, que é obrigado a trocá-la
+    no próximo login."""
+    usuario = db.get(Usuario, usuario_id)
+    if usuario is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado.")
+    if usuario.id == administrador.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail='Para a sua própria senha, use "Trocar senha".',
+        )
+    if not usuario.ativo:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Usuário desativado.")
+
+    senha_temporaria = aplicar_senha_temporaria(usuario)
+    registrar_log(
+        db,
+        usuario_id=administrador.id,
+        acao="redefinir_senha_usuario",
+        entidade="usuario",
+        entidade_id=str(usuario.id),
+    )
+    db.commit()
+    db.refresh(usuario)
+    return SenhaTemporariaSaida(usuario=UsuarioSaida.model_validate(usuario), senha_temporaria=senha_temporaria)
 
 
 @router.delete("/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
