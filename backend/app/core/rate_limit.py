@@ -55,6 +55,9 @@ class LimitadorTentativas:
 LIMITE_IP = (15 * 60, 10)
 LIMITE_CONTA = (15 * 60, 5)
 LIMITE_GLOBAL = (15 * 60, 60)
+# Pedidos de cadastro pela tela de login, que é pública: por IP, por hora. Folgado
+# porque um setor inteiro costuma sair para a internet pelo mesmo IP.
+LIMITE_CADASTRO_IP = (60 * 60, 30)
 
 _limitador = LimitadorTentativas()
 
@@ -89,3 +92,13 @@ def limpar_falhas_login(ip: str, identificador: str) -> None:
     """Em sucesso, limpa só as chaves de IP e conta — o contador global nunca é limpo."""
     _limitador.limpar(f"ip:{ip}")
     _limitador.limpar(f"conta:{identificador}")
+
+
+def cadastro_bloqueado(ip: str) -> bool:
+    """Conta o pedido de cadastro e diz se o IP passou do limite (conta mesmo os
+    que dão certo — o que se quer limitar é volume de contas novas)."""
+    janela, maximo = LIMITE_CADASTRO_IP
+    if _limitador.contagem_atual(f"cadastro:{ip}", janela) >= maximo:
+        return True
+    _limitador.registrar_falha(f"cadastro:{ip}", janela)
+    return False

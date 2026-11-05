@@ -14,6 +14,7 @@ import {
 } from "../../lib/apiContratos";
 import { apiFaturas } from "../../lib/apiFaturas";
 import { useAuth } from "../../lib/AuthContext";
+import { podeAcessar } from "../../lib/navegacao";
 import { formatarMoedaInicial, mascararMatricula, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import { MESES_CURTOS } from "../../lib/tiposFaturas";
 import type {
@@ -2974,11 +2975,13 @@ export function ContratoDetalhe() {
           </div>
         </section>
 
-        <FaturasDoContrato
-          contratoId={contrato.id}
-          faturamentoPelaGct={contrato.faturamento_gerido_pela_gct}
-          setorResponsavel={contrato.setor_responsavel_faturamento}
-        />
+        {podeAcessar(usuario, "faturas") && (
+          <FaturasDoContrato
+            contratoId={contrato.id}
+            faturamentoPelaGct={contrato.faturamento_gerido_pela_gct}
+            setorResponsavel={contrato.setor_responsavel_faturamento}
+          />
+        )}
 
         <section className="card p-5">
           <div className="flex items-center justify-between">

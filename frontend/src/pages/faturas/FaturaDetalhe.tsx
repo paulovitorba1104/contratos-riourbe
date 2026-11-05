@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ErroApi } from "../../lib/api";
 import { apiFaturas, apiModelosChecklist } from "../../lib/apiFaturas";
 import { useAuth } from "../../lib/AuthContext";
+import { podeAcessar } from "../../lib/navegacao";
 import { formatarMoedaInicial, mascararMoeda, moedaParaNumero } from "../../lib/mascaras";
 import type {
   FaturaDetalhada,
@@ -182,9 +183,13 @@ export function FaturaDetalhe() {
             </div>
             <p className="text-sm text-slate-600">
               {fatura.fornecedor_nome} · {competenciaLegivel(fatura.competencia)} ·{" "}
-              <Link to={`/contratos/${fatura.contrato_id}`} className="hover:underline">
-                Contrato {fatura.contrato_numero}
-              </Link>
+              {podeAcessar(usuario, "contratos") ? (
+                <Link to={`/contratos/${fatura.contrato_id}`} className="hover:underline">
+                  Contrato {fatura.contrato_numero}
+                </Link>
+              ) : (
+                <>Contrato {fatura.contrato_numero}</>
+              )}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

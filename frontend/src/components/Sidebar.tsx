@@ -2,7 +2,7 @@ import { KeyRound, Landmark, LogOut, Users, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../lib/AuthContext";
-import { ITENS_NAVEGACAO } from "../lib/navegacao";
+import { ITENS_NAVEGACAO, podeAcessar } from "../lib/navegacao";
 
 function ehAtivo(caminhoAtual: string, caminho: string): boolean {
   if (caminho === "/") return caminhoAtual === "/";
@@ -58,7 +58,7 @@ export function Sidebar({ aberto, aoFechar }: { aberto: boolean; aoFechar: () =>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-          {ITENS_NAVEGACAO.map((item) => {
+          {ITENS_NAVEGACAO.filter((item) => !item.modulo || podeAcessar(usuario, item.modulo)).map((item) => {
             const Icone = item.icone;
             if (!item.caminho) {
               return (

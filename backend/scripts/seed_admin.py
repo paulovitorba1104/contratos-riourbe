@@ -1,5 +1,7 @@
 """Cria o administrador inicial, se ainda não existir. Uso: python -m scripts.seed_admin"""
 
+from datetime import UTC, datetime
+
 from app.core.config import get_settings
 from app.core.security import hash_senha, validar_politica_senha
 from app.db.session import SessionLocal
@@ -24,6 +26,7 @@ def seed_admin() -> None:
             email="admin@riourbe.local",
             senha_hash=hash_senha(settings.admin_inicial_senha),
             papel=PapelUsuario.ADMINISTRADOR,
+            aprovado_em=datetime.now(UTC),
         )
         db.add(admin)
         db.commit()

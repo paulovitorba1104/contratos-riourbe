@@ -1,3 +1,5 @@
+import type { ModuloSistema } from "./navegacao";
+
 export interface Usuario {
   id: string;
   nome: string;
@@ -7,6 +9,27 @@ export interface Usuario {
   papel: "administrador" | "operador";
   ativo: boolean;
   trocar_senha_obrigatorio: boolean;
+  modulos: ModuloSistema[];
+}
+
+export type SituacaoUsuario = "pendente" | "recusado" | "ativo" | "desativado";
+
+/** Como o administrador vê cada usuário na tela de Usuários. */
+export interface UsuarioGestao extends Usuario {
+  situacao: SituacaoUsuario;
+  criado_em: string;
+}
+
+export interface AcessoUsuario {
+  papel: Usuario["papel"];
+  modulos: ModuloSistema[];
+}
+
+export interface DadosPessoais {
+  nome: string;
+  matricula: string;
+  cpf: string;
+  email: string;
 }
 
 class ErroApi extends Error {
@@ -90,6 +113,8 @@ export const api = {
     }),
   logout: () => requisicao<void>("/auth/logout", { method: "POST" }),
   me: () => requisicao<Usuario>("/auth/me"),
+  solicitarCadastro: (dados: DadosPessoais & { senha: string }) =>
+    requisicao<{ mensagem: string }>("/auth/cadastro", { method: "POST", body: JSON.stringify(dados) }),
   trocarSenha: (senha_atual: string, nova_senha: string) =>
     requisicao<Usuario>("/auth/trocar-senha", {
       method: "POST",
@@ -97,12 +122,21 @@ export const api = {
     }),
 };
 
+type SenhaTemporaria = { usuario: UsuarioGestao; senha_temporaria: string };
+
 export const apiUsuarios = {
-  listar: () => requisicao<Usuario[]>("/usuarios"),
+  listar: () => requisicao<UsuarioGestao[]>("/usuarios"),
+  criar: (dados: DadosPessoais & AcessoUsuario) =>
+    requisicao<SenhaTemporaria>("/usuarios", { method: "POST", body: JSON.stringify(dados) }),
+  aprovar: (id: string, acesso: AcessoUsuario) =>
+    requisicao<UsuarioGestao>(`/usuarios/${id}/aprovar`, { method: "POST", body: JSON.stringify(acesso) }),
+  recusar: (id: string) => requisicao<UsuarioGestao>(`/usuarios/${id}/recusar`, { method: "POST" }),
+  atualizarAcesso: (id: string, acesso: AcessoUsuario) =>
+    requisicao<UsuarioGestao>(`/usuarios/${id}/acesso`, { method: "PATCH", body: JSON.stringify(acesso) }),
   redefinirSenha: (id: string) =>
-    requisicao<{ usuario: Usuario; senha_temporaria: string }>(`/usuarios/${id}/redefinir-senha`, {
-      method: "POST",
-    }),
+    requisicao<SenhaTemporaria>(`/usuarios/${id}/redefinir-senha`, { method: "POST" }),
+  desativar: (id: string) => requisicao<void>(`/usuarios/${id}`, { method: "DELETE" }),
+  reativar: (id: string) => requisicao<UsuarioGestao>(`/usuarios/${id}/reativar`, { method: "POST" }),
 };
 
 export { ErroApi };

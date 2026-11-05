@@ -1,8 +1,10 @@
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { AppShell } from "./components/AppShell";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
+import { podeAcessar, type ModuloSistema } from "./lib/navegacao";
 import { ToastProvider } from "./lib/ToastContext";
+import { Cadastro } from "./pages/Cadastro";
 import { Atas } from "./pages/contratos/Atas";
 import { ContratoDetalhe } from "./pages/contratos/ContratoDetalhe";
 import { ContratosKanban } from "./pages/contratos/ContratosKanban";
@@ -20,7 +22,25 @@ import { Login } from "./pages/Login";
 import { TrocarSenha } from "./pages/TrocarSenha";
 import { Usuarios } from "./pages/Usuarios";
 
-function RotaProtegida({ children }: { children: React.ReactNode }) {
+function SemAcesso() {
+  return (
+    <div className="page-shell">
+      <main className="mx-auto max-w-xl p-6">
+        <div className="card p-6">
+          <h1 className="text-base font-semibold text-slate-900">Sem acesso a este módulo</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Peça a um administrador para liberar este módulo para você.
+          </p>
+          <Link to="/" className="btn-secondary btn-sm mt-4 inline-flex">
+            Voltar ao início
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function RotaProtegida({ children, modulo }: { children: React.ReactNode; modulo?: ModuloSistema }) {
   const { usuario, carregando } = useAuth();
   const { pathname } = useLocation();
 
@@ -34,6 +54,13 @@ function RotaProtegida({ children }: { children: React.ReactNode }) {
   if (usuario.trocar_senha_obrigatorio) {
     return pathname === "/trocar-senha" ? <TrocarSenha /> : <Navigate to="/trocar-senha" replace />;
   }
+  if (modulo && !podeAcessar(usuario, modulo)) {
+    return (
+      <AppShell>
+        <SemAcesso />
+      </AppShell>
+    );
+  }
   return <AppShell>{children}</AppShell>;
 }
 
@@ -41,6 +68,7 @@ function Rotas() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/cadastro" element={<Cadastro />} />
       <Route
         path="/"
         element={
@@ -68,7 +96,7 @@ function Rotas() {
       <Route
         path="/contratos"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="contratos">
             <ContratosKanban />
           </RotaProtegida>
         }
@@ -76,7 +104,7 @@ function Rotas() {
       <Route
         path="/contratos/novo"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="contratos">
             <NovoContrato />
           </RotaProtegida>
         }
@@ -84,7 +112,7 @@ function Rotas() {
       <Route
         path="/contratos/atas"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="contratos">
             <Atas />
           </RotaProtegida>
         }
@@ -92,7 +120,7 @@ function Rotas() {
       <Route
         path="/contratos/fiscais"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="contratos">
             <Fiscais />
           </RotaProtegida>
         }
@@ -100,7 +128,7 @@ function Rotas() {
       <Route
         path="/contratos/fornecedores"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="contratos">
             <Fornecedores />
           </RotaProtegida>
         }
@@ -108,7 +136,7 @@ function Rotas() {
       <Route
         path="/contratos/:id"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="contratos">
             <ContratoDetalhe />
           </RotaProtegida>
         }
@@ -116,7 +144,7 @@ function Rotas() {
       <Route
         path="/faturas"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="faturas">
             <FaturasKanban />
           </RotaProtegida>
         }
@@ -124,7 +152,7 @@ function Rotas() {
       <Route
         path="/faturas/nova"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="faturas">
             <NovaFatura />
           </RotaProtegida>
         }
@@ -132,7 +160,7 @@ function Rotas() {
       <Route
         path="/faturas/painel-anual"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="faturas">
             <PainelAnual />
           </RotaProtegida>
         }
@@ -140,7 +168,7 @@ function Rotas() {
       <Route
         path="/faturas/medicoes"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="faturas">
             <Medicoes />
           </RotaProtegida>
         }
@@ -148,7 +176,7 @@ function Rotas() {
       <Route
         path="/faturas/configuracao"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="faturas">
             <ConfiguracaoFaturamento />
           </RotaProtegida>
         }
@@ -156,7 +184,7 @@ function Rotas() {
       <Route
         path="/faturas/:id"
         element={
-          <RotaProtegida>
+          <RotaProtegida modulo="faturas">
             <FaturaDetalhe />
           </RotaProtegida>
         }
