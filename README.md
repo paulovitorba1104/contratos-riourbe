@@ -226,6 +226,44 @@ log de auditoria: `redefinir_senha_usuario` (com o administrador que gerou),
 administrador não redefine a própria senha pela tela de Usuários — para isso existe "Trocar
 senha".
 
+### Usuários, papéis e acesso por módulo
+
+Há dois papéis. O **administrador** acessa todos os módulos e gerencia usuários. O **operador**
+acessa só os módulos que um administrador liberar para ele — hoje, Contratos e/ou Faturas.
+
+- **Pedido de acesso pela tela de login**: em "Solicitar acesso", a pessoa informa nome,
+  matrícula, CPF, e-mail e senha. A conta nasce **pendente**, como operador e sem módulo nenhum;
+  quem tenta entrar antes da aprovação vê "Seu cadastro ainda aguarda a aprovação de um
+  administrador" (só depois de acertar a senha, para a mensagem não revelar quais matrículas
+  têm pedido). A rota é pública, então tem limite de 30 pedidos por hora por IP (folgado, porque um setor
+  inteiro costuma sair para a internet pelo mesmo IP).
+- **Aprovação**: na tela "Usuários", os pedidos aparecem em "Pedidos de acesso". O administrador
+  clica em Aprovar, escolhe o papel e, se for operador, os módulos (ao menos um). Também pode
+  recusar — o registro fica guardado e dá para "Aprovar mesmo assim" depois, se foi engano.
+- **Cadastro direto pelo administrador** ("Novo usuário"): já nasce aprovado, com papel e
+  módulos definidos e uma senha temporária gerada pelo sistema (mesmo mecanismo de "Esqueci a
+  senha"), que a pessoa troca no primeiro acesso. O administrador nunca escolhe a senha de outra
+  pessoa.
+- **Editar acesso, desativar e reativar**: valem na hora, inclusive para quem já está logado — o
+  acesso é conferido a cada requisição, e um usuário desativado perde a sessão imediatamente. O
+  sistema não deixa ficar sem nenhum administrador ativo, nem um administrador desativar o
+  próprio usuário.
+
+**Como o acesso é aplicado**: cada grupo de rotas da API exige o seu módulo (`exigir_modulo` em
+`app/api/deps.py`, ligado no `app/main.py`), e o operador sem o módulo recebe 403. A única
+exceção é de leitura: quem tem **Faturas** pode *consultar* (só GET) contratos e fornecedores,
+porque toda fatura aponta para um contrato — mas não altera nada em Contratos. No frontend, o
+menu e o início só mostram os módulos liberados, a URL de um módulo bloqueado mostra "Sem acesso
+a este módulo", e a ficha do contrato só mostra a seção de faturas para quem tem Faturas.
+
+Os módulos ficam em `ModuloSistema` (`app/models/usuario.py`) e em `MODULOS`
+(`frontend/src/lib/navegacao.ts`). Quando um módulo novo for construído (Licitação, Diárias e
+Compras etc.), basta acrescentar o valor nas duas listas e proteger as rotas dele em `main.py`. Na
+atualização que criou este controle, os operadores que já existiam receberam Contratos e Faturas,
+para ninguém perder acesso. Tudo fica no log de auditoria: `solicitar_cadastro`,
+`aprovar_cadastro_usuario`, `recusar_cadastro_usuario`, `criar_usuario`,
+`atualizar_acesso_usuario`, `desativar_usuario` e `reativar_usuario`.
+
 ## Estrutura do repositório
 
 ```

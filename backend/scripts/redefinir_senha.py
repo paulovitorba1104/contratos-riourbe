@@ -30,6 +30,9 @@ def redefinir(identificador: str) -> int:
         if not usuario.ativo:
             print(f"O usuário '{usuario.nome}' está desativado — nada foi alterado.", file=sys.stderr)
             return 1
+        if usuario.aprovado_em is None:
+            print(f"O cadastro de '{usuario.nome}' ainda não foi aprovado — nada foi alterado.", file=sys.stderr)
+            return 1
 
         # Lido antes do commit, que expira o objeto e o tornaria ilegível após o close.
         nome = usuario.nome

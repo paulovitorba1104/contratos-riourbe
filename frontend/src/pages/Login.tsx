@@ -1,6 +1,6 @@
 import { IdCard, Lock } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import logoRioUrbe from "../assets/logo-rio-urbe.png";
 import { ErroApi } from "../lib/api";
@@ -83,15 +83,21 @@ export function Login() {
           </button>
         </form>
 
-        <div className="mt-5 text-center">
+        <div className="mt-5 flex items-center justify-center gap-3 text-sm">
           <button
             type="button"
             onClick={() => setMostrarAjudaSenha((v) => !v)}
-            className="text-sm text-institucional-600 hover:underline"
+            className="text-institucional-600 hover:underline"
             aria-expanded={mostrarAjudaSenha}
           >
             Esqueci minha senha
           </button>
+          <span className="text-slate-300" aria-hidden="true">
+            |
+          </span>
+          <Link to="/cadastro" className="text-institucional-600 hover:underline">
+            Solicitar acesso
+          </Link>
         </div>
         {mostrarAjudaSenha && (
           <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">

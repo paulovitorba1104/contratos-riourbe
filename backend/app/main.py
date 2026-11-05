@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -20,10 +20,12 @@ from app.api.routes import (
     modelos_ripm,
     usuarios,
 )
+from app.api.deps import exigir_modulo
 from app.core.boot_guard import validar_configuracao_producao
 from app.core.config import get_settings
 from app.middleware.body_size_limit import LimiteTamanhoCorpoMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.models.usuario import ModuloSistema
 
 logger = logging.getLogger("riourbe")
 
@@ -59,16 +61,26 @@ async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSON
 app.include_router(health.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(usuarios.router, prefix="/api")
-app.include_router(fornecedores.router, prefix="/api")
-app.include_router(fiscais.router, prefix="/api")
-app.include_router(modelos_ripm.router, prefix="/api")
-app.include_router(atas_registro_preco.router, prefix="/api")
-app.include_router(contratos.router, prefix="/api")
-app.include_router(anexos.router, prefix="/api")
-app.include_router(faturas.router, prefix="/api")
-app.include_router(faturamento_config.router_medicoes, prefix="/api")
-app.include_router(faturamento_config.router_regras, prefix="/api")
-app.include_router(faturamento_config.router_modelos, prefix="/api")
+
+# Acesso por módulo: cada grupo de rotas exige o seu módulo. Quem tem Faturas
+# também consulta (só GET) contratos e fornecedores, porque toda fatura aponta
+# para um contrato e um fornecedor.
+_contratos = [Depends(exigir_modulo(ModuloSistema.CONTRATOS))]
+_contratos_leitura_faturas = [
+    Depends(exigir_modulo(ModuloSistema.CONTRATOS, leitura_tambem_para=(ModuloSistema.FATURAS,)))
+]
+_faturas = [Depends(exigir_modulo(ModuloSistema.FATURAS))]
+
+app.include_router(fornecedores.router, prefix="/api", dependencies=_contratos_leitura_faturas)
+app.include_router(fiscais.router, prefix="/api", dependencies=_contratos)
+app.include_router(modelos_ripm.router, prefix="/api", dependencies=_contratos)
+app.include_router(atas_registro_preco.router, prefix="/api", dependencies=_contratos)
+app.include_router(contratos.router, prefix="/api", dependencies=_contratos_leitura_faturas)
+app.include_router(anexos.router, prefix="/api", dependencies=_contratos)
+app.include_router(faturas.router, prefix="/api", dependencies=_faturas)
+app.include_router(faturamento_config.router_medicoes, prefix="/api", dependencies=_faturas)
+app.include_router(faturamento_config.router_regras, prefix="/api", dependencies=_faturas)
+app.include_router(faturamento_config.router_modelos, prefix="/api", dependencies=_faturas)
 
 # Em produção (imagem Railway), o build do frontend é copiado para app/static
 # no momento do build da imagem — ver Dockerfile na raiz do repositório. Um

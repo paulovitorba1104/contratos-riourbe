@@ -8,7 +8,7 @@ from app.api.deps import get_current_user
 from app.core.security import gerar_senha_temporaria, validar_politica_senha, verificar_senha
 from app.models.usuario import Usuario
 from app.schemas.auth import TrocarSenhaRequest
-from app.schemas.usuario import UsuarioCriar
+from app.schemas.usuario import SolicitacaoCadastro
 from app.services.senhas import aplicar_nova_senha, aplicar_senha_temporaria
 
 
@@ -68,4 +68,6 @@ def test_troca_recusa_nova_igual_a_atual():
 
 def test_cadastro_de_usuario_com_senha_fraca_vira_erro_de_validacao():
     with pytest.raises(ValidationError):
-        UsuarioCriar(nome="Fulano", cpf="52998224725", email="f@riourbe.rj.gov.br", senha="12345678")
+        SolicitacaoCadastro(
+            nome="Fulano", matricula="123", cpf="52998224725", email="f@riourbe.rj.gov.br", senha="12345678"
+        )

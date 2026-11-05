@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
 
 import { useAuth } from "../lib/AuthContext";
-import { ITENS_NAVEGACAO } from "../lib/navegacao";
+import { ITENS_NAVEGACAO, podeAcessar } from "../lib/navegacao";
 
 export function Hub() {
   const { usuario } = useAuth();
-  const blocos = ITENS_NAVEGACAO.filter((item) => item.titulo !== "Início");
+  const blocos = ITENS_NAVEGACAO.filter(
+    (item) => item.titulo !== "Início" && (!item.modulo || podeAcessar(usuario, item.modulo)),
+  );
+  const semModuloLiberado = !blocos.some((bloco) => bloco.caminho);
 
   return (
     <div className="page-shell">
@@ -15,6 +18,15 @@ export function Hub() {
           <p className="mt-0.5 text-sm text-slate-500">Olá, {usuario?.nome}</p>
         </div>
       </header>
+
+      {semModuloLiberado && (
+        <div className="mx-auto max-w-5xl px-6 pt-6 sm:px-8">
+          <div className="card border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Nenhum módulo foi liberado para você ainda. Peça a um administrador para definir o seu
+            acesso.
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-6 sm:grid-cols-2 sm:p-8 lg:grid-cols-3">
         {blocos.map((bloco) => {

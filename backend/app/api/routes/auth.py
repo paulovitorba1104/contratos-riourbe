@@ -1,12 +1,14 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_usuario_autenticado
 from app.core.config import Settings, get_settings
 from app.core.rate_limit import (
     LoginBloqueado,
+    cadastro_bloqueado,
     limpar_falhas_login,
     registrar_falha_login,
     verificar_bloqueio_login,
@@ -15,12 +17,14 @@ from app.core.security import (
     TipoIdentificador,
     criar_token_acesso,
     detectar_tipo_identificador,
+    hash_senha,
     normalizar_cpf,
     verificar_senha,
 )
 from app.db.session import get_db
-from app.models.usuario import Usuario
+from app.models.usuario import PapelUsuario, Usuario
 from app.schemas.auth import LoginRequest, LoginResponse, TrocarSenhaRequest, UsuarioPublico
+from app.schemas.usuario import SolicitacaoCadastro
 from app.services.auditoria import registrar_log
 from app.services.senhas import aplicar_nova_senha
 
@@ -79,6 +83,14 @@ def login(
         registrar_falha_login(ip, dados.identificador)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=MENSAGEM_ERRO_GENERICA)
 
+    # Só chega aqui quem acertou a senha, então dizer que o cadastro está
+    # pendente não revela nada a quem está só testando matrículas.
+    if usuario.aprovado_em is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seu cadastro ainda aguarda a aprovação de um administrador.",
+        )
+
     limpar_falhas_login(ip, dados.identificador)
 
     _emitir_cookie_sessao(response, usuario, settings)
@@ -87,6 +99,46 @@ def login(
     db.commit()
 
     return LoginResponse(usuario=UsuarioPublico.model_validate(usuario))
+
+
+@router.post("/cadastro", status_code=status.HTTP_201_CREATED)
+def solicitar_cadastro(
+    dados: SolicitacaoCadastro,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Pedido de acesso pela tela de login. A conta nasce pendente, como
+    operador e sem módulo: só entra depois que um administrador aprovar."""
+    if cadastro_bloqueado(_obter_ip(request)):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitos pedidos de cadastro a partir desta rede. Tente novamente mais tarde.",
+        )
+
+    usuario = Usuario(
+        nome=dados.nome,
+        matricula=dados.matricula,
+        cpf=dados.cpf,
+        email=dados.email,
+        senha_hash=hash_senha(dados.senha),
+        papel=PapelUsuario.OPERADOR,
+        modulos=[],
+        aprovado_em=None,
+    )
+    db.add(usuario)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Já existe um cadastro com esta matrícula, CPF ou e-mail. "
+            "Se você esqueceu a senha, procure um administrador.",
+        ) from exc
+
+    registrar_log(db, usuario_id=usuario.id, acao="solicitar_cadastro", entidade="usuario", entidade_id=str(usuario.id))
+    db.commit()
+    return {"mensagem": "Pedido enviado. Você poderá entrar assim que um administrador aprovar o seu acesso."}
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

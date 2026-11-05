@@ -20,6 +20,7 @@ class UsuarioPublico(BaseModel):
     papel: PapelUsuario
     ativo: bool
     trocar_senha_obrigatorio: bool
+    modulos: list[str]
 
     model_config = {"from_attributes": True}
 
