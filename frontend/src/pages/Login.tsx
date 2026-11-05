@@ -13,6 +13,7 @@ export function Login() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [mostrarAjudaSenha, setMostrarAjudaSenha] = useState(false);
 
   async function aoEnviar(evento: FormEvent) {
     evento.preventDefault();
@@ -81,6 +82,29 @@ export function Login() {
             {enviando ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        <div className="mt-5 text-center">
+          <button
+            type="button"
+            onClick={() => setMostrarAjudaSenha((v) => !v)}
+            className="text-sm text-institucional-600 hover:underline"
+            aria-expanded={mostrarAjudaSenha}
+          >
+            Esqueci minha senha
+          </button>
+        </div>
+        {mostrarAjudaSenha && (
+          <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
+            <p>
+              Peça a um administrador do sistema para redefinir a sua senha. Ele gera uma senha
+              temporária e repassa a você; no primeiro acesso com ela, o sistema pede uma senha nova.
+            </p>
+            <p className="text-xs text-slate-500">
+              Se você é o administrador e não consegue entrar, a redefinição é feita no servidor por
+              quem cuida do sistema (comando descrito no README, em "Esqueci a senha").
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
