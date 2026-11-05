@@ -59,6 +59,36 @@ contratual é contada pela Lei 13.303/16 e pela Lei 14.133/21.
 
 4. Documentação interativa da API: `http://localhost:8000/docs`.
 
+### Comandos do dia a dia (tudo pelo Docker)
+
+Com os serviços no ar (`docker compose up -d`), tudo roda dentro dos containers — não é preciso
+Python, Node ou PostgreSQL instalados no computador:
+
+```bash
+# Testes do backend (num container descartável, com as dependências de desenvolvimento)
+docker compose run --rm --no-deps backend sh -c "pip install -q -r requirements-dev.txt && pytest -q"
+
+# Checagem de tipos e lint do frontend
+docker compose exec frontend sh -c "npx tsc --noEmit && npx eslint src"
+
+# Migrações (já rodam sozinhas ao subir o backend; manualmente, se precisar)
+docker compose exec backend alembic upgrade head
+
+# Resgate de senha (ver "Esqueci a senha", mais abaixo)
+docker compose exec backend python -m scripts.redefinir_senha <matricula-ou-cpf>
+
+# Acompanhar os logs / derrubar tudo (os dados do banco ficam no volume riourbe_db_data)
+docker compose logs -f backend
+docker compose down
+```
+
+Depois de mudar `requirements.txt` ou `package.json`, reconstrua com
+`docker compose up -d --build --renew-anon-volumes`. O `--renew-anon-volumes` importa para o
+frontend: o `node_modules` dele vive num volume anônimo que o Compose reaproveita ao recriar o
+container, e sem a opção as dependências novas não aparecem. Pelo mesmo motivo, não apague a
+pasta `frontend/node_modules` do computador com o container rodando — ela é o ponto de montagem
+desse volume.
+
 ### Acessando de outros computadores da mesma rede
 
 As portas do `backend` (`8000`) e do `frontend` (`5173`) já ficam expostas para toda a rede
@@ -184,7 +214,8 @@ isso, e quem recebe uma senha temporária é obrigado a trocá-la no primeiro ac
   python -m scripts.redefinir_senha <matricula-ou-cpf>
   ```
 
-  Localmente, o mesmo comando dentro de `backend/` com o virtualenv ativo. O script imprime a
+  Localmente, com o Docker: `docker compose exec backend python -m scripts.redefinir_senha
+  <matricula-ou-cpf>`. O script imprime a
   senha temporária no terminal, com o mesmo efeito do botão do administrador.
 
 Enquanto a senha temporária não é trocada, a API recusa qualquer rota com 403, exceto ver o
